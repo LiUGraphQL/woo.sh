@@ -14,10 +14,12 @@ def read_schema_file(filename):
     return schema
 
 def add_id_to_type(schema):
-    ID = GraphQLField(GraphQLNonNull(GraphQLScalarType("ID", lambda x: x)))
+    ID = GraphQLField(GraphQLNonNull(GraphQLScalarType('ID', lambda x: x)))
     for n, t in schema.type_map.items():
         if n not in introspection_types and is_object_type(t):
-            t.fields["id"] = ID
+            if 'ID' in t.fields or 'Id' in t.fields or 'id' in t.fields:
+                raise ValueError('IDs for types should only be defined by the system')
+            t.fields['ID'] = ID
 
     return schema
 

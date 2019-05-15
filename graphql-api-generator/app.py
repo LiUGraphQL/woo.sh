@@ -13,7 +13,7 @@ def add_id_to_type(input):
         raise ValueError('Expected input to be a schema or input file')
 
     schema = schema_extender.add_id_to_type(schema)
-    print(print_schema(schema))
+    #print(print_schema(schema))
 
     return schema
 

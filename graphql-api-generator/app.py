@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from graphql import GraphQLSchema
+from graphql import GraphQLSchema, print_schema
 
 from generator import schema_extender
 import configparser
@@ -11,6 +11,9 @@ def add_id_to_type(input):
         schema = input
     else:
         raise ValueError('Expected input to be a schema or input file')
+
+    schema = schema_extender.add_id_to_type(schema)
+    print(print_schema(schema))
 
     return schema
 

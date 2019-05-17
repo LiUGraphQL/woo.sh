@@ -1,0 +1,23 @@
+enum Episode { NEWHOPE, EMPIRE, JEDI }
+
+interface Character {
+  name: String!
+  friends: [Character]
+  appearsIn: [Episode!]!
+}
+
+type Human implements Character {
+  ID: ID!
+  name: String!
+  friends: [Character]
+  appearsIn: [Episode!]!
+  homePlanet: String
+}
+
+type Droid implements Character {
+  ID: ID!
+  name: String!
+  friends: [Character]
+  appearsIn: [Episode!]!
+  primaryFunction: String
+}

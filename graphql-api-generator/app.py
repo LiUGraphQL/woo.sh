@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from graphql import GraphQLSchema, print_schema
 
-from generator import schema_extender
+from generator import schema_extender, schema_api_generator
 import configparser
 
 
@@ -13,7 +13,7 @@ def add_id_to_type(data):
 
 def add_query_by_id(data):
     schema = to_schema(data)
-    schema = schema_extender.add_query_by_id(schema)
+    schema = schema_api_generator.add_query_by_id(schema)
     return schema
 
 

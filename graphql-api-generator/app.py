@@ -19,6 +19,7 @@ def add_query_by_id(data):
 
 def add_query_by_type(data):
     schema = to_schema(data)
+    schema = schema_api_generator.add_query_by_type(schema)
     return schema
 
 

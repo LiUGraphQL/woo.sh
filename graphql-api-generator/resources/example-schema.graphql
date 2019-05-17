@@ -17,8 +17,3 @@ type Droid implements Character {
     appearsIn: [Episode]
     primaryFunction: String
 }
-type Query {
-    hero(episode: Episode): Character
-    human(id: String!): Human
-    droid(id: String!): Droid
-}

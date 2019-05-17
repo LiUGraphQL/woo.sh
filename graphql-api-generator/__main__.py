@@ -2,7 +2,6 @@
 
 import app
 
-
 if __name__ == '__main__':
     config = app.load_config()
-    app.copy_file("resources/example-schema.graphql", "resources/dummy.txt")
+    schema = app.add_id_to_type('resources/example-schema.graphql')

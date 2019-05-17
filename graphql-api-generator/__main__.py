@@ -7,4 +7,5 @@ if __name__ == '__main__':
     schema = app.to_schema('resources/example-schema.graphql')
     schema = app.add_id_to_type(schema)
     schema = app.add_query_by_id(schema)
+    schema = app.add_query_by_type(schema)
     app.pprint(schema)

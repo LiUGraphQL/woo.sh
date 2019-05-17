@@ -49,17 +49,18 @@ def _test_add_id_to_type(schema_in, schema_out):
                 f"{id_key} of {name} must be of scalar type ID!"
 
 
-def test_add_id_to_type():
-    # 1: Should result in a pass iff the output types ALL have ID:ID! fields.
-    #    Designed to be case insensitive and enforce the NonNull property.
-    schema_in = schema_from_file("resources/test_schemas/sw_no_id.graphql")
-    schema_out = app.add_id_to_type(schema_in)
-    _test_add_id_to_type(schema_in, schema_out)
+if config.getboolean('MAIN', 'schema.typeId'):
+    def test_add_id_to_type():
+        # 1: Should result in a pass iff the output types ALL have ID:ID! fields.
+        #    Designed to be case insensitive and enforce the NonNull property.
+        schema_in = schema_from_file("resources/test_schemas/sw_no_id.graphql")
+        schema_out = app.add_id_to_type(schema_in)
+        _test_add_id_to_type(schema_in, schema_out)
 
 
-def test_add_id_already_exists():
-    # 2: Should result in a fail if *any* inputs already have 'ID', 'Id', 'id'
-    assert_fail(
-        lambda: app.add_id_to_type("resources/test_schemas/sw_with_id.graphql"),
-        ValueError,
-        "Add ID to type should not allow an ID field in the input.")
+    def test_add_id_already_exists():
+        # 2: Should result in a fail if *any* inputs already have 'ID', 'Id', 'id'
+        assert_fail(
+            lambda: app.add_id_to_type("resources/test_schemas/sw_with_id.graphql"),
+            ValueError,
+            "Add ID to type should not allow an ID field in the input.")

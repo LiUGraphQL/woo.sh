@@ -60,26 +60,27 @@ def _test_add_query_by_id(schema_in, schema_out):
     for name, cls in schema_in.type_map.items():
         if name[0:2] != '__' and isinstance(cls, GraphQLObjectType) and name not in excluded_names:
             # Assert one query for every user-defined type
-            assert name in query.fields, \
-                f"Did not find query for type {name} by ID!"
+            qname = name[0].lower() + name[1:]
+            assert qname in query.fields, \
+                f"Did not find query for type {name} (as {qname}) by ID!"
             # Assert query by ID only (Human(ID: ID!): Human)
-            field = query.fields[name]
+            field = query.fields[qname]
             argkeys = [k.lower() for k in field.args.keys()]
             assert 'id' in argkeys,\
-                f"Type {name} in query does not contain an ID field (case-insensitive)!"
+                f"Type {qname} in query does not contain an ID field (case-insensitive)!"
             assert argkeys.count('id') == 1,\
-                f"Type {name} in query contains multiple ID fields!"
+                f"Type {qname} in query contains multiple ID fields!"
             id_key = next(key for key in field.args.keys() if key.lower() == 'id')
             # Assert query by ID is mandatory.
             id_field = field.args[id_key]
             assert isinstance(id_field, GraphQLArgument), \
-                f"Query ID field for {name} is not an argument, got {type(id_key)}"
+                f"Query ID field for {qname} is not an argument, got {type(id_key)}"
             assert isinstance(id_field.type, GraphQLNonNull), \
-                f"Query ID field for {name} must be non-null!"
+                f"Query ID field for {qname} must be non-null!"
             assert isinstance(id_field.type.of_type, GraphQLScalarType), \
-                f"Query ID field for {name} must be of type ID!"
+                f"Query ID field for {qname} must be of type ID!"
             assert id_field.type.of_type.name.lower() == 'id', \
-                f"Query ID field for {name} must be of type ID!"
+                f"Query ID field for {qname} must be of type ID!"
             # Assert query by ID returns the correct type.
             assert field.type == schema_out.type_map[name], \
                 f"Query for {name} by ID must return {name}!"

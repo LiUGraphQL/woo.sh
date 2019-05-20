@@ -28,6 +28,6 @@ type Human implements Character {
 }
 
 type Query {
-  Human(ID: ID!): Human
-  Droid(ID: ID!): Droid
+  human(ID: ID!): Human
+  droid(ID: ID!): Droid
 }

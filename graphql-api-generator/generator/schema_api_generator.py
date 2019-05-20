@@ -16,6 +16,7 @@ def add_query_by_id(schema):
             query.fields[n[0].lower() + n[1:]] = field;
 
     schema.type_map['Query'] = query
+    schema.query_type = query
     return schema
 
 

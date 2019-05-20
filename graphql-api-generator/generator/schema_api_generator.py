@@ -13,9 +13,10 @@ def add_query_by_id(schema):
     for n, t in schema.type_map.items():
         if n not in introspection_types and is_object_type(t):
             field = GraphQLField(t, { 'ID': ID })
-            query.fields[n] = field;
+            query.fields[n] = field
 
     schema.type_map['Query'] = query
+    schema.query_type = query
     return schema
 
 

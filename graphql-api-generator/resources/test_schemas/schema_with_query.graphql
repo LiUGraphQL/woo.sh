@@ -1,0 +1,33 @@
+interface Character {
+  id: String!
+  name: String
+  friends: [Character]
+  appearsIn: [Episode]
+}
+
+type Droid implements Character {
+  ID: ID!
+  name: String
+  friends: [Character]
+  appearsIn: [Episode]
+  primaryFunction: String
+}
+
+enum Episode {
+  NEWHOPE
+  EMPIRE
+  JEDI
+}
+
+type Human implements Character {
+  ID: ID!
+  name: String
+  friends: [Character]
+  appearsIn: [Episode]
+  homePlanet: String
+}
+
+type Query {
+  Human(ID: ID!): Human
+  Droid(ID: ID!): Droid
+}

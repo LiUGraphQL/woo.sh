@@ -8,4 +8,6 @@ if __name__ == '__main__':
     schema = app.add_id_to_type(schema)
     schema = app.add_query_by_id(schema)
     schema = app.add_query_by_type(schema)
+    schema = app.add_input_to_create_objects(schema)
+    schema = app.add_mutation_for_creating_objects(schema)
     app.pprint(schema)

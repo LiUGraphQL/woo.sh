@@ -5,7 +5,7 @@ import re
 import app
 from graphql import build_schema, print_schema, GraphQLObjectType, GraphQLNonNull, GraphQLField, GraphQLScalarType, \
     GraphQLArgument, introspection_types
-
+from graphql.pyutils import inspect
 # We're one level down, move up.
 # print(os.getcwd())
 os.chdir('..')
@@ -101,41 +101,47 @@ def _test_add_query_by_type(schema_in, schema_out):
     list_of = re.compile(r'^ListOf(.+?)s$')
     for name, cls in schema_in.type_map.items():
         if is_modifiable_type(name, cls):
-            qname = f'ListOf{name}s'
-            # Assert that all user-defined types also have a ListOf{}s type defined
-            assert qname in schema_out.type_map
-            rematch = re.match(list_of, name)
-            if rematch:
-                assert len(rematch.regs) == 2, \
-                    f"Internal error parsing {name} to the ListOf...s format."
-                inner_match = name[rematch.regs[1][0]:rematch.regs[1][1]]
-                assert inner_match in schema_out.type_map, \
-                    f"Could not find type {inner_match} in schema specified by {name}."
+            list_of_name = f'ListOf{name}s'
+            # Assert that all user-defined types also have a listOf{}s type defined
+            assert list_of_name in schema_out.type_map, \
+                f"Did not find corresponding ListOf{name}s type for {name}!"
+            list_type = schema_out.type_map[list_of_name]
+            wanted_fields = ['totalCount', 'isEndOfWholeList', 'content']
+            wanted_types = ['Int', 'Boolean', f'[{name}]']
+            # The following *only* checks to see if all desired fields are in the target.
+            # It does not enforce that these are the only fields in the target.
+            un_matches = [f for f in wanted_fields if f not in list_type.fields]
+            assert len(un_matches) == 0, \
+                f"Type {list_of_name} is missing one or more of its required fields: {un_matches}"
+            actual_types = [list_type.fields[f].type for f in wanted_fields]
+            un_type_matches = [t == inspect(t_) for t, t_ in zip(wanted_types, actual_types)]
+            nl = '\n'
+            assert all(un_type_matches), f"The following fields had the wrong type for Type {list_of_name}:\n" \
+                f"{nl.join([f'Field {f} expected Type {t} but got Type {inspect(t_)}' for f, t, t_ in zip(wanted_fields, wanted_types, actual_types) if t != inspect(t_)])}"
+            query_type_name = f'listOf{name}s'
             # Assert one query for every user-defined type
-            assert qname in query.fields, \
-                f"Did not find {qname} query for type {name}!"
+            assert query_type_name in query.fields, \
+                f"Did not find {query_type_name} query for type {name}!"
             # Ensure that the query fits the correct argument template:
             # ListOfThings(first:Int, after: ID): ListOfThings
-            field = query.fields[qname]
+            field = query.fields[query_type_name]
             argkeys = list(field.args.keys())
             assert len(argkeys) == 2, \
-                f"Signature of the query '{qname}' should have 2 arguments, instead has {len(argkeys)}"
+                f"Signature of the query '{query_type_name}' should have 2 arguments, instead has {len(argkeys)}"
             needed_fields = ['first', 'after']
             field_types = ['Int', 'ID']
 
             for f, t in zip(needed_fields, field_types):
                 assert f in argkeys,\
-                    f"The {qname} query does not contain the field '{f}'!"
+                    f"The {query_type_name} query does not contain the field '{f}'!"
                 f_args = field.args[f]
                 assert isinstance(f_args, GraphQLArgument), \
-                    f"Field '{f}' for {qname} is not an argument, got {type(f_args)}"
-                assert isinstance(f_args.type, GraphQLScalarType), \
-                    f"Field '{f}' for {qname} must be of type {t}!"
-                assert f_args.type.name == t, \
-                    f"Field '{f}' for {qname} must be of type {t}!"
+                    f"Field '{f}' for {query_type_name} is not an argument, got {type(f_args)}"
+                assert inspect(f_args.type) == t, \
+                    f"Field '{f}' for {query_type_name} must be of type {t}!"
             # Assert query by type returns the correct list type.
-            assert field.type == schema_out.type_map[qname], \
-                f"The {qname} query must return {qname}!"
+            assert field.type == schema_out.type_map[list_of_name], \
+                f"The {query_type_name} query must return {list_of_name}!"
 
 
 if config.getboolean('MAIN', 'schema.typeId'):
@@ -154,7 +160,7 @@ if config.getboolean('MAIN', 'schema.typeId'):
 
 
     def test_add_id_already_exists():
-        # 2: Should result in a fail if *any* inputs already have 'ID', 'Id', 'id'
+        # Should result in a fail if *any* inputs already have 'ID', 'Id', 'id'
         assert_fail(
             lambda: app.add_id_to_type("resources/test_schemas/sw_with_id.graphql"),
             ValueError,
@@ -196,9 +202,9 @@ if config.getboolean('MAIN', 'schema.makeQuery'):
             # Read the 'in' schema, since otherwise it will have ListOf...s defined and fail the tests.
             schema_in = schema_from_file("tmp_in.graphql")
             # Test purely with the object we've been manipulating
-            _test_add_query_by_type(schema_in, schema_out)
             with open('tmp_out.graphql', 'w') as outfile:
                 outfile.write(print_schema(schema_out))
+            _test_add_query_by_type(schema_in, schema_out)
             schema_out = schema_from_file("tmp_out.graphql")
             # Now test by printing to file and reading from that file.
             _test_add_query_by_type(schema_in, schema_out)

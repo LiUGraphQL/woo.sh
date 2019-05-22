@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import os
+import re
+
 import app
 from graphql import build_schema, print_schema, GraphQLObjectType, GraphQLNonNull, GraphQLField, GraphQLScalarType, \
     GraphQLArgument, introspection_types
@@ -91,6 +93,51 @@ def _test_add_query_by_id(schema_in, schema_out):
                 f"Query for {name} by ID must return {name}!"
 
 
+def _test_add_query_by_type(schema_in, schema_out):
+    # Assert query type exists.
+    assert schema_out.query_type is not None, "No Query type found!"
+    assert schema_out.query_type.name == 'Query', "Query type isn't of type Query?"
+    query = schema_out.query_type
+    list_of = re.compile(r'^ListOf(.+?)s$')
+    for name, cls in schema_in.type_map.items():
+        if is_modifiable_type(name, cls):
+            qname = f'ListOf{name}s'
+            # Assert that all user-defined types also have a ListOf{}s type defined
+            assert qname in schema_out.type_map
+            rematch = re.match(list_of, name)
+            if rematch:
+                assert len(rematch.regs) == 2, \
+                    f"Internal error parsing {name} to the ListOf...s format."
+                inner_match = name[rematch.regs[1][0]:rematch.regs[1][1]]
+                assert inner_match in schema_out.type_map, \
+                    f"Could not find type {inner_match} in schema specified by {name}."
+            # Assert one query for every user-defined type
+            assert qname in query.fields, \
+                f"Did not find {qname} query for type {name}!"
+            # Ensure that the query fits the correct argument template:
+            # ListOfThings(first:Int, after: ID): ListOfThings
+            field = query.fields[qname]
+            argkeys = list(field.args.keys())
+            assert len(argkeys) == 2, \
+                f"Signature of the query '{qname}' should have 2 arguments, instead has {len(argkeys)}"
+            needed_fields = ['first', 'after']
+            field_types = ['Int', 'ID']
+
+            for f, t in zip(needed_fields, field_types):
+                assert f in argkeys,\
+                    f"The {qname} query does not contain the field '{f}'!"
+                f_args = field.args[f]
+                assert isinstance(f_args, GraphQLArgument), \
+                    f"Field '{f}' for {qname} is not an argument, got {type(f_args)}"
+                assert isinstance(f_args.type, GraphQLScalarType), \
+                    f"Field '{f}' for {qname} must be of type {t}!"
+                assert f_args.type.name == t, \
+                    f"Field '{f}' for {qname} must be of type {t}!"
+            # Assert query by type returns the correct list type.
+            assert field.type == schema_out.type_map[qname], \
+                f"The {qname} query must return {qname}!"
+
+
 if config.getboolean('MAIN', 'schema.typeId'):
     def test_add_id_to_type():
         # 1: Should result in a pass iff the output types ALL have ID:ID! fields.
@@ -135,4 +182,26 @@ if config.getboolean('MAIN', 'schema.makeQuery'):
             # Now test by printing to file and reading from that file.
             _test_add_query_by_id(schema_in, schema_out)
             os.remove('tmp.graphql')
+            pass
+
+    if config.getboolean('QUERY', 'api.query.queryByType'):
+        def test_add_query_by_type():
+            schema_in = schema_from_file("resources/test_schemas/sw_no_id.graphql")
+            schema_in = app.add_id_to_type(schema_in)
+            schema_in = app.add_query_by_id(schema_in)
+            # Write the 'in' schema so it can be modified...
+            with open('tmp_in.graphql', 'w') as outfile:
+                outfile.write(print_schema(schema_in))
+            schema_out = app.add_query_by_type(schema_in)
+            # Read the 'in' schema, since otherwise it will have ListOf...s defined and fail the tests.
+            schema_in = schema_from_file("tmp_in.graphql")
+            # Test purely with the object we've been manipulating
+            _test_add_query_by_type(schema_in, schema_out)
+            with open('tmp_out.graphql', 'w') as outfile:
+                outfile.write(print_schema(schema_out))
+            schema_out = schema_from_file("tmp_out.graphql")
+            # Now test by printing to file and reading from that file.
+            _test_add_query_by_type(schema_in, schema_out)
+            os.remove('tmp_in.graphql')
+            os.remove('tmp_out.graphql')
             pass

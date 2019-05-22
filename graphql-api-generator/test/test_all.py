@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 import os
 import app
-from graphql import build_schema, print_schema, GraphQLObjectType, GraphQLNonNull, GraphQLField, GraphQLScalarType, GraphQLArgument
+from graphql import build_schema, print_schema, GraphQLObjectType, GraphQLNonNull, GraphQLField, GraphQLScalarType, \
+    GraphQLArgument, introspection_types
 
 # We're one level down, move up.
 # print(os.getcwd())
 os.chdir('..')
 config = app.load_config()
 
-excluded_names = ['Query', 'Mutation']
+excluded_names = list(introspection_types.keys()) + ['Query', 'Mutation']
+
+
+def is_modifiable_type(name, cls):
+    return name not in excluded_names and isinstance(cls, GraphQLObjectType)
 
 
 def schema_from_file(schema_file):
@@ -28,7 +33,7 @@ def assert_fail(condition, throwable, error_text):
 
 def _test_add_id_to_type(schema_in, schema_out):
     for name, cls in schema_in.type_map.items():
-        if name[0:2] != '__' and isinstance(cls, GraphQLObjectType) and name not in excluded_names:
+        if is_modifiable_type(name, cls):
             # print("::", name)
             assert name in schema_out.type_map,\
                 f"All user-defined types must be in the output! Missing {name}."
@@ -55,21 +60,21 @@ def _test_add_id_to_type(schema_in, schema_out):
 def _test_add_query_by_id(schema_in, schema_out):
     # Assert query type exists.
     assert schema_out.query_type is not None, "No Query type found!"
-    assert schema_out.query_type.name == 'Query', "Query type isn't a Query type?"
+    assert schema_out.query_type.name == 'Query', "Query type isn't of type Query?"
     query = schema_out.query_type
     for name, cls in schema_in.type_map.items():
-        if name[0:2] != '__' and isinstance(cls, GraphQLObjectType) and name not in excluded_names:
+        if is_modifiable_type(name, cls):
             # Assert one query for every user-defined type
             qname = name[0].lower() + name[1:]
             assert qname in query.fields, \
                 f"Did not find query for type {name} (as {qname}) by ID!"
             # Assert query by ID only (Human(ID: ID!): Human)
             field = query.fields[qname]
+            assert len(field.args.keys()) == 1, \
+                f"Type {qname} in query must only take an ID!"
             argkeys = [k.lower() for k in field.args.keys()]
             assert 'id' in argkeys,\
                 f"Type {qname} in query does not contain an ID field (case-insensitive)!"
-            assert argkeys.count('id') == 1,\
-                f"Type {qname} in query contains multiple ID fields!"
             id_key = next(key for key in field.args.keys() if key.lower() == 'id')
             # Assert query by ID is mandatory.
             id_field = field.args[id_key]
@@ -79,7 +84,7 @@ def _test_add_query_by_id(schema_in, schema_out):
                 f"Query ID field for {qname} must be non-null!"
             assert isinstance(id_field.type.of_type, GraphQLScalarType), \
                 f"Query ID field for {qname} must be of type ID!"
-            assert id_field.type.of_type.name.lower() == 'id', \
+            assert id_field.type.of_type.name == 'ID', \
                 f"Query ID field for {qname} must be of type ID!"
             # Assert query by ID returns the correct type.
             assert field.type == schema_out.type_map[name], \
@@ -113,7 +118,7 @@ if config.getboolean('MAIN', 'schema.makeQuery'):
     def test_add_query_already_exists():
         # Should result in a fail if there is a Query type in the schema already
         assert_fail(
-            lambda: app.add_id_to_type("resources/test_schemas/schema_with_query.graphql"),
+            lambda: app.add_query_by_id("resources/test_schemas/schema_with_query.graphql"),
             ValueError,
             "A Query type is not allowed in the input file!")
 

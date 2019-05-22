@@ -23,13 +23,15 @@ def add_query_by_type(data):
     return schema
 
 
-def add_input_types_to_create_objects(data):
+def add_input_to_create_objects(data):
     schema = to_schema(data)
+    schema = schema_extender.add_input_to_create_objects(schema)
     return schema
 
 
 def add_mutation_for_creating_objects(data):
     schema = to_schema(data)
+    schema = schema_api_generator.add_mutation_for_creating_objects(schema)
     return schema
 
 

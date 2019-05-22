@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from graphql import GraphQLObjectType, GraphQLNonNull, GraphQLArgument, GraphQLScalarType, is_object_type, \
-    introspection_types, GraphQLField, GraphQLList
+    introspection_types, GraphQLField, GraphQLList, GraphQLInputObjectType
 
 
 def add_query_by_id(schema):
@@ -21,14 +21,18 @@ def add_query_by_id(schema):
 
 
 def add_query_by_type(schema):
+    if 'Query' not in schema.type_map:
+        schema.type_map['Query'] = GraphQLObjectType('Query', {})
+    query = schema.type_map['Query']
+
     # create list types
-    ID = GraphQLField(GraphQLNonNull(GraphQLScalarType('ID', lambda x: x)))
     total_count = GraphQLField(GraphQLScalarType('Int', lambda x: x))
     is_end_of_whole_list = GraphQLField(GraphQLScalarType('Boolean', lambda x: x))
     types = {}
     for n, t in schema.type_map.items():
         if n not in introspection_types and is_object_type(t):
-            if n is 'Query': continue
+            if n is 'Query' or n is 'Mutation':
+                continue
             content = GraphQLField(GraphQLList(GraphQLScalarType(n, lambda x: x)))
             name = 'ListOf{0}s'.format(n)
             type = GraphQLObjectType(name, {})
@@ -42,12 +46,38 @@ def add_query_by_type(schema):
         schema.type_map[n] = t
 
     # add queries for list types
-    query = schema.type_map['Query']
     after = GraphQLArgument(GraphQLScalarType('ID', lambda x: x))
     first = GraphQLArgument(GraphQLScalarType('Int', lambda x: x))
     for n, t in types.items():
         field = GraphQLField(t, {'first': first, 'after': after})
-        query.fields[n] = field
+        query.fields[n[0].lower() + n[1:]] = field
+
+    return schema
+
+
+def add_mutation_for_creating_objects(schema):
+    if 'Mutation' not in schema.type_map:
+        schema.type_map['Mutation'] = GraphQLObjectType('Mutation', {})
+    mutation = schema.type_map['Mutation']
+
+    input_prefix = 'DataToCreate'
+    mutation_prefix = 'create'
+
+    for input_name, input_type in schema.type_map.items():
+        if not isinstance(input_type, GraphQLInputObjectType):
+            continue
+
+        # output
+        name = input_name.split(input_prefix)[1]
+        mutation_name = mutation_prefix + name
+        output_type = schema.type_map[name]
+
+        field = GraphQLObjectType(name, {})
+        field.fields[input_name] = input_type
+
+        # add mutation
+        field = GraphQLField(output_type, {'data': input_type})
+        mutation.fields[mutation_name] = field
 
     return schema
 

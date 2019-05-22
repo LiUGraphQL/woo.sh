@@ -1,19 +1,7 @@
-enum Episode { NEWHOPE, EMPIRE, JEDI }
-interface Character {
-    id: String!
-    name: String
-    friends: [Character]
-    appearsIn: [Episode]
-}
-type Human implements Character {
-    name: String
-    friends: [Character]
-    appearsIn: [Episode]
-    homePlanet: String
-}
-type Droid implements Character {
-    name: String
-    friends: [Character]
-    appearsIn: [Episode]
-    primaryFunction: String
+type Investigation {
+    userID: ID!
+    title: String!
+    description: String!
+    caseNumber: String!
+    hide: Boolean
 }

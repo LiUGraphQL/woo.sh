@@ -39,7 +39,6 @@ def add_input_to_create_objects(schema):
         elif n.startswith('ListOf'):
             continue
 
-        print(n)
         schema = add_input_to_create_object(n, t, schema)
 
     return schema

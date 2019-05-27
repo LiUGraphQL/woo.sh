@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
+from ctypes import cast
 
-from graphql import build_schema, introspection_types, is_object_type, GraphQLField, GraphQLScalarType, GraphQLNonNull,\
-    GraphQLInputField, GraphQLInputObjectType
+from graphql import build_schema, introspection_types, is_object_type, GraphQLField, GraphQLScalarType, GraphQLNonNull, \
+    GraphQLInputField, GraphQLInputObjectType, is_scalar_type, get_nullable_type, is_list_type, is_nullable_type, \
+    is_wrapping_type, get_named_type, GraphQLInputType, GraphQLWrappingType, is_non_null_type, GraphQLList
 
+from graphql import graphql, parse, build_ast_schema
+
+import copy
 
 def read_schema_file(filename):
     with open(filename, 'r', encoding='utf8') as s_file:
@@ -23,32 +28,82 @@ def add_id_to_type(schema):
 
 
 def add_input_to_create_objects(schema):
+    types = dict(schema.type_map).items()
+    for n, t in types:
+        if n in introspection_types:
+            continue
+        elif not is_object_type(t):
+            continue
+        elif n in ['Query', 'Mutation']:
+            continue
+        elif n.startswith('ListOf'):
+            continue
+
+        print(n)
+        schema = add_input_to_create_object(n, t, schema)
+
+    return schema
+
+
+def sub_wrapped_type(wrapped_type, i):
+    # This works for Type, Type!, [Type], [Type]!, or [Type!]
+    wrapped_type, outer_nonnull = unwrap_one_layer(wrapped_type, GraphQLNonNull)
+    wrapped_type, outer_list = unwrap_one_layer(wrapped_type, GraphQLList)
+    wrapped_type, inner_nonnull = unwrap_one_layer(wrapped_type, GraphQLNonNull)
+
+    if inner_nonnull:
+        i = GraphQLNonNull(i)
+    if outer_list:
+        i = GraphQLList(i)
+    if outer_nonnull:
+        i = GraphQLNonNull(i)
+
+    if isinstance(wrapped_type, GraphQLWrappingType):
+        raise Exception('Exception: Multiple layers of nesting are not supported')
+
+    return i
+
+
+def unwrap_one_layer(wrapped_type, wrapper_type):
+    if wrapper_type is GraphQLNonNull:
+        if not is_non_null_type(wrapped_type):
+            return wrapped_type, False
+        else:
+            return get_nullable_type(wrapped_type), True
+    elif wrapper_type is GraphQLList:
+        if not is_list_type(wrapped_type):
+            return wrapped_type, False
+        else:
+            return wrapped_type.of_type, True
+
+
+def add_input_to_create_object(n, t, schema):
     input_prefix = 'DataToCreate'
-    input_objects = {}
-    for n, t in schema.type_map.items():
-        if n not in introspection_types and is_object_type(t):
-            if n is 'Query' or n is 'Mutation':
-                continue
+    input_fields = {}
 
-            # Skip 'ListOf'
-            if n.startswith('ListOf'):
-                continue
+    for field_name, field in t.fields.items():
+        if is_scalar_type(get_named_type(field.type)):
+            field_type = GraphQLInputField(field.type)
+        else:
+            # if object type, make sure the underlying object exists
+            field_type_name = input_prefix + get_named_type(field.type).name
 
-            input_fields = {}
-            for field_name, field in t.fields.items():
-                input_fields[field_name] = GraphQLInputField(field.type)
+            if field_type_name in schema.type_map:
+                field_type = schema.type_map[field_type_name]
+            else:
+                i = GraphQLInputObjectType(field_type_name, {})
+                field_type = sub_wrapped_type(field.type, i)
 
-            name = input_prefix + n
-            input_objects[name] = GraphQLInputObjectType(name, input_fields)
+        input_fields[field_name] = field_type
 
-    for n, t in input_objects.items():
-        schema.type_map[n] = t
+    name = input_prefix + n
+    schema.type_map[name] = GraphQLInputObjectType(name, input_fields)
 
     return schema
 
 
 def insert(field_name, field, fields):
-    new_fields = {field_name : field}
+    new_fields = {field_name: field}
     for n, f in fields.items():
         new_fields[n] = f
     return new_fields

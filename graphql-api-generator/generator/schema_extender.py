@@ -76,6 +76,8 @@ def unwrap_one_layer(wrapped_type, wrapper_type):
 def add_input_to_create_object(n, t, schema):
     input_fields = {}
     for field_name, field in t.fields.items():
+        if field_name is 'id':
+            continue
         if is_scalar_type(get_named_type(field.type)) or isinstance(get_named_type(field.type), GraphQLEnumType):
             field_type = GraphQLInputField(field.type)
         else:

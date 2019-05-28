@@ -12,8 +12,8 @@ def add_query_by_id(schema):
     ID = GraphQLArgument(GraphQLNonNull(GraphQLScalarType('ID', lambda x: x)))
     for n, t in schema.type_map.items():
         if n not in introspection_types and is_object_type(t):
-            field = GraphQLField(t, {'ID': ID})
-            query.fields[n[0].lower() + n[1:]] = field;
+            field = GraphQLField(t, {'id': ID})
+            query.fields[lower(n)] = field;
 
     schema.type_map['Query'] = query
     schema.query_type = query
@@ -34,7 +34,7 @@ def add_query_by_type(schema):
             if n is 'Query' or n is 'Mutation':
                 continue
             content = GraphQLField(GraphQLList(GraphQLScalarType(n, lambda x: x)))
-            name = 'ListOf{0}s'.format(n)
+            name = 'ListOf{0}s'.format(upper(n))
             type = GraphQLObjectType(name, {})
             type.fields['totalCount'] = total_count
             type.fields['isEndOfWholeList'] = is_end_of_whole_list
@@ -50,7 +50,7 @@ def add_query_by_type(schema):
     first = GraphQLArgument(GraphQLScalarType('Int', lambda x: x))
     for n, t in types.items():
         field = GraphQLField(t, {'first': first, 'after': after})
-        query.fields[n[0].lower() + n[1:]] = field
+        query.fields[lower(n)] = field
 
     return schema
 
@@ -60,24 +60,17 @@ def add_mutation_for_creating_objects(schema):
         schema.type_map['Mutation'] = GraphQLObjectType('Mutation', {})
     mutation = schema.type_map['Mutation']
 
-    input_prefix = 'DataToCreate'
-    mutation_prefix = 'create'
-
-    for input_name, input_type in schema.type_map.items():
-        if not isinstance(input_type, GraphQLInputObjectType):
+    for n, t in schema.type_map.items():
+        if n in introspection_types or \
+                not is_object_type(t) or \
+                n in ['Query', 'Mutation'] or \
+                n.startswith('ListOf'):
             continue
 
-        # output
-        name = input_name.split(input_prefix)[1]
-        mutation_name = mutation_prefix + name
-        output_type = schema.type_map[name]
-
-        field = GraphQLObjectType(name, {})
-        field.fields[input_name] = input_type
-
-        # add mutation
-        field = GraphQLField(output_type, {'data': input_type})
-        mutation.fields[mutation_name] = field
+        mutation_name = 'create' + upper(n)
+        input_type = schema.type_map['DataToCreate' + upper(n)]
+        field = GraphQLField(t, {'data': input_type})
+        mutation.fields[lower(mutation_name)] = field
 
     return schema
 
@@ -87,3 +80,10 @@ def insert(field_name, field, fields):
     for n, f in fields.items():
         new_fields[n] = f
     return new_fields
+
+
+def upper(word):
+    return word[0].upper() + word[1:]
+
+def lower(word):
+    return word[0].lower() + word[1:]

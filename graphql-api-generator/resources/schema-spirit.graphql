@@ -134,7 +134,7 @@ interface Job {
     Investigation: Investigation!
 }
 
-type CrawlingJob implements Job{
+type CrawlingJob implements Job {
     JobTiming: JobTiming!
     ContentIntakeRules: [CrawlingRule!]!
     Investigation: Investigation!

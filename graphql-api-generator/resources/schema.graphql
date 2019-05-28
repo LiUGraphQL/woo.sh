@@ -1,4 +1,9 @@
 type Person {
     name: String
     age: Int
+    dog: [SmallDog]
+}
+
+type SmallDog {
+    name: String
 }

@@ -143,12 +143,14 @@ def _test_add_query_by_type(schema_in, schema_out):
             assert field.type == schema_out.type_map[list_of_name], \
                 f"The {query_type_name} query must return {list_of_name}!"
 
+# test_file_path = 'resources/test_schemas/sw_no_id.graphql'
+test_file_path = 'resources/schema-spirit.graphql'
 
 if config.getboolean('MAIN', 'schema.typeId'):
     def test_add_id_to_type():
         # 1: Should result in a pass iff the output types ALL have ID:ID! fields.
         #    Designed to be case insensitive and enforce the NonNull property.
-        schema_in = schema_from_file("resources/test_schemas/sw_no_id.graphql")
+        schema_in = schema_from_file(test_file_path)
         schema_out = app.add_id_to_type(schema_in)
         _test_add_id_to_type(schema_in, schema_out)
         with open('tmp.graphql', 'w') as outfile:
@@ -177,7 +179,7 @@ if config.getboolean('MAIN', 'schema.makeQuery'):
 
     if config.getboolean('QUERY', 'api.query.queryById'):
         def test_add_query_by_id():
-            schema_in = schema_from_file("resources/test_schemas/sw_no_id.graphql")
+            schema_in = schema_from_file(test_file_path)
             schema_in = app.add_id_to_type(schema_in)
             schema_out = app.add_query_by_id(schema_in)
             # Test purely with the objects we've been manipulating
@@ -192,7 +194,7 @@ if config.getboolean('MAIN', 'schema.makeQuery'):
 
     if config.getboolean('QUERY', 'api.query.queryByType'):
         def test_add_query_by_type():
-            schema_in = schema_from_file("resources/test_schemas/sw_no_id.graphql")
+            schema_in = schema_from_file(test_file_path)
             schema_in = app.add_id_to_type(schema_in)
             schema_in = app.add_query_by_id(schema_in)
             # Write the 'in' schema so it can be modified...

@@ -4,18 +4,38 @@ import re
 
 import app
 from graphql import build_schema, print_schema, GraphQLObjectType, GraphQLNonNull, GraphQLField, GraphQLScalarType, \
-    GraphQLArgument, introspection_types
+    GraphQLArgument, GraphQLInputType, introspection_types, GraphQLInputObjectType, is_interface_type, get_named_type, \
+    is_non_null_type, is_scalar_type, is_enum_type
 from graphql.pyutils import inspect
 # We're one level down, move up.
 # print(os.getcwd())
+from schema_extender import upper
+
 os.chdir('..')
 config = app.load_config()
 
 excluded_names = list(introspection_types.keys()) + ['Query', 'Mutation']
-
+input_type_interface_fields = False
 
 def is_modifiable_type(name, cls):
     return name not in excluded_names and isinstance(cls, GraphQLObjectType)
+
+
+def is_inputtable_type(name, cls):
+    return is_modifiable_type(name, cls) and not name.startswith('ListOf')
+
+
+def is_field_interface_type(field):
+    return is_interface_type(get_named_type(field.type))
+
+
+def is_field_scalar_or_enum_type(field):
+    named_type = get_named_type(field.type)
+    return is_scalar_type(named_type) or is_enum_type(named_type)
+
+
+def get_field_base_type_string(field):
+    return inspect(get_named_type(field.type))
 
 
 def schema_from_file(schema_file):
@@ -98,7 +118,6 @@ def _test_add_query_by_type(schema_in, schema_out):
     assert schema_out.query_type is not None, "No Query type found!"
     assert schema_out.query_type.name == 'Query', "Query type isn't of type Query?"
     query = schema_out.query_type
-    list_of = re.compile(r'^ListOf(.+?)s$')
     for name, cls in schema_in.type_map.items():
         if is_modifiable_type(name, cls):
             list_of_name = f'ListOf{name}s'
@@ -143,8 +162,48 @@ def _test_add_query_by_type(schema_in, schema_out):
             assert field.type == schema_out.type_map[list_of_name], \
                 f"The {query_type_name} query must return {list_of_name}!"
 
+
+def _test_add_input_to_create_objects(schema_in, schema_out):
+    for name, cls in schema_in.type_map.items():
+        # For every valid object in the input schema
+        if is_inputtable_type(name, cls):
+            # We want to find a corresponding output type in the output schema.
+            data_create = f'DataToCreate{name}'
+            assert data_create in schema_out.type_map
+            data_to = schema_out.type_map[data_create]
+            # Assert that it's an input type
+            assert isinstance(data_to, GraphQLInputObjectType)
+            # Assert that it has all the fields
+            for field in cls.fields:
+                if field.lower() != 'id':
+                    # Todo: Change this when we can handle interface fields.
+                    if input_type_interface_fields or not is_field_interface_type(cls.fields[field]):
+                        assert field in data_to.fields
+                        expected_type = inspect(cls.fields[field].type)
+                        out_type = inspect(data_to.fields[field].type)
+                        # If the field type is a scalar:
+                        if is_field_scalar_or_enum_type(cls.fields[field]):
+                            assert expected_type == out_type,\
+                                f'Scalar types did not match! Expected {expected_type} but got {out_type}'
+                        # If the field type is a Type:
+                        else:
+                            # print('Special.')
+                            base_type = get_field_base_type_string(cls.fields[field])
+                            # print("Extracted", base_type)
+                            expected_type = expected_type.replace(base_type, f'DataToConnect{upper(field)}Of{name}')
+                            assert expected_type == out_type,\
+                                'Types did not match! Expected {expected_type} but got {out_type}'
+                            # TODO: Assert that the DataToConnect types all exist and have the fields they need to...
+    pass
+
+
+def _test_add_mutation_for_creating_objects(schema_in, schema_out):
+    pass
+
+
 # test_file_path = 'resources/test_schemas/sw_no_id.graphql'
 test_file_path = 'resources/schema-spirit.graphql'
+
 
 if config.getboolean('MAIN', 'schema.typeId'):
     def test_add_id_to_type():
@@ -212,4 +271,30 @@ if config.getboolean('MAIN', 'schema.makeQuery'):
             _test_add_query_by_type(schema_in, schema_out)
             os.remove('tmp_in.graphql')
             os.remove('tmp_out.graphql')
-            pass
+
+
+if config.getboolean('MAIN', 'schema.makeMutation'):
+    if config.getboolean('MUTATION', 'api.mutation.inputToCreateObject'):
+        def test_input_types_to_create_objects():
+            schema_in = schema_from_file(test_file_path)
+            schema_in = app.add_id_to_type(schema_in)
+            schema_in = app.add_query_by_id(schema_in)
+            schema_in = app.add_query_by_type(schema_in)
+            # Write the 'in' schema so it can be modified...
+            with open('tmp_in.graphql', 'w') as outfile:
+                outfile.write(print_schema(schema_in))
+            schema_out = app.add_mutation_for_creating_objects(app.add_input_to_create_objects(schema_in))
+            # Read the 'in' schema, since the in-memory version is probably modified indirectly.
+            schema_in = schema_from_file("tmp_in.graphql")
+            # Test purely with the object we've been manipulating
+            with open('tmp_out.graphql', 'w') as outfile:
+                outfile.write(print_schema(schema_out))
+            _test_add_input_to_create_objects(schema_in, schema_out)
+            _test_add_mutation_for_creating_objects(schema_in, schema_out)
+            schema_out = schema_from_file("tmp_out.graphql")
+            # Now test by printing to file and reading from that file.
+            _test_add_input_to_create_objects(schema_in, schema_out)
+            _test_add_mutation_for_creating_objects(schema_in, schema_out)
+            os.remove('tmp_in.graphql')
+            os.remove('tmp_out.graphql')
+

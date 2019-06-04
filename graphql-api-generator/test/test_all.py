@@ -184,17 +184,29 @@ def _test_add_input_to_create_objects(schema_in, schema_out):
                         # If the field type is a scalar:
                         if is_field_scalar_or_enum_type(cls.fields[field]):
                             assert expected_type == out_type,\
-                                f'Scalar types did not match! Expected {expected_type} but got {out_type}'
+                                f"Scalar types did not match! Expected {expected_type} but got {out_type}"
                         # If the field type is a Type:
                         else:
                             # print('Special.')
                             base_type = get_field_base_type_string(cls.fields[field])
+                            input_type_name = f'DataToConnect{upper(field)}Of{name}'
                             # print("Extracted", base_type)
-                            expected_type = expected_type.replace(base_type, f'DataToConnect{upper(field)}Of{name}')
+                            expected_type = expected_type.replace(base_type, input_type_name)
                             assert expected_type == out_type,\
-                                'Types did not match! Expected {expected_type} but got {out_type}'
-                            # TODO: Assert that the DataToConnect types all exist and have the fields they need to...
-    pass
+                                f"Types did not match! Expected {expected_type} but got {out_type}"
+                            assert input_type_name in schema_out.type_map,\
+                                f"Did not find input type {input_type_name} in the output schema!"
+                            input_type = schema_out.type_map[input_type_name]
+                            assert 'create' in input_type.fields,\
+                                f"Did not find `create` field for {input_type_name}!"
+                            assert inspect(input_type.fields['create'].type) == f'DataToCreate{base_type}',\
+                                f"Field `create` of type {input_type_name} must be of type DataToCreate{base_type}"
+                            assert 'connect' in input_type.fields,\
+                                f"Did not find `connect` field for {input_type_name}!"
+                            assert inspect(input_type.fields['connect'].type) == 'ID',\
+                                f"Field `connect` of type {input_type_name} must be of type ID"
+                            assert len(input_type.fields) == 2,\
+                                f"Fields for {input_type_name} should only be create and connect!"
 
 
 def _test_add_mutation_for_creating_objects(schema_in, schema_out):

@@ -210,7 +210,35 @@ def _test_add_input_to_create_objects(schema_in, schema_out):
 
 
 def _test_add_mutation_for_creating_objects(schema_in, schema_out):
-    pass
+    assert schema_out.mutation_type is not None,\
+        "Output schema has no mutation type!"
+    assert 'Mutation' in schema_out.type_map, \
+        "Output schema has a mutation type but it is not in the type map?"
+    assert schema_out.mutation_type == schema_out.type_map['Mutation'],\
+        "Schema has two different Mutation types!"
+    mutation_type = schema_out.mutation_type
+    all_mutation_fields = list(mutation_type.fields.keys())
+    for name, cls in schema_in.type_map.items():
+        # For every valid object in the input schema
+        if is_inputtable_type(name, cls):
+            mutation_field_name = f'create{upper(name)}'
+            assert mutation_field_name in all_mutation_fields,\
+                f"Could not find expected field {mutation_field_name} in Mutation!"
+            all_mutation_fields.remove(mutation_field_name)
+            data_arg_type = f'DataTo{upper(mutation_field_name)}'
+            create_field = mutation_type.fields[mutation_field_name]
+            assert 'data' in create_field.args,\
+                f"Did not find `data` field in args for Mutation field {mutation_field_name}"
+            assert len(create_field.args) == 1,\
+                f"Too many args for the {mutation_field_name} field of Mutation"
+            data = create_field.args['data']
+            assert data_arg_type == inspect(data.type),\
+                f"Expected type {data_arg_type} for data field of {mutation_field_name}, but got {inspect(data.type)} instead."
+            assert name == inspect(create_field.type),\
+                f"Expected type {name} for {mutation_field_name}, but got {inspect(create_field.type)} instead."
+
+    assert len(all_mutation_fields) == 0,\
+        f"Unexpected fields in the Mutation type: {all_mutation_fields}"
 
 
 # test_file_path = 'resources/test_schemas/sw_no_id.graphql'

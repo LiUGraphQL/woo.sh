@@ -1,7 +1,0 @@
-type Investigation {
-    userID: ID!
-    title: String!
-    description: String!
-    caseNumber: String!
-    hide: Boolean
-}

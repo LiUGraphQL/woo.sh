@@ -2,14 +2,15 @@
 import os
 import re
 
-import app
 from graphql import build_schema, print_schema, GraphQLObjectType, GraphQLNonNull, GraphQLField, GraphQLScalarType, \
     GraphQLArgument, introspection_types
 from graphql.pyutils import inspect
 # We're one level down, move up.
 # print(os.getcwd())
+from utils.generator import *
+
 os.chdir('..')
-config = app.load_config()
+config = load_config('resources/config.cfg')
 
 excluded_names = list(introspection_types.keys()) + ['Query', 'Mutation']
 
@@ -149,7 +150,7 @@ if config.getboolean('MAIN', 'schema.typeId'):
         # 1: Should result in a pass iff the output types ALL have ID:ID! fields.
         #    Designed to be case insensitive and enforce the NonNull property.
         schema_in = schema_from_file("resources/test_schemas/sw_no_id.graphql")
-        schema_out = app.add_id_to_type(schema_in)
+        schema_out = utils.add_id_to_type(schema_in)
         _test_add_id_to_type(schema_in, schema_out)
         with open('tmp.graphql', 'w') as outfile:
             outfile.write(print_schema(schema_out))
@@ -162,7 +163,7 @@ if config.getboolean('MAIN', 'schema.typeId'):
     def test_add_id_already_exists():
         # Should result in a fail if *any* inputs already have 'ID', 'Id', 'id'
         assert_fail(
-            lambda: app.add_id_to_type("resources/test_schemas/sw_with_id.graphql"),
+            lambda: utils.add_id_to_type("resources/test_schemas/sw_with_id.graphql"),
             ValueError,
             "Add ID to type should not allow an ID field in the input.")
 
@@ -171,15 +172,15 @@ if config.getboolean('MAIN', 'schema.makeQuery'):
     def test_add_query_already_exists():
         # Should result in a fail if there is a Query type in the schema already
         assert_fail(
-            lambda: app.add_query_by_id("resources/test_schemas/schema_with_query.graphql"),
+            lambda: utils.add_query_by_id("resources/test_schemas/schema_with_query.graphql"),
             ValueError,
             "A Query type is not allowed in the input file!")
 
     if config.getboolean('QUERY', 'api.query.queryById'):
         def test_add_query_by_id():
             schema_in = schema_from_file("resources/test_schemas/sw_no_id.graphql")
-            schema_in = app.add_id_to_type(schema_in)
-            schema_out = app.add_query_by_id(schema_in)
+            schema_in = utils.add_id_to_type(schema_in)
+            schema_out = utils.add_query_by_id(schema_in)
             # Test purely with the objects we've been manipulating
             _test_add_query_by_id(schema_in, schema_out)
             with open('tmp.graphql', 'w') as outfile:
@@ -193,12 +194,12 @@ if config.getboolean('MAIN', 'schema.makeQuery'):
     if config.getboolean('QUERY', 'api.query.queryByType'):
         def test_add_query_by_type():
             schema_in = schema_from_file("resources/test_schemas/sw_no_id.graphql")
-            schema_in = app.add_id_to_type(schema_in)
-            schema_in = app.add_query_by_id(schema_in)
+            schema_in = utils.add_id_to_type(schema_in)
+            schema_in = utils.add_query_by_id(schema_in)
             # Write the 'in' schema so it can be modified...
             with open('tmp_in.graphql', 'w') as outfile:
                 outfile.write(print_schema(schema_in))
-            schema_out = app.add_query_by_type(schema_in)
+            schema_out = utils.add_query_by_type(schema_in)
             # Read the 'in' schema, since otherwise it will have ListOf...s defined and fail the tests.
             schema_in = schema_from_file("tmp_in.graphql")
             # Test purely with the object we've been manipulating

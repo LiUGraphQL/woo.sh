@@ -1,0 +1,50 @@
+type Dog {
+  id: ID!
+  name: String
+}
+
+input InputToConnectPetOfPerson {
+  connect: ID
+  create: InputToCreateDog
+}
+
+input InputToCreateDog {
+  name: String
+}
+
+input InputToCreatePerson {
+  name: String
+  age: Int
+  pet: [InputToConnectPetOfPerson]
+}
+
+type ListOfDogs {
+  totalCount: Int
+  isEndOfWholeList: Boolean
+  content: [Dog]
+}
+
+type ListOfPersons {
+  totalCount: Int
+  isEndOfWholeList: Boolean
+  content: [Person]
+}
+
+type Mutation {
+  createPerson(data: InputToCreatePerson): Person
+  createDog(data: InputToCreateDog): Dog
+}
+
+type Person {
+  id: ID!
+  name: String
+  age: Int
+  pet: [Dog]
+}
+
+type Query {
+  person(id: ID!): Person
+  dog(id: ID!): Dog
+  listOfPersons(first: Int = 50, after: ID = ""): ListOfPersons
+  listOfDogs(first: Int = 50, after: ID = ""): ListOfDogs
+}

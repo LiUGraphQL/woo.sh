@@ -1,9 +1,9 @@
 type Person {
     name: String
     age: Int
-    dog: [SmallDog]
+    pet: [Dog]
 }
 
-type SmallDog {
+type Dog {
     name: String
 }

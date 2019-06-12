@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import configparser
+from sched import scheduler
+
 from graphql import *
 
 
@@ -76,35 +78,41 @@ def unwrap_one_layer(wrapped_type, wrapper_type):
 
 
 def add_input_to_create_object(n, t, schema):
+    # Get a map of all input fields
     input_fields = {}
     for field_name, field in t.fields.items():
+        # Skip ID field
         if field_name is 'id':
             continue
-        if is_scalar_type(get_named_type(field.type)) or isinstance(get_named_type(field.type), GraphQLEnumType):
-            field_type = GraphQLInputField(field.type)
+
+        # Add scalar/enum directly
+        if is_scalar_type(get_named_type(field.type)) or is_enum_type(get_named_type(field.type)):
+            input_fields[field_name] = GraphQLInputField(field.type)
+            continue
+
+        fields = {'connect': GraphQLInputField(GraphQLID)}
+
+        # Create field type based on interface
+        if is_interface_type(get_named_type(field.type)):
+            # If interface, add field for each implementing type
+            for i in get_implementing_types(get_named_type(field.type), schema):
+                print(i)
+            continue
         else:
-            # Skip interface fields for now
-            if isinstance(get_named_type(field.type), GraphQLInterfaceType):
-                continue  # How to handle interfaces in mutations?
+            # If object type, create a single field
+            x = 'InputToCreate{0}'.format(upper(get_named_type(field.type).name))
+            create = GraphQLInputField(schema.type_map.get(x, GraphQLInputObjectType(x, {})))
+            fields['create'] = create
 
-            type_name = get_named_type(field.type).name
-            # DataToCreate, create placeholder if needed
-            data_to_create = 'InputToCreate{0}'.format(upper(type_name))
-            if data_to_create not in schema.type_map:
-                schema.type_map[data_to_create] = GraphQLInputObjectType(data_to_create, {})
-            # DataToConnect<Field>Of<Type>
-            connect = GraphQLInputField(GraphQLID)
-            create = GraphQLInputField(schema.type_map[data_to_create])
-            data_to_connect = 'InputToConnect{0}Of{1}'.format(upper(field_name), upper(n))
-            schema.type_map[data_to_connect] = GraphQLInputObjectType(data_to_connect, {'connect': connect,
-                                                                                        'create': create})
+        # Add complex field
+        create_field_name = 'InputToConnect{0}Of{1}'.format(upper(field_name), upper(n))
 
-            field_type = sub_wrapped_type(field.type, schema.type_map[data_to_connect])
-
+        schema.type_map[create_field_name] = GraphQLInputObjectType(create_field_name, fields)
+        field_type = sub_wrapped_type(field.type, schema.type_map[create_field_name])
         input_fields[field_name] = field_type
 
-    name = 'InputToCreate{0}'.format(upper(n))
-    schema.type_map[name] = GraphQLInputObjectType(name, input_fields)
+    input_type_name = 'InputToCreate{0}'.format(upper(n))
+    schema.type_map[input_type_name] = GraphQLInputObjectType(input_type_name, input_fields)
 
     return schema
 
@@ -200,3 +208,18 @@ def upper(word):
 
 def lower(word):
     return word[0].lower() + word[1:]
+
+
+def get_implementing_types(interface, schema):
+    """
+    Retrieve all types in the schema implementing the given interface.
+    :param interface:
+    :param schema:
+    :return:
+    """
+    implementing_types = {}
+    for name, _type in schema.type_map.items():
+        if not is_object_type(_type) or interface not in _type.interfaces:
+            continue
+        implementing_types[name] = _type
+    return implementing_types

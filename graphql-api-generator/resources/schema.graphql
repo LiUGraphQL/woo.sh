@@ -1,9 +1,21 @@
+interface Pet {
+    name: String
+    age: Int
+}
+
 type Person {
     name: String
     age: Int
-    pet: [Dog]
+    pet: [Pet]
+    knows: [Person!]!
 }
 
-type Dog {
+type Dog implements Pet {
     name: String
+    age: Int
+}
+
+type Cat implements Pet {
+    name: String
+    age: Int
 }

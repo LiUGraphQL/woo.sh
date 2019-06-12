@@ -1,21 +1,40 @@
-type Dog {
+type Cat implements Pet {
   id: ID!
   name: String
+  age: Int
 }
 
-input InputToConnectPetOfPerson {
+type Dog implements Pet {
+  id: ID!
+  name: String
+  age: Int
+}
+
+input InputToConnectKnowsOfPerson {
   connect: ID
-  create: InputToCreateDog
+  create: InputToCreatePerson
+}
+
+input InputToCreateCat {
+  name: String
+  age: Int
 }
 
 input InputToCreateDog {
   name: String
+  age: Int
 }
 
 input InputToCreatePerson {
   name: String
   age: Int
-  pet: [InputToConnectPetOfPerson]
+  knows: [InputToConnectKnowsOfPerson!]!
+}
+
+type ListOfCats {
+  totalCount: Int
+  isEndOfWholeList: Boolean
+  content: [Cat]
 }
 
 type ListOfDogs {
@@ -33,18 +52,27 @@ type ListOfPersons {
 type Mutation {
   createPerson(data: InputToCreatePerson): Person
   createDog(data: InputToCreateDog): Dog
+  createCat(data: InputToCreateCat): Cat
 }
 
 type Person {
   id: ID!
   name: String
   age: Int
-  pet: [Dog]
+  pet: [Pet]
+  knows: [Person!]!
+}
+
+interface Pet {
+  name: String
+  age: Int
 }
 
 type Query {
   person(id: ID!): Person
   dog(id: ID!): Dog
+  cat(id: ID!): Cat
   listOfPersons(first: Int = 50, after: ID = ""): ListOfPersons
   listOfDogs(first: Int = 50, after: ID = ""): ListOfDogs
+  listOfCats(first: Int = 50, after: ID = ""): ListOfCats
 }

@@ -231,6 +231,22 @@ def add_mutation_for_creating_objects(schema):
     return schema
 
 
+def add_mutation_for_updating_objects(schema):
+    if 'Mutation' not in schema.type_map:
+        schema.type_map['Mutation'] = GraphQLObjectType('Mutation', {})
+    mutation = schema.type_map['Mutation']
+
+    for n, t in schema.type_map.items():
+        if n in introspection_types or not is_object_type(t) or n in ['Query', 'Mutation'] or n.startswith('ListOf'):
+            continue
+
+        mutation_name = 'update' + upper(n)
+        input_type = schema.type_map['InputToUpdate{0}'.format(upper(n))]
+        field = GraphQLField(t, {'id': GraphQLNonNull(GraphQLID), 'data': input_type})
+        mutation.fields[lower(mutation_name)] = field
+
+    return schema
+
 def insert(field_name, field, fields):
     new_fields = {field_name : field}
     for n, f in fields.items():

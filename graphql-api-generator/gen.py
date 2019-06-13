@@ -25,6 +25,8 @@ def run(input_file, ouput_file, config_file):
         schema = generator.add_mutation_for_creating_objects(schema)
     if config.getboolean('MUTATION', 'schema.inputToUpdateObjects'):
         schema = generator.add_input_to_update_objects(schema)
+    if config.getboolean('MUTATION', 'schema.setFields'):
+        schema = generator.add_mutation_for_updating_objects(schema)
 
     with open(ouput_file, 'w') as out:
         out.write(print_schema(schema))

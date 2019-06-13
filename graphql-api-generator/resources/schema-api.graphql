@@ -43,6 +43,8 @@ type ListOfPersons {
 type Mutation {
   createPerson(data: InputToCreatePerson): Person
   createDog(data: InputToCreateDog): Dog
+  updatePerson(id: ID!, data: InputToUpdatePerson): Person
+  updateDog(id: ID!, data: InputToUpdateDog): Dog
 }
 
 type Person {

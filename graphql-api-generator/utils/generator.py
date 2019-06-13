@@ -43,7 +43,17 @@ def add_input_to_create_objects(schema):
     return schema
 
 
-def sub_wrapped_type(wrapped_type, i):
+def add_input_to_update_objects(schema):
+    types = dict(schema.type_map).items()
+    for n, t in types:
+        if n in introspection_types or not is_object_type(t) or n in ['Query', 'Mutation'] or n.startswith('ListOf'):
+            continue
+        schema = add_input_to_update_object(n, t, schema)
+
+    return schema
+
+
+def sub_wrapped_type(wrapped_type, i, skip_outer_non_null=False):
     # This works for Type, Type!, [Type], [Type]!, or [Type!]
     wrapped_type, outer_nonnull = unwrap_one_layer(wrapped_type, GraphQLNonNull)
     wrapped_type, outer_list = unwrap_one_layer(wrapped_type, GraphQLList)
@@ -53,7 +63,7 @@ def sub_wrapped_type(wrapped_type, i):
         i = GraphQLNonNull(i)
     if outer_list:
         i = GraphQLList(i)
-    if outer_nonnull:
+    if outer_nonnull and not skip_outer_non_null:
         i = GraphQLNonNull(i)
 
     if isinstance(wrapped_type, GraphQLWrappingType):
@@ -104,6 +114,40 @@ def add_input_to_create_object(n, t, schema):
         input_fields[field_name] = field_type
 
     name = 'InputToCreate{0}'.format(upper(n))
+    schema.type_map[name] = GraphQLInputObjectType(name, input_fields)
+
+    return schema
+
+
+def add_input_to_update_object(n, t, schema):
+    input_fields = {}
+    for field_name, field in t.fields.items():
+        if field_name is 'id':
+            continue
+        if is_scalar_type(get_named_type(field.type)) or isinstance(get_named_type(field.type), GraphQLEnumType):
+            field_type = GraphQLInputField(get_nullable_type(field.type))
+        else:
+            # Skip interface fields for now
+            if isinstance(get_named_type(field.type), GraphQLInterfaceType):
+                continue  # How to handle interfaces in mutations?
+
+            type_name = get_named_type(field.type).name
+            # DataToCreate, create placeholder if needed
+            data_to_create = 'InputToCreate{0}'.format(upper(type_name))
+            if data_to_create not in schema.type_map:
+                schema.type_map[data_to_create] = GraphQLInputObjectType(data_to_create, {})
+            # DataToConnect<Field>Of<Type>
+            connect = GraphQLInputField(GraphQLID)
+            create = GraphQLInputField(schema.type_map[data_to_create])
+            data_to_connect = 'InputToConnect{0}Of{1}'.format(upper(field_name), upper(n))
+            schema.type_map[data_to_connect] = GraphQLInputObjectType(data_to_connect, {'connect': connect,
+                                                                                        'create': create})
+
+            field_type = sub_wrapped_type(field.type, schema.type_map[data_to_connect], True)
+
+        input_fields[field_name] = field_type
+
+    name = 'InputToUpdate{0}'.format(upper(n))
     schema.type_map[name] = GraphQLInputObjectType(name, input_fields)
 
     return schema

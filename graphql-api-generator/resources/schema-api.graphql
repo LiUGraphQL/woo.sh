@@ -13,6 +13,16 @@ input InputToCreateDog {
 }
 
 input InputToCreatePerson {
+  name: String!
+  age: Int!
+  pet: [InputToConnectPetOfPerson]!
+}
+
+input InputToUpdateDog {
+  name: String
+}
+
+input InputToUpdatePerson {
   name: String
   age: Int
   pet: [InputToConnectPetOfPerson]
@@ -37,9 +47,9 @@ type Mutation {
 
 type Person {
   id: ID!
-  name: String
-  age: Int
-  pet: [Dog]
+  name: String!
+  age: Int!
+  pet: [Dog]!
 }
 
 type Query {

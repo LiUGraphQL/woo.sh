@@ -1,7 +1,7 @@
 type Person {
-    name: String
-    age: Int
-    pet: [Dog]
+    name: String!
+    age: Int!
+    pet: [Dog]!
 }
 
 type Dog {

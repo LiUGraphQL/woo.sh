@@ -247,6 +247,7 @@ def add_mutation_for_updating_objects(schema):
 
     return schema
 
+
 def insert(field_name, field, fields):
     new_fields = {field_name : field}
     for n, f in fields.items():

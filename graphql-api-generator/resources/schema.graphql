@@ -1,20 +1,16 @@
-interface Animal {
-    Name: String!
-}
-
-type Character implements Animal{
+interface Pet {
     name: String!
-    age: Int!
-    score: Float!
 }
 
-type Hero implements Animal{
+type Toy {
+    name: String
+}
+
+type Dog implements Pet {
+    toys: [Toy]
     name: String!
-    age: Int!
-    score: Float!
 }
 
-type Episode {
-    name: [String]!
-    characters: [Hero!]!
+type Hero {
+    pet: Pet
 }

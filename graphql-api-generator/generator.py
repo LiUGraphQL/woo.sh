@@ -12,7 +12,7 @@ from utils.utils import add_id_to_object_types, add_create_and_connect_input_typ
 
 
 def cmd(args):
-    run(args.input, args.output, args.normalize)
+    run(args.input, args.output, args.normalize, args.config)
 
 
 def run(input_files, ouput_file, normalize, config_file):
@@ -26,7 +26,7 @@ def run(input_files, ouput_file, normalize, config_file):
             schema_string += f.read() + '\n'
 
     if normalize:
-        schema_string = re.sub('([A-Za-z_\-]+\s*:)', lambda pat: decapitalize(pat.group(1)), schema_string)
+        schema_string = re.sub('([A-Za-z0-9_]+\s*:)', lambda pat: decapitalize(pat.group(1)), schema_string)
 
     # drop comments
     schema_string = re.sub('""".*?"""', '', schema_string, flags=re.DOTALL)
@@ -36,7 +36,7 @@ def run(input_files, ouput_file, normalize, config_file):
 
     if config.getboolean('MAIN', 'schema.fieldForId'):
         schema = add_id_to_object_types(schema)
-        # schema = add_id_to_interface_types(schema)
+        schema = add_id_to_interface_types(schema)
     if config.getboolean('MAIN', 'schema.reverseEdges'):
         schema = add_reverse_edges(schema)
     if config.getboolean('MAIN', 'schema.edgeTypes'):
@@ -80,6 +80,19 @@ def run(input_files, ouput_file, normalize, config_file):
         print(print_schema(schema))
 
 
+def load_config(config_file):
+    config = configparser.ConfigParser()
+    config.read_file(open(config_file))
+    return config
+
+
+def print_config(config):
+    for section in config.sections():
+        print('Section: {0}'.format(section));
+        for arg in config[section]:
+            print('   {0} = {1}'.format(arg, config[section][arg]))
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', type=str, required=True,
@@ -94,14 +107,3 @@ if __name__ == '__main__':
     cmd(args)
 
 
-def load_config(config_file):
-    config = configparser.ConfigParser()
-    config.read_file(open(config_file))
-    return config
-
-
-def print_config(config):
-    for section in config.sections():
-        print('Section: {0}'.format(section));
-        for arg in config[section]:
-            print('   {0} = {1}'.format(arg, config[section][arg]))

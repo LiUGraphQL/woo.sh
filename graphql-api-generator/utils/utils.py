@@ -1,12 +1,5 @@
 from graphql import is_object_type, is_introspection_type, extend_schema, parse, is_scalar_type, is_enum_type, \
-    get_named_type, is_non_null_type, GraphQLNonNull, is_list_type, GraphQLList, is_interface_type
-
-
-def add_query_and_mutation_types(_schema):
-    make = 'type Query ' \
-           'type Mutation'
-    _schema = add_to_schema(_schema, make)
-    return _schema
+    get_named_type, is_non_null_type, GraphQLNonNull, is_list_type, GraphQLList, is_interface_type, get_nullable_type
 
 
 def get_reverse_field_name(type_name, field_name):
@@ -14,7 +7,7 @@ def get_reverse_field_name(type_name, field_name):
     Create '_YFromX' based on a type and a field.
     :param type_name: Name of original type
     :param field_name: Name of original field
-    :return: _YFromX
+    :return: _<Field>From<Type>
     """
     return '_{0}From{1}'.format(field_name, capitalize(type_name))
 
@@ -23,7 +16,7 @@ def get_name_input_to_create(type_name):
     """
     Create '_InputToCreateX' based on a type name.
     :param type_name: Name of type
-    :return: _InputToCreateX
+    :return: _InputToCreate<Type>
     """
     return '_InputToCreate{0}'.format(capitalize(type_name))
 
@@ -32,7 +25,7 @@ def get_filter_name(type_name):
     """
     Create '_InputToFilterX' based on a type name.
     :param type_name: Name of type
-    :return: _InputToFilterX
+    :return: _InputToFilter<Type>
     """
     return '_InputToFilter{0}'.format(capitalize(type_name))
 
@@ -42,7 +35,7 @@ def get_name_interface_input_to_create(type_name):
     Create name of field for creating implementing type of interface.
     'createX' based on type name.
     :param type_name: Name of type
-    :return: createX
+    :return: create<Type>
     """
     return 'create{0}'.format(capitalize(type_name))
 
@@ -51,18 +44,19 @@ def get_name_input_to_update(type_name):
     """
     Create 'InputToUpdateX' based on a type and a field.
     :param type_name: Name of type
-    :return: _InputToUpdateX
+    :return: _InputToUpdate<Type>
     """
     return '_InputToUpdate{0}'.format(capitalize(type_name))
 
 
-def get_name_input_to_connect(type_name):
+def get_name_input_to_connect(type_name, field_name):
     """
-    Create 'InputToConnectX' based on a type and a field.
+    Create 'InputToConnectYOfX' based on a type and a field.
     :param type_name: Name of type
-    :return: _InputToConnectX
+    :param field_name: Name of field
+    :return: _InputToConnect<Field>Of<Type>
     """
-    return '_InputToConnect{0}'.format(capitalize(type_name))
+    return '_InputToConnect{0}Of{1}'.format(capitalize(field_name), capitalize(type_name))
 
 
 def capitalize(string):
@@ -83,17 +77,6 @@ def decapitalize(string):
     return string[0].lower() + string[1:]
 
 
-def add_to_schema(_schema, _make):
-    try:
-        _schema = extend_schema(_schema, parse(_make))
-    except TypeError as e:
-        print(e)
-    except SyntaxError as e:
-        print(e)
-
-    return _schema
-
-
 def is_schema_defined_object_type(_type):
     """
     Returns true iff the provided type is schema-defined object type (i.e., not introspection type, mutation, or query).
@@ -112,6 +95,24 @@ def is_generated_object_type(_type):
     :return:
     """
     return is_schema_defined_object_type(_type) and _type.name.startsWith('_')
+
+
+def add_query_and_mutation_types(_schema):
+    make = 'type Query ' \
+           'type Mutation'
+    _schema = add_to_schema(_schema, make)
+    return _schema
+
+
+def add_to_schema(_schema, _make):
+    try:
+        _schema = extend_schema(_schema, parse(_make))
+    except TypeError as e:
+        print(e)
+    except SyntaxError as e:
+        print(e)
+
+    return _schema
 
 
 def add_id_to_object_types(_schema):
@@ -174,7 +175,7 @@ def add_reverse_edges(_schema):
     :return: updated schema
     """
     for type_name, _type in _schema.type_map.items():
-        if is_schema_defined_object_type(_type):
+        if is_schema_defined_object_type(_type) or is_interface_type(_type):
             for field_name, field_type in _type.fields.items():
                 inner_field_type = get_named_type(field_type.type)
                 if is_scalar_type(inner_field_type) or is_enum_type(inner_field_type):
@@ -186,6 +187,8 @@ def add_reverse_edges(_schema):
                 edge_to = GraphQLList(_type)
 
                 if is_interface_type(edge_from):
+                    make = 'extend interface {0} {{ {1}: {2} }}'.format(edge_from, edge_name, edge_to)
+                    _schema = add_to_schema(_schema, make)
                     for implementing_type in _schema.get_possible_types(edge_from):
                         make = 'extend type {0} {{ {1}: {2} }}'.format(implementing_type, edge_name, edge_to)
                         _schema = add_to_schema(_schema, make)
@@ -207,19 +210,9 @@ def add_create_and_connect_input_types(_schema):
     for type_name, _type in _schema.type_map.items():
         if is_schema_defined_object_type(_type) and type_name[0] != '_':
             create = get_name_input_to_create(type_name)
-            connect = get_name_input_to_connect(type_name)
             # add create
             make = 'input {0}'.format(create)
             _schema = add_to_schema(_schema, make)
-            # add connect
-            make = 'input {0} {{ connect: ID, create: {1} }}'.format(connect, create)
-            _schema = add_to_schema(_schema, make)
-        elif is_interface_type(_type):
-            # add connect input type for interface
-            connect = get_name_input_to_connect(type_name)
-            make = 'input {0} {{ connect: ID }}'.format(connect)
-            _schema = add_to_schema(_schema, make)
-
 
     # Add fields to create input type
     for type_name, _type in _schema.type_map.items():
@@ -227,30 +220,38 @@ def add_create_and_connect_input_types(_schema):
             create = get_name_input_to_create(type_name)
 
             for field_name, field_type in _type.fields.items():
-                if field_name == 'id' or field_name[0] == '_': # skip reverse edges
+                if field_name == 'id' or field_name[0] == '_':
                     continue
-
                 inner_field_type = get_named_type(field_type.type)
                 if is_scalar_type(inner_field_type) or is_enum_type(inner_field_type):
                     # inner field type is scalar or enum, use directly
                     make = 'extend input {0} {{ {1}: {2} }}'.format(create, field_name, field_type.type)
                     _schema = add_to_schema(_schema, make)
                 else:
+                    # create connect type
+                    create_or_connect = get_name_input_to_connect(type_name, field_name)
+                    make = 'input {0} {{ connect: ID }}'.format(create_or_connect)
+                    _schema = add_to_schema(_schema, make)
+
                     if is_interface_type(inner_field_type):
-                        connect = get_name_input_to_connect(inner_field_type.name)
                         # add create, add fields for all implementing types
                         for implementing_type in _schema.get_possible_types(inner_field_type):
                             create_field = get_name_interface_input_to_create(implementing_type.name)
-                            create_type = get_name_input_to_connect(implementing_type.name)
-                            make = 'extend input {0} {{ {1} : {2} }}'.format(connect, create_field, create_type)
+                            create_type = get_name_input_to_create(implementing_type.name)
+                            template = 'extend input {0} {{ {1} : {2} }}'
+                            make = template.format(create_or_connect, create_field, create_type)
                             _schema = add_to_schema(_schema, make)
                     else:
-                        # get inner named type of type field
-                        input_to_connect = get_name_input_to_connect(inner_field_type.name)
-                        # add create field
-                        wrapped_field_type = copy_wrapper_structure(_schema.get_type(input_to_connect), field_type.type)
-                        make = 'extend input {0} {{ {1}: {2} }}'.format(create, field_name, wrapped_field_type)
+                        template = 'extend input {0} {{ create: {1} }}'
+                        make = template.format(create_or_connect, get_name_input_to_create(inner_field_type.name))
                         _schema = add_to_schema(_schema, make)
+
+                    # add create field
+                    wrapped_field_type = copy_wrapper_structure(_schema.get_type(create_or_connect), field_type.type)
+
+                    # args field_type.args.items()
+                    make = 'extend input {0} {{ {1}: {2} }}'.format(create, field_name, wrapped_field_type)
+                    _schema = add_to_schema(_schema, make)
 
     return _schema
 
@@ -262,7 +263,7 @@ def add_update_input_types(_schema):
     :return: Extended GraphQL schema
     """
 
-    # Add fields to create input type
+    # Create all inputs to update types
     for type_name, _type in _schema.type_map.items():
         if is_schema_defined_object_type(_type) and type_name[0] != '_':
             update = get_name_input_to_update(type_name)
@@ -270,25 +271,27 @@ def add_update_input_types(_schema):
             make = 'input {0}'.format(update)
             _schema = add_to_schema(_schema, make)
 
+    # Add fields to update type
+    for type_name, _type in _schema.type_map.items():
+        if is_schema_defined_object_type(_type) and type_name[0] != '_':
             for field_name, field_type in _type.fields.items():
                 if field_name == 'id' or field_name[0] == '_':
                     continue
 
-                f_type = field_type.type
-                # remove required
-                if is_non_null_type(field_type.type):
-                    f_type = get_named_type(field_type.type)
+                update = get_name_input_to_update(type_name)
 
-                inner_field_type = get_named_type(f_type)
-                if is_scalar_type(inner_field_type) or is_enum_type(inner_field_type):
+                # use nullable type
+                f_type = get_nullable_type(field_type.type)
+                named_field_type = get_named_type(f_type)
+
+                if is_scalar_type(named_field_type) or is_enum_type(named_field_type):
                     # inner field type is scalar or enum, use directly
                     make = 'extend input {0} {{ {1}: {2} }}'.format(update, field_name, f_type)
                     _schema = add_to_schema(_schema, make)
                 else:
-                    # get inner named type of type field
-                    input_to_connect = get_name_input_to_connect(inner_field_type.name)
-                    # add create field
-                    wrapped_field_type = copy_wrapper_structure(_schema.get_type(input_to_connect), f_type)
+                    # add create or connect field
+                    create_or_connect = get_name_input_to_connect(type_name, field_name)
+                    wrapped_field_type = copy_wrapper_structure(_schema.get_type(create_or_connect), f_type)
                     make = 'extend input {0} {{ {1}: {2} }}'.format(update, field_name, wrapped_field_type)
                     _schema = add_to_schema(_schema, make)
 

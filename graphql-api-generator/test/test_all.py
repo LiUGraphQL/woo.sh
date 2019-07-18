@@ -5,11 +5,11 @@ import re
 from graphql import build_schema, print_schema, GraphQLObjectType, GraphQLNonNull, GraphQLField, GraphQLScalarType, \
     GraphQLArgument, introspection_types
 from graphql.pyutils import inspect
+
+from generator import load_config
 # We're one level down, move up.
 # print(os.getcwd())
 from utils.utils import *
-
-from generator import load_config, print_config
 
 os.chdir('..')
 config = load_config('resources/config.cfg')

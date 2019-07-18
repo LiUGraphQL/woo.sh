@@ -1,8 +1,7 @@
 import os
-
 from unittest import TestCase
 
-from graphql import build_schema, print_schema, is_equal_type, parse
+from graphql import build_schema
 
 from utils.utils import add_delete_mutations
 

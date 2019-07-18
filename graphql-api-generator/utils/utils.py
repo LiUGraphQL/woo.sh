@@ -1,5 +1,21 @@
-from graphql import is_object_type, is_introspection_type, extend_schema, parse, is_scalar_type, is_enum_type, \
-    get_named_type, is_non_null_type, GraphQLNonNull, is_list_type, GraphQLList, is_interface_type, get_nullable_type
+from graphql import *
+
+
+def pascal_case(string):
+    return ''.join([i[0].upper() + i[1:] for i in string.split('_')])
+
+
+def camel_case(string):
+    string = pascal_case(string)
+    return string[0].lower() + string[1:]
+
+
+def lowercase(string):
+    return string.lower()
+
+
+def uppercase(string):
+    return string.upper()
 
 
 def get_reverse_field_name(type_name, field_name):
@@ -83,6 +99,7 @@ def is_schema_defined_object_type(_type):
     :param _type:
     :return:
     """
+
     if not is_object_type(_type) or is_introspection_type(_type) or _type.name == 'Mutation' or _type.name == 'Query':
         return False
     return True

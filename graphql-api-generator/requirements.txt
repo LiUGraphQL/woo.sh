@@ -1,1 +1,2 @@
-GraphQL-core-next==1.0.3
+GraphQL-core-next==1.0.5
+PyYAML

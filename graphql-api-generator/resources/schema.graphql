@@ -1,9 +1,31 @@
-type Person {
+"""This comment is bound to the next type"""
+interface Pet {
+    """This comment is bound to the next field"""
     name: String!
-    age: Int!
-    pet: [Dog]!
 }
 
-type Dog {
+type Toy {
     name: String
 }
+
+type Dog implements Pet {
+    toys: [Toy]
+    name: String!
+    race: Race
+    b: String
+    d: String
+    a: String
+    c: String
+}
+
+type Hero {
+    pets: [Pet]
+}
+
+enum Race {
+    Affenpinscher
+    Afghan_Hound
+    Afghan_Shepherd
+}
+
+scalar Date

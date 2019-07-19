@@ -1,5 +1,5 @@
 from graphql import build_schema, GraphQLType, is_non_null_type, is_list_type, is_scalar_type, is_enum_type, \
-    is_input_object_type, is_object_type, is_interface_type, is_introspection_type, GraphQLSchema
+    is_input_object_type, is_object_type, is_interface_type, is_introspection_type, GraphQLSchema, is_input_type
 
 
 def is_equals_schema(schema_a: GraphQLSchema, schema_b: GraphQLSchema):
@@ -31,6 +31,9 @@ def is_equals_schema(schema_a: GraphQLSchema, schema_b: GraphQLSchema):
 
 def is_equal_type(type_a: GraphQLType, type_b: GraphQLType):
     """Check whether two GraphQL types are equivalent."""
+    # check if types match
+    if type(type_a) != type(type_b):
+        return False
     # Check GraphQL base types
     if is_non_null_type(type_a) != is_non_null_type(type_b):
         return False
@@ -69,7 +72,7 @@ def is_equal_type(type_a: GraphQLType, type_b: GraphQLType):
         return
 
     # if not interface, check interfaces
-    if not is_interface_type(type_a):
+    if not is_input_type(type_a) and not is_interface_type(type_a):
         interfaces_a = set([i.name for i in type_a.interfaces])
         interfaces_b = set([i.name for i in type_b.interfaces])
         if interfaces_a != interfaces_b:

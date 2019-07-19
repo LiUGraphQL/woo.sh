@@ -4,6 +4,8 @@ transform:
     enum_values: uppercase
     drop_comments: true
 generation:
+    add_query_type: true
+    add_mutation_type: true
     # add id field to all schema types
     field_for_id: true
     # add reverse edges for traversal
@@ -23,7 +25,7 @@ generation:
     # add mutations
     create_objects: true
     update_objects: true
-    delete_objects: true
+    delete_objects: false
     # add edge mutations (not supported)
     create_edge_objects: false
     update_edge_objects: false

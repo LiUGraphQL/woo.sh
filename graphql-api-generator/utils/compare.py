@@ -1,21 +1,24 @@
 from graphql import build_schema, GraphQLType, is_non_null_type, is_list_type, is_scalar_type, is_enum_type, \
-    is_input_object_type, is_object_type, is_interface_type, is_introspection_type
+    is_input_object_type, is_object_type, is_interface_type, is_introspection_type, GraphQLSchema
 
 
-def is_equals_schema(schema_a, schema_b):
+def is_equals_schema(schema_a: GraphQLSchema, schema_b: GraphQLSchema):
+    """
+    Check to schemas are equivalent.
+
+    TODO:
+     - Compare directive definitions
+     - Check field directives
+
+    :param schema_a:
+    :param schema_b:
+    :return:
+    """
     # check set of named types
     types_a = set([n for n, t in schema_a.type_map.items() if not is_introspection_type(t)])
     types_b = set([n for n, t in schema_b.type_map.items() if not is_introspection_type(t)])
     if types_a != types_b:
         return False
-
-    # check available directives
-    directives_a = {d.name: d for d in schema_a.directives}
-    directives_b = {d.name: d for d in schema_b.directives}
-    if directives_a.keys() != directives_b.keys():
-        print('Directive definitions differ')
-        return False
-    # TODO More complete directives test
 
     # check all named types
     types = types_a
@@ -60,10 +63,10 @@ def is_equal_type(type_a: GraphQLType, type_b: GraphQLType):
     if is_scalar_type(type_a):
         return True
 
-    # If enum then check directives
+    # If enum then check values
     if is_enum_type(type_a):
-        pass
-        # TODO directive for enum
+        # TODO compare values
+        return
 
     # if not interface, check interfaces
     if not is_interface_type(type_a):
@@ -95,27 +98,7 @@ def is_equal_type(type_a: GraphQLType, type_b: GraphQLType):
             arg_type_b = type_b.fields[field_name].args[arg_name].type
             if not is_equal_type(arg_type_a, arg_type_b):
                 return False
-    # 4) Field directives
-    # TODO
+
+    # TODO: check field directives
 
     return True
-
-
-schema_a = build_schema('directive @deprecated2 on FIELD_DEFINITION | ENUM_VALUE '
-                        'interface Hero '
-                        'type Human implements Hero {'
-                        '  id(similarity: Float): ID! @deprecated2 '
-                        'string: String '
-                        '}')
-schema_b = build_schema('directive @deprecated2 on FIELD_DEFINITION | ENUM_VALUE '
-                        'interface Hero '
-                        'type Human implements Hero {'
-                        '  id(similarity: Float): ID! '
-                        '  string: String'
-                        '}'
-                        )
-
-if is_equals_schema(schema_a, schema_b):
-    print("same!")
-else:
-    print("different")

@@ -114,9 +114,14 @@ def is_generated_object_type(_type):
     return is_schema_defined_object_type(_type) and _type.name.startsWith('_')
 
 
-def add_query_and_mutation_types(_schema):
-    make = 'type Query ' \
-           'type Mutation'
+def add_query_type(_schema):
+    make = 'type Query '
+    _schema = add_to_schema(_schema, make)
+    return _schema
+
+
+def add_mutation_type(_schema):
+    make = 'type Mutation'
     _schema = add_to_schema(_schema, make)
     return _schema
 
@@ -337,17 +342,11 @@ def add_list_of_types(_schema):
     """
     # Create queries for object types
     for type_name, _type in _schema.type_map.items():
-        if is_schema_defined_object_type(_type) and type_name[0] != '_':
+        if (is_interface_type(_type) or is_schema_defined_object_type(_type)) and type_name[0] != '_':
             make = 'type _ListOf{0}s {{ ' \
-                   'totalCount: Int ' \
-                   'isEndOfWholeList: Boolean ' \
-                   'content: [{0}] }}'.format(type_name)
-            _schema = add_to_schema(_schema, make)
-        elif is_interface_type(_type):
-            make = 'type _ListOf{0}s {{ ' \
-                   'totalCount: Int ' \
-                   'isEndOfWholeList: Boolean ' \
-                   'content: [{0}] }}'.format(type_name)
+                   'totalCount: Int! ' \
+                   'isEndOfWholeList: Boolean! ' \
+                   'content: [{0}]! }}'.format(type_name)
             _schema = add_to_schema(_schema, make)
     return _schema
 

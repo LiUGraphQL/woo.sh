@@ -12,6 +12,10 @@ type Dog implements Pet {
     toys: [Toy]
     name: String!
     race: Race
+    b: String
+    d: String
+    a: String
+    c: String
 }
 
 type Hero {
@@ -23,3 +27,5 @@ enum Race {
     Afghan_Hound
     Afghan_Shepherd
 }
+
+scalar Date

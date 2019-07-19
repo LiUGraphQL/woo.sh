@@ -1,35 +1,18 @@
-import os
 from unittest import TestCase
-
 from graphql import build_schema
+import generator
+from utils import compare
 
-from utils.utils import add_delete_mutations
-
-os.chdir('..')
-
-
-def all_types_equal(schema_a, schema_b):
-
-    return schema_a.type_map == schema_b.type_map
+# TODO Many tests...
 
 class Tests(TestCase):
-    def test_add_delete_mutations(self):
-        schema_in =  build_schema('''
-            type Human {
-               id: ID!
+    def test_add_id_success(self):
+        schema_in = build_schema('type Human')
+        config = {
+            'generation': {
+                'field_for_id': True
             }
-            type Mutation
-        ''')
-        expected = build_schema('''
-            type Human {
-               id: ID!
-            }
-            type Mutation {
-               deleteHuman(id:ID!): Human
-            }
-        ''')
-        #
-        schema_out = add_delete_mutations(schema_in)
-
-
-        assert all_types_equal(expected, schema_out)
+        }
+        expected = build_schema('type Human { id: ID!  }')
+        schema_out = generator.run(schema_in, config)
+        assert compare.is_equals_schema(schema_out, expected)

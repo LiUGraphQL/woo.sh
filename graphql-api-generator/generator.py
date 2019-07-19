@@ -14,21 +14,27 @@ string_transforms = {
 
 
 def cmd(args):
-    run(args.input, args.output, args.normalize, args.config)
-
-
-def run(input_files, ouput_file, config_file):
-    with open(config_file) as f:
+    # load config
+    with open(args.config) as f:
         config = yaml.safe_load(f)
 
     # concat input files
     schema_string = ''
-    for file in input_files.split(','):
+    for file in args.input.split(','):
         with open(file, 'r') as f:
             schema_string += f.read() + '\n'
 
-    schema = build_schema(schema_string)
+    schema = run(build_schema(schema_string), config)
 
+    # write to file or stdout
+    if args.output:
+        with open(args.output, 'w') as out:
+            out.write(print_schema(schema))
+    else:
+        print(print_schema(schema))
+
+
+def run(schema: GraphQLSchema, config: dict):
     # transform
     if config.get('transform'):
         transform = config.get('transform')
@@ -58,8 +64,12 @@ def run(input_files, ouput_file, config_file):
             drop_comments(schema)
 
     # API generation
-    schema = add_query_and_mutation_types(schema)
     if config.get('generation'):
+        if config.get('generation').get('add_query_type'):
+            schema = add_query_type(schema)
+        if config.get('generation').get('add_mutation_type'):
+            schema = add_mutation_type(schema)
+
         # add id
         if config.get('generation').get('field_for_id'):
             schema = add_id_to_object_types(schema)
@@ -113,13 +123,7 @@ def run(input_files, ouput_file, config_file):
         if config.get('generation').get('delete_edge_objects'):
             raise UnsupportedOperation('{0} is currently not supported'.format('delete_edge_objects'))
 
-    # write to stdout or file
-    schema_string = print_schema(schema)
-    if ouput_file:
-        with open(ouput_file, 'w') as out:
-            out.write(schema_string)
-    else:
-        print(schema_string)
+    return schema
 
 
 def transform_types(schema, transform):
@@ -175,9 +179,8 @@ if __name__ == '__main__':
                         help='Input schema files (separated by commas)')
     parser.add_argument('--output', type=str,
                         help='Output schema file (default stdout)')
-    parser.add_argument('--normalize', type=bool,
+    parser.add_argument('--config', type=str,
                         help='Path to configuration file')
-    args = parser.parse_args()
-    cmd(args)
+    cmd(parser.parse_args())
 
 

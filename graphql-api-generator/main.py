@@ -3,7 +3,6 @@ import yaml
 from graphql import build_schema
 
 import generator
-from utils.schema_printer import print_schema
 
 config_file = './resources/config.yml'
 input_files = './resources/schema.graphql'
@@ -19,4 +18,4 @@ for file in input_files.split(','):
         schema_string += f.read() + '\n'
 
 schema = generator.run(build_schema(schema_string), config)
-print(print_schema(schema))
+print(generator.print_schema(schema))

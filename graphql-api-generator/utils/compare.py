@@ -52,7 +52,7 @@ def is_equal_type(type_a: GraphQLType, type_b: GraphQLType):
         return is_equal_type(type_a.of_type, type_b.of_type)
 
     # If either type is a list, the other must also be a list.
-    if is_list_type(type_a) and is_list_type(type_b):
+    if is_list_type(type_a):
         return is_equal_type(type_a.of_type, type_b.of_type)
 
     # Check name
@@ -69,7 +69,7 @@ def is_equal_type(type_a: GraphQLType, type_b: GraphQLType):
         return
 
     # if not interface, check interfaces
-    if not is_interface_type(type_a):
+    if not is_input_object_type(type_a) and not is_interface_type(type_a):
         interfaces_a = set([i.name for i in type_a.interfaces])
         interfaces_b = set([i.name for i in type_b.interfaces])
         if interfaces_a != interfaces_b:

@@ -3,63 +3,58 @@ The tool in this repository extends a schema for Property Graphs into a GraphQL 
 
 ## Example
 ```bash
-$ python3 graphql-api-generator/generator.py \
-      --input ./my-schema.graphql \
-      --output ./my-api-schema.graphql \
-      --normalize true \
-      --config ./config.cfg
+$ python3 generator.py \
+      --input resources/schema.graphql \
+      --output api-schema.graphql \
+      --config resources/config.yml
 ```
 
 ## Usage
 ```bash
-$ python3 graphql-api-generator/generator.py --h
-
-usage: generator.py [-h] --input INPUT [--output OUTPUT]
-                    [--normalize NORMALIZE] --config CONFIG
+$ python3 generator.py --help
+usage: generator.py [-h] --input INPUT [--output OUTPUT] [--config CONFIG]
 
 optional arguments:
-  -h, --help            show this help message and exit
-  --input INPUT         Input schema files (separated by commas)
-  --output OUTPUT       Output schema file (default stdout)
-  --normalize NORMALIZE
-                        Normalize naming of types and fields (default false)
-  --config CONFIG       Path to configuration file
+  -h, --help       show this help message and exit
+  --input INPUT    Input schema files (separated by commas)
+  --output OUTPUT  Output schema file (default stdout)
+  --config CONFIG  Path to configuration file
 ```
 
 
 ## Configuration
 The configuration file controls the features that are enabled during the generation process. For example:
-```properties
-[MAIN]
-;; add id field to all schema types
-schema.fieldForId = yes
-;; add reverse edges for traversal
-schema.reverseEdges = yes
-;; add edge types and new type fields
-schema.edgeTypes = no
-schema.fieldsForEdgeTypes = no
-
-[QUERY]
-schema.queryById = yes
-schema.queryListOf = yes
-
-[MUTATION]
-;; input types
-schema.inputToCreateObjects = yes
-schema.inputToUpdateObjects = yes
-
-;; input for edge types
-schema.inputToCreateEdgeObjects = no
-schema.inputToUpdateEdgeObjects = no
-
-;; mutation for types
-schema.createObjects = yes
-schema.updateObjects = yes
-schema.deleteObjects = yes
-
-;; mutation for edge types
-schema.createEdgeObjects = no
-schema.updateEdgeObjects = no
-schema.deleteEdgeObjects = no
-
+```yaml
+transform:
+    type_names: PascalCase
+    field_names: camelCase
+    enum_values: uppercase
+    drop_comments: true
+generation:
+    add_query_type: true
+    add_mutation_type: true
+    # add id field to all schema types
+    field_for_id: true
+    # add reverse edges for traversal
+    reverse_edges: true
+    # add edge types
+    edge_types: false
+    fields_for_edge_types: false
+    # add queries
+    query_by_id: true
+    query_list_of: true
+    # add input types
+    input_to_create_objects: true
+    input_to_update_objects: true
+    # add edge input types (not supported)
+    input_to_create_edge_objects: false
+    input_to_update_edge_objects: false
+    # add mutations
+    create_objects: true
+    update_objects: true
+    delete_objects: false
+    # add edge mutations (not supported)
+    create_edge_objects: false
+    update_edge_objects: false
+    delete_edge_objects: false
 ```

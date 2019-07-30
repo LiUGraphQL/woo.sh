@@ -457,6 +457,7 @@ def add_type_filters(_schema):
                 if is_non_null_type(field_type.type):
                     f_type = get_named_type(field_type.type)
 
+                # TODO check this!
                 if is_list_type(f_type):
                     # Unknown how filters would apply for lists, skip.
                     continue
@@ -487,6 +488,26 @@ def add_enum_filters(_schema):
                '}}'.format(enum_name)
         _schema = add_to_schema(_schema, make)
 
+    return _schema
+
+
+def add_filters_to_type_fields(_schema: GraphQLSchema):
+    """
+    Add filters as arguments to fields for object types.
+    :param _schema:
+    :return:
+    """
+    for t in _schema.type_map.values():
+        if not is_schema_defined_object_type(t) or t.name.startswith('_'):
+            continue
+
+        # loop fields
+        for n, f in t.fields.items():
+            field_type = get_named_type(f.type)
+            if not is_schema_defined_object_type(field_type) and not is_interface_type(field_type):
+                continue
+            _filter = _schema.type_map[f'_FilterFor{field_type.name}']
+            f.args['filter'] = GraphQLArgument(_filter)
     return _schema
 
 

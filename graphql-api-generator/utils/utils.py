@@ -65,9 +65,19 @@ def get_name_input_to_update(type_name):
     return '_InputToUpdate{0}'.format(capitalize(type_name))
 
 
+def get_annotation_type_name(type_name, field_name):
+    """
+    Create '_InputToAnnotate<Field>Of<Type>' based on a type and a field.
+    :param type_name: Name of type
+    :param field_name: Name of field
+    :return: _InputToAnnotate<Field>Of<Type>
+    """
+    return '_InputToAnnotate{0}Of{1}'.format(capitalize(field_name), capitalize(type_name))
+
+
 def get_name_input_to_connect(type_name, field_name):
     """
-    Create 'InputToConnectYOfX' based on a type and a field.
+    Create '_InputToConnectYOfX' based on a type and a field.
     :param type_name: Name of type
     :param field_name: Name of field
     :return: _InputToConnect<Field>Of<Type>
@@ -241,19 +251,23 @@ def add_create_and_connect_input_types(_schema):
         if is_schema_defined_object_type(_type) and type_name[0] != '_':
             create = get_name_input_to_create(type_name)
 
-            for field_name, field_type in _type.fields.items():
+            for field_name, field in _type.fields.items():
                 if field_name == 'id' or field_name[0] == '_':
                     continue
-                inner_field_type = get_named_type(field_type.type)
+                inner_field_type = get_named_type(field.type)
                 if is_scalar_type(inner_field_type) or is_enum_type(inner_field_type):
                     # inner field type is scalar or enum, use directly
-                    make = 'extend input {0} {{ {1}: {2} }}'.format(create, field_name, field_type.type)
+                    make = 'extend input {0} {{ {1}: {2} }}'.format(create, field_name, field.type)
                     _schema = add_to_schema(_schema, make)
                 else:
                     # create connect type
                     create_or_connect = get_name_input_to_connect(type_name, field_name)
                     make = 'input {0} {{ connect: ID }}'.format(create_or_connect)
                     _schema = add_to_schema(_schema, make)
+
+                    # add annotation type (if arg i provided)
+                    if field.args:
+                        _schema = add_annotation_type(_schema, _type, field_name, field)
 
                     if is_interface_type(inner_field_type):
                         # add create, add fields for all implementing types
@@ -269,12 +283,36 @@ def add_create_and_connect_input_types(_schema):
                         _schema = add_to_schema(_schema, make)
 
                     # add create field
-                    wrapped_field_type = copy_wrapper_structure(_schema.get_type(create_or_connect), field_type.type)
+                    wrapped_field_type = copy_wrapper_structure(_schema.get_type(create_or_connect), field.type)
 
                     # args field_type.args.items()
                     make = 'extend input {0} {{ {1}: {2} }}'.format(create, field_name, wrapped_field_type)
                     _schema = add_to_schema(_schema, make)
 
+    return _schema
+
+
+def add_annotation_type(_schema: GraphQLSchema, _type: GraphQLType, field_name: str, field: GraphQLField):
+    """
+    Adds an input type for annotating an edge and extends the corresponding InputToConnect-field.
+    :param _schema: GraphQL schema
+    :param _type: Source of field
+    :param field_name: Name of field
+    :param field: GraphQL field
+    :return: Updated schema
+    """
+    annotation_type_name = get_annotation_type_name(_type.name, field_name)
+    make = 'input {0}'.format(annotation_type_name)
+    _schema = add_to_schema(_schema, make)
+    for n, t in field.args.items():
+        if not is_enum_type(get_named_type(t.type)) and not is_scalar_type(get_named_type(t.type)):
+            raise Exception('Only enum and scalar annotations are supported for edges')
+        make = 'extend input {0} {{ {1}: {2} }}'.format(annotation_type_name, n, t.type)
+        _schema = add_to_schema(_schema, make)
+    # add to the connect type
+    connect = get_name_input_to_connect(_type.name, field_name)
+    make = 'extend input {0} {{ annotate: {1}! }}'.format(connect, annotation_type_name)
+    _schema = add_to_schema(_schema, make)
     return _schema
 
 

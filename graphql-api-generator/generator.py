@@ -94,6 +94,7 @@ def run(schema: GraphQLSchema, config: dict):
             schema = add_scalar_filters(schema)
             schema = add_type_filters(schema)
             schema = add_list_queries(schema)
+            schema = add_filters_to_type_fields(schema)
 
         # add input types
         if config.get('generation').get('input_to_create_objects'):

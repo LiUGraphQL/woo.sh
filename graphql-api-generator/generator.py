@@ -15,8 +15,11 @@ string_transforms = {
 
 def cmd(args):
     # load config
-    with open(args.config) as f:
-        config = yaml.safe_load(f)
+    if args.config:
+        with open(args.config) as f:
+            config = yaml.safe_load(f)
+    else:
+        config = {}
 
     # concat input files
     schema_string = ''
@@ -72,8 +75,7 @@ def run(schema: GraphQLSchema, config: dict):
 
         # add id
         if config.get('generation').get('field_for_id'):
-            schema = add_id_to_object_types(schema)
-            schema = add_id_to_interface_types(schema)
+            schema = add_id_to_types(schema)
 
         # add reverse edges for traversal
         if config.get('generation').get('reverse_edges'):
@@ -88,18 +90,21 @@ def run(schema: GraphQLSchema, config: dict):
         # add queries
         if config.get('generation').get('query_by_id'):
             schema = add_get_queries(schema)
-        if config.get('generation').get('query_list_of'):
-            schema = add_list_of_types(schema)
+        if config.get('generation').get('query_type_filter') or config.get('generation').get('query_list_of'):
             schema = add_enum_filters(schema)
             schema = add_scalar_filters(schema)
             schema = add_type_filters(schema)
+        if config.get('generation').get('query_type_filter'):
+            schema = add_object_type_filters(schema)
+        if config.get('generation').get('query_list_of'):
+            schema = add_list_of_types(schema)
             schema = add_list_queries(schema)
 
         # add input types
         if config.get('generation').get('input_to_create_objects'):
-            schema = add_create_and_connect_input_types(schema)
+            schema = add_input_to_create(schema)
         if config.get('generation').get('input_to_update_objects'):
-            schema = add_update_input_types(schema)
+            schema = add_input_update(schema)
 
         # add edge input types
         if config.get('generation').get('input_to_create_edge_objects'):

@@ -403,19 +403,12 @@ def add_type_filters(schema: GraphQLSchema):
             if is_list_type(field.type):
                 continue
 
-<<<<<<< HEAD
             named_type = get_named_type(f_type)
             if is_enum_or_scalar(f_type):
                 make += f'{field_name}: _{named_type.name}Filter '
         make += '} '
     schema = add_to_schema(schema, make)
     return schema
-=======
-                # TODO check this!
-                if is_list_type(f_type):
-                    # Unknown how filters would apply for lists, skip.
-                    continue
->>>>>>> e18b9f42c901bf9f4c1ef03764c4ccfab1f83b7d
 
 
 def add_object_type_filters(schema):
@@ -454,9 +447,6 @@ def add_enum_filters(schema: GraphQLSchema):
     return schema
 
 
-<<<<<<< HEAD
-def add_create_mutations(schema: GraphQLSchema):
-=======
 def add_filters_to_type_fields(_schema: GraphQLSchema):
     """
     Add filters as arguments to fields for object types.
@@ -464,21 +454,20 @@ def add_filters_to_type_fields(_schema: GraphQLSchema):
     :return:
     """
     for t in _schema.type_map.values():
-        if not is_schema_defined_object_type(t) or t.name.startswith('_'):
+        if not is_schema_defined_type(t):
             continue
 
         # loop fields
         for n, f in t.fields.items():
             field_type = get_named_type(f.type)
-            if not is_schema_defined_object_type(field_type) and not is_interface_type(field_type):
+            if not is_schema_defined_type(field_type) or is_interface_type(field_type):
                 continue
             _filter = _schema.type_map[f'_FilterFor{field_type.name}']
             f.args['filter'] = GraphQLArgument(_filter)
     return _schema
 
 
-def add_create_mutations(_schema):
->>>>>>> e18b9f42c901bf9f4c1ef03764c4ccfab1f83b7d
+def add_create_mutations(schema):
     """
     Add mutations for creating object types.
     :param schema:

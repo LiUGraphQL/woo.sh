@@ -411,7 +411,7 @@ def add_type_filters(schema: GraphQLSchema):
     return schema
 
 
-def add_object_type_filters(schema):
+def add_object_type_filters(schema: GraphQLSchema):
     for _type in schema.type_map.values():
         if not is_schema_defined_type(_type):
             continue
@@ -423,6 +423,15 @@ def add_object_type_filters(schema):
             filter_name = f'_FilterFor{capitalize(inner_field_type.name)}'
             _filter = schema.type_map[filter_name]
             field.args['filter'] = GraphQLArgument(_filter)
+    return schema
+
+
+def remove_field_arguments_for_types(schema: GraphQLSchema):
+    for _type in schema.type_map.values():
+        if not is_schema_defined_type(_type):
+            continue
+        for field_name, field in _type.fields.items():
+            field.args = {}
     return schema
 
 

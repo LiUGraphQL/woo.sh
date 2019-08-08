@@ -94,8 +94,13 @@ def run(schema: GraphQLSchema, config: dict):
             schema = add_enum_filters(schema)
             schema = add_scalar_filters(schema)
             schema = add_type_filters(schema)
+
+        # remove field arguments for edges (should not be in the API schema)
+        schema = remove_field_arguments_for_types(schema)
+
         if config.get('generation').get('query_type_filter'):
             schema = add_object_type_filters(schema)
+
         if config.get('generation').get('query_list_of'):
             schema = add_list_of_types(schema)
             schema = add_list_queries(schema)

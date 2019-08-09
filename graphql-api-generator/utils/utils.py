@@ -412,15 +412,23 @@ def add_type_filters(schema: GraphQLSchema):
 
 
 def add_object_type_filters(schema: GraphQLSchema):
+    """
+    Add filters as arguments to list field of object types.
+    :param schema:
+    :return:
+    """
     for _type in schema.type_map.values():
         if not is_schema_defined_type(_type):
             continue
 
         for field_name, field in _type.fields.items():
-            inner_field_type = get_named_type(field.type)
-            if is_enum_or_scalar(inner_field_type) or is_interface_type(inner_field_type):
+            if not is_list_type(field.type):
                 continue
-            filter_name = f'_FilterFor{capitalize(inner_field_type.name)}'
+
+            named_type = get_named_type(field.type)
+            if is_enum_or_scalar(named_type) or is_interface_type(named_type):
+                continue
+            filter_name = f'_FilterFor{capitalize(named_type.name)}'
             _filter = schema.type_map[filter_name]
             field.args['filter'] = GraphQLArgument(_filter)
     return schema
@@ -447,36 +455,16 @@ def add_enum_filters(schema: GraphQLSchema):
             continue
 
         make += f'input _{enum_name}Filter {{' \
-               f'   _eq: {enum_name} ' \
-               f'   _neq: {enum_name} ' \
-               f'   _in: [{enum_name}] ' \
-               f'   _nin: [{enum_name}] ' \
-               f'}} '
+            f'   _eq: {enum_name} ' \
+            f'   _neq: {enum_name} ' \
+            f'   _in: [{enum_name}] ' \
+            f'   _nin: [{enum_name}] ' \
+            f'}} '
     schema = add_to_schema(schema, make)
     return schema
 
 
-def add_filters_to_type_fields(_schema: GraphQLSchema):
-    """
-    Add filters as arguments to fields for object types.
-    :param _schema:
-    :return:
-    """
-    for t in _schema.type_map.values():
-        if not is_schema_defined_type(t):
-            continue
-
-        # loop fields
-        for n, f in t.fields.items():
-            field_type = get_named_type(f.type)
-            if not is_schema_defined_type(field_type) or is_interface_type(field_type):
-                continue
-            _filter = _schema.type_map[f'_FilterFor{field_type.name}']
-            f.args['filter'] = GraphQLArgument(_filter)
-    return _schema
-
-
-def add_create_mutations(schema):
+def add_create_mutations(schema: GraphQLSchema):
     """
     Add mutations for creating object types.
     :param schema:

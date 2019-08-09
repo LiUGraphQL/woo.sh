@@ -422,7 +422,8 @@ def add_object_type_filters(schema: GraphQLSchema):
             continue
 
         for field_name, field in _type.fields.items():
-            if not is_list_type(field.type):
+
+            if not is_list_type(get_nullable_type(field.type)):
                 continue
 
             named_type = get_named_type(field.type)

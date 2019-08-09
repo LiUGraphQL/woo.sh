@@ -337,29 +337,45 @@ def add_scalar_filters(schema: GraphQLSchema):
 
     # String
     make += 'input _StringFilter {' \
-           '   _eq: String ' \
-           '   _neq: String ' \
-           '   _gt: String ' \
-           '   _egt: String ' \
-           '   _lt: String ' \
-           '   _elt: String ' \
-           '   _in: [String] ' \
-           '   _nin: [String] ' \
-           '   _like: String ' \
-           '   _ilike: String ' \
-           '   _nlike: String ' \
-           '   _nilike: String ' \
-           '} '
+            '   _eq: String ' \
+            '   _neq: String ' \
+            '   _gt: String ' \
+            '   _egt: String ' \
+            '   _lt: String ' \
+            '   _elt: String ' \
+            '   _in: [String] ' \
+            '   _nin: [String] ' \
+            '   _like: String ' \
+            '   _ilike: String ' \
+            '   _nlike: String ' \
+            '   _nilike: String ' \
+            '} '
+
+    # ID (behaves like a string)
+    make += 'input _IDFilter {' \
+            '   _eq: String ' \
+            '   _neq: String ' \
+            '   _gt: String ' \
+            '   _egt: String ' \
+            '   _lt: String ' \
+            '   _elt: String ' \
+            '   _in: [String] ' \
+            '   _nin: [String] ' \
+            '   _like: String ' \
+            '   _ilike: String ' \
+            '   _nlike: String ' \
+            '   _nilike: String ' \
+            '} '
 
     # Boolean
     make += 'input _BooleanFilter {' \
-           '   _eq: Boolean ' \
-           '   _neq: Boolean ' \
-           '} '
+            '   _eq: Boolean ' \
+            '   _neq: Boolean ' \
+            '} '
 
-    # ID and schema-defined scalars
+    # Schema-defined scalars
     for scalar_name, scalar in schema.type_map.items():
-        if not is_scalar_type(scalar) or scalar_name in ['Int', 'Float', 'String', 'Boolean']:
+        if not is_scalar_type(scalar) or scalar_name in ['Int', 'Float', 'String', 'Boolean', 'ID']:
             continue
 
         make += f'input _{scalar_name}Filter {{' \

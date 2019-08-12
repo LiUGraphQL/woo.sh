@@ -16,11 +16,10 @@ string_transforms = {
 
 def cmd(args):
     # load config
+    config = {}
     if args.config:
         with open(args.config) as f:
             config = yaml.safe_load(f)
-    else:
-        config = {}
 
     # get list of schema files
     files = []
@@ -50,33 +49,13 @@ def cmd(args):
 
 
 def run(schema: GraphQLSchema, config: dict):
+    # validate
+    if config.get('validate'):
+        validate_names(schema, config.get('validate'))
+
     # transform
     if config.get('transform'):
-        transform = config.get('transform')
-        # types and interfaces
-        if transform.get('type_names'):
-            if transform.get('type_names') in string_transforms:
-                transform_types(schema, string_transforms[transform.get('type_names')])
-            else:
-                raise Exception('Unsupported type name transform: ' + transform.get('type_names'))
-
-        # fields
-        if transform.get('field_names'):
-            if transform.get('field_names') in string_transforms:
-                transform_fields(schema, string_transforms[transform.get('field_names')])
-            else:
-                raise Exception('Unsupported field name transform: ' + transform.get('field_names'))
-
-        # enums
-        if transform.get('enum_values'):
-            if transform.get('enum_values') in string_transforms:
-                transform_enums(schema, string_transforms[transform.get('enum_values')])
-            else:
-                raise Exception('Unsupported field name transform: ' + transform.get('field_names'))
-
-        # comments
-        if transform.get('drop_comments'):
-            drop_comments(schema)
+        transform_names(schema, config.get('transform'))
 
     # API generation
     if config.get('generation'):
@@ -148,6 +127,74 @@ def run(schema: GraphQLSchema, config: dict):
     return schema
 
 
+def validate_names(schema:GraphQLSchema, validate):
+    # types and interfaces
+    if validate.get('type_names'):
+        # type names
+        f = string_transforms.get(validate.get('type_names'))
+        if f is None:
+            raise Exception('Unrecognized option: ' + validate.get('type_names'))
+        for type_name, _type in schema.type_map.items():
+            if is_introspection_type(_type):
+                continue
+            if f(type_name) != type_name:
+                raise Exception(f'Type "{type_name}" does not follow {validate.get("type_names")}')
+
+    # field names
+    if validate.get('field_names'):
+        f = string_transforms.get(validate.get('field_names'))
+        if f is None:
+            raise Exception('Unrecognized option: ' + validate.get('field_names'))
+        for type_name, _type in schema.type_map.items():
+            if is_introspection_type(_type) or is_enum_or_scalar(_type):
+                continue
+            for field_name in _type.fields.keys():
+                if field_name.startswith('_'):
+                    continue
+                if f(field_name) != field_name:
+                    raise Exception(f'Field "{field_name}" does not follow {validate.get("field_names")}')
+
+    # enum names
+    if validate.get('enum_values'):
+        f = string_transforms.get(validate.get('enum_values'))
+        if f is None:
+            raise Exception('Unrecognized option: ' + validate.get('enum_values'))
+        for type_name, _type in schema.type_map.items():
+            if is_introspection_type(_type) or not is_enum_type(_type):
+                continue
+
+            for i in _type.values.keys():
+                if f(i) != i:
+                    raise Exception(f'Enum "{i}" does not follow {validate.get("enum_values")}')
+
+
+def transform_names(schema: GraphQLSchema, transform):
+    # types and interfaces
+    if transform.get('type_names'):
+        if transform.get('type_names') in string_transforms:
+            transform_types(schema, string_transforms[transform.get('type_names')])
+        else:
+            raise Exception('Unsupported type name transform: ' + transform.get('type_names'))
+
+    # fields
+    if transform.get('field_names'):
+        if transform.get('field_names') in string_transforms:
+            transform_fields(schema, string_transforms[transform.get('field_names')])
+        else:
+            raise Exception('Unsupported field name transform: ' + transform.get('field_names'))
+
+    # enums
+    if transform.get('enum_values'):
+        if transform.get('enum_values') in string_transforms:
+            transform_enums(schema, string_transforms[transform.get('enum_values')])
+        else:
+            raise Exception('Unsupported field name transform: ' + transform.get('field_names'))
+
+    # comments
+    if transform.get('drop_comments'):
+        drop_comments(schema)
+
+
 def transform_types(schema, transform):
     type_names = set(schema.type_map.keys())
     for type_name in type_names:
@@ -165,6 +212,8 @@ def transform_fields(schema, transform):
             continue
         field_names = set(_type.fields.keys())
         for field_name in field_names:
+            if field_name.startswith('_'):
+                continue
             field = _type.fields[field_name]
             _type.fields.pop(field_name)
             _type.fields[transform(field_name)] = field

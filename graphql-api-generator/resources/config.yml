@@ -1,3 +1,7 @@
+validate:
+    type_names: PascalCase
+    field_names: camelCase
+    enum_values: PascalCase
 transform:
     type_names: PascalCase
     field_names: camelCase

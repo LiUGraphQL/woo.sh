@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import os
 from io import UnsupportedOperation
 
 import yaml
@@ -21,13 +22,24 @@ def cmd(args):
     else:
         config = {}
 
-    # concat input files
+    # get list of schema files
+    files = []
+    if os.path.isdir(args.input):
+        for filename in os.listdir(args.input):
+            if filename.endswith(".graphql"):
+                files.append(f'{args.input}/{filename}')
+    else:
+        files = args.input.split(',')
+
+    # build schema
     schema_string = ''
-    for file in args.input.split(','):
+    for file in files:
         with open(file, 'r') as f:
             schema_string += f.read() + '\n'
+    schema = build_schema(schema_string)
 
-    schema = run(build_schema(schema_string), config)
+    # run
+    schema = run(schema, config)
 
     # write to file or stdout
     if args.output:
@@ -186,11 +198,12 @@ def drop_comments(schema):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', type=str, required=True,
-                        help='Input schema files (separated by commas)')
+                        help='GraphQL DB schema files (separated by commas), or a path to a schema directory')
     parser.add_argument('--output', type=str,
                         help='Output schema file (default stdout)')
     parser.add_argument('--config', type=str,
                         help='Path to configuration file')
+
     cmd(parser.parse_args())
 
 

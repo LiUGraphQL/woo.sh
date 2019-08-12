@@ -1,21 +1,5 @@
 #!/usr/bin/env python3
-import yaml
-from graphql import build_schema
-
-import generator
-
-config_file = './resources/config.yml'
-input_files = './resources/schema.graphql'
-
-config = ''
-with open(config_file) as f:
-    config = yaml.safe_load(f)
+import os
 
 # input files
-schema_string = ''
-for file in input_files.split(','):
-    with open(file, 'r') as f:
-        schema_string += f.read() + '\n'
-
-schema = generator.run(build_schema(schema_string), config)
-print(generator.print_schema(schema))
+os.system('python3 generator.py --input ./resources --config ./resources/config.yml')

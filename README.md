@@ -1,5 +1,5 @@
 # pgschema-to-apischema
-The tool in this repository extends a schema for Property Graphs into a GraphQL schema for a GraphQL API, where [the Property Graph schema is assumed to be represented using the GraphQL Schema Definition Language (SDL)](http://blog.liu.se/olafhartig/documents/graphql-schemas-for-property-graphs/).
+The tool in this repository extends a schema for Property Graphs into a GraphQL schema for a GraphQL API, where [the Property Graph schema is assumed to be represented using the GraphQL Schema Definition Language (SDL)](http://blog.liu.se/olafhartig/documents/graphql-schemas-for-property-graphs/). The actual approach to extend the Property Graph schemas into GraphQL API schemas (as implemented by this tool) is documented in the [wiki of this repo](https://github.com/LiUGraphQL/pgschema-to-apischema/wiki).
 
 ## Example
 ```bash

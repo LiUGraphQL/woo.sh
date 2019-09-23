@@ -21,6 +21,7 @@ generation:
     query_by_id: true
     query_type_filter: true
     query_list_of: true
+    query_by_key: true
     # add input types
     input_to_create_objects: true
     input_to_update_objects: true

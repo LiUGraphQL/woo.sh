@@ -194,6 +194,68 @@ def add_input_to_create(schema: GraphQLSchema):
     return schema
 
 
+def _get_keys_for_type(type_: GraphQLType):
+    keys = []
+    if hasattr(type_, 'ast_node') and type_.ast_node is not None:
+        directives = {directive.name.value: directive for directive in type_.ast_node.directives}
+        if 'key' in directives:
+            arguments = {arg.name.value: arg for arg in directives['key'].arguments}
+            if 'fields' in arguments:
+                keys.append([val.value for val in arguments['fields'].value.values])
+    return keys
+
+
+def add_key_input_types(schema: GraphQLSchema):
+    """
+    Add create and connect types for creating objects.
+    :param schema:
+    :return:
+    """
+    # add create types (placeholders)
+    make_types = ''
+    extend_fields = ''
+    for _type in schema.type_map.values():
+        if not is_schema_defined_type(_type) or is_interface_type(_type):
+            continue
+        keys = _get_keys_for_type(_type)
+        # TODO: Modify this when we need to handle multiple keys.
+        if len(keys) > 0:
+            for key in keys[:1]:
+                make_types += f'input _KeyFor{_type.name} '
+                extend_fields += f'\nextend input _KeyFor{_type.name} {{ '
+                for field_name, field in _type.fields.items():
+                    # TODO: Modify this if we need to verify that the key fields are in the object
+                    if field_name not in key:
+                        continue
+                    extend_fields += f'{field_name}: {field.type} '
+                extend_fields += '} '
+    schema = add_to_schema(schema, make_types)
+    schema = add_to_schema(schema, extend_fields)
+    return schema
+
+
+def add_key_queries(schema: GraphQLSchema):
+    """
+    Add query to get object based on ID.
+    :param schema:
+    :return:
+    """
+    # Create queries for object types
+    make = ''
+    for _type in schema.type_map.values():
+        if not is_schema_defined_type(_type):
+            continue
+        keys = _get_keys_for_type(_type)
+        # TODO: Handle multiple keys here, somehow.
+        if len(keys) > 0:
+            # for key in keys[:1]:
+            query_name = f'{decapitalize(_type.name)}ByKey'
+            key_type = f'_KeyFor{_type.name}'
+            make += f'extend type Query {{ {query_name}(key:{key_type}!): {_type.name} }} '
+    schema = add_to_schema(schema, make)
+    return schema
+
+
 def extend_connect(schema: GraphQLSchema, _type: GraphQLType, field_type: GraphQLType, field_name: str):
     """
     Add connect type.

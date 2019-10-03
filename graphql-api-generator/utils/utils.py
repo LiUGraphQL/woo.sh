@@ -223,6 +223,9 @@ def add_key_input_types(schema: GraphQLSchema):
             for key in keys[:1]:
                 make_types += f'input _KeyFor{_type.name} '
                 extend_fields += f'\nextend input _KeyFor{_type.name} {{ '
+                for key_field in key:
+                    if key_field not in _type.fields:
+                        raise Exception(f'Field "{key_field}" in @key directive for {_type} is not a field of {_type}!')
                 for field_name, field in _type.fields.items():
                     # TODO: Modify this if we need to verify that the key fields are in the object
                     if field_name not in key:

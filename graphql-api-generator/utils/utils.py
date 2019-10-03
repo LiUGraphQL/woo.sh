@@ -205,6 +205,25 @@ def _get_keys_for_type(type_: GraphQLType):
     return keys
 
 
+def add_the_any_type(schema: GraphQLSchema):
+    """
+    Add create and connect types for creating objects.
+    :param schema:
+    :return:
+    """
+    # add create types (placeholders)
+    schema = add_to_schema(schema, 'type Any')
+    extend_fields = f'extend type Any {{'
+    for _type in schema.type_map.values():
+        if not is_schema_defined_type(_type) or is_interface_type(_type):
+            continue
+        extend_fields += f'create{_type.name}: [{_type.name}!] '
+        extend_fields += f'update{_type.name}: [{_type.name}!] '
+    extend_fields += '} '
+    schema = add_to_schema(schema, extend_fields)
+    return schema
+
+
 def add_key_input_types(schema: GraphQLSchema):
     """
     Add create and connect types for creating objects.

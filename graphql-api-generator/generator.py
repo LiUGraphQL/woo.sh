@@ -96,6 +96,10 @@ def run(schema: GraphQLSchema, config: dict):
             schema = add_list_of_types(schema)
             schema = add_list_queries(schema)
 
+        if config.get('generation').get('query_by_key'):
+            schema = add_key_input_types(schema)
+            schema = add_key_queries(schema)
+
         # add input types
         if config.get('generation').get('input_to_create_objects'):
             schema = add_input_to_create(schema)

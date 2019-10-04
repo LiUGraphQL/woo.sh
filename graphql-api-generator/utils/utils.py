@@ -318,7 +318,7 @@ def add_input_update(schema: GraphQLSchema):
         if not is_schema_defined_type(_type) or is_interface_type(_type):
             continue
         update_name = f'_InputToUpdate{_type.name}'
-        make += f'input {update_name} '
+        make += f'input {update_name} {{ id: ID! }} '
     schema = add_to_schema(schema, make)
 
     # Add fields to update type
@@ -595,7 +595,7 @@ def add_update_mutations(schema: GraphQLSchema):
             continue
         update = f'update{capitalize(_type.name)} '
         input_type = f'_InputToUpdate{_type.name}'
-        make += f'extend type Mutation {{ {update}(id: ID!, data: {input_type}!): {_type.name} }} '
+        make += f'extend type Mutation {{ {update}(data: {input_type}!): {_type.name} }} '
     schema = add_to_schema(schema, make)
 
     return schema

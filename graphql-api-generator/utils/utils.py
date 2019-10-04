@@ -42,7 +42,7 @@ def is_schema_defined_type(_type: GraphQLType):
     :param _type:
     :return:
     """
-    if is_input_type(_type) or _type.name.startswith('_') or _type.name == 'Mutation' or _type.name == 'Query':
+    if is_input_type(_type) or _type.name.startswith('_') or _type.name == 'Mutation' or _type.name == 'Query' or _type.name == 'Any':
         return False
     return True
 
@@ -613,5 +613,23 @@ def add_delete_mutations(schema: GraphQLSchema):
             continue
         delete = f'delete{_type.name}'
         make += f'extend type Mutation {{ {delete}(id: ID!): {_type.name} }} '
+    schema = add_to_schema(schema, make)
+    return schema
+
+
+def add_the_many_mutation(schema: GraphQLSchema):
+    """
+    Add mutations for deleting object types.
+    :param schema:
+    :return:
+    """
+    make = ''
+    make += f'extend type Mutation {{ many('
+    for _type in schema.type_map.values():
+        if not is_schema_defined_type(_type) or is_interface_type(_type):
+            continue
+        make += f'create{_type.name}: [_InputToCreate{_type.name}!]\n'
+        make += f'update{capitalize(_type.name)}: [_InputToUpdate{_type.name}!]\n'
+    make += '): Any } '
     schema = add_to_schema(schema, make)
     return schema

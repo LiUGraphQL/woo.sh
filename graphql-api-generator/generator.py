@@ -122,6 +122,8 @@ def run(schema: GraphQLSchema, config: dict):
         if config.get('generation').get('delete_objects'):
             schema = add_delete_mutations(schema)
 
+        schema = add_the_many_mutation(schema)
+
         # add edge mutations
         if config.get('generation').get('create_edge_objects'):
             raise UnsupportedOperation('{0} is currently not supported'.format('create_edge_objects'))

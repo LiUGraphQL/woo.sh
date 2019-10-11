@@ -26,7 +26,7 @@ generation:
     input_to_create_objects: true
     input_to_update_objects: true
     # add edge input types (not supported)
-    input_to_create_edge_objects: false
+    input_to_create_edge_objects: true
     input_to_update_edge_objects: false
     # add mutations
     create_objects: true

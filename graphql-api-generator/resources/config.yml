@@ -25,14 +25,14 @@ generation:
     # add input types
     input_to_create_objects: true
     input_to_update_objects: true
-    # add edge input types (not supported)
+    # add edge input types (update not supported)
     input_to_create_edge_objects: true
     input_to_update_edge_objects: false
     # add mutations
     create_objects: true
     update_objects: true
-    delete_objects: true
-    # add edge mutations (not supported)
-    create_edge_objects: false
+    delete_objects: false
+    # add edge mutations (update and delete not supported)
+    create_edge_objects: true
     update_edge_objects: false
     delete_edge_objects: false

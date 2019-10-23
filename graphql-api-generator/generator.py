@@ -73,8 +73,8 @@ def run(schema: GraphQLSchema, config: dict):
             schema = add_reverse_edges(schema)
 
         # add edge types
-        if config.get('generation').get('edge_types'):
-            raise UnsupportedOperation('{0} is currently not supported'.format('edgeTypes'))
+        if config.get('generation').get('edge_types') or config.get('generation').get('create_edge_objects'):
+            schema = add_edge_objects(schema)
         if config.get('generation').get('fields_for_edge_types'):
             raise UnsupportedOperation('{0} is currently not supported'.format('fields_for_edge_types'))
 
@@ -105,7 +105,7 @@ def run(schema: GraphQLSchema, config: dict):
 
         # add edge input types
         if config.get('generation').get('input_to_create_edge_objects'):
-            schema = add_create_edge_objects(schema)
+            schema = add_input_to_create_edge_objects(schema)
         if config.get('generation').get('input_to_update_edge_objects'):
             raise UnsupportedOperation('{0} is currently not supported'.format('input_to_update_edge_objects'))
 
@@ -119,7 +119,7 @@ def run(schema: GraphQLSchema, config: dict):
 
         # add edge mutations
         if config.get('generation').get('create_edge_objects'):
-            raise UnsupportedOperation('{0} is currently not supported'.format('create_edge_objects'))
+            schema = add_mutation_create_edge_objects(schema)
         if config.get('generation').get('update_edge_objects'):
             raise UnsupportedOperation('{0} is currently not supported'.format('update_edge_objects'))
         if config.get('generation').get('delete_edge_objects'):

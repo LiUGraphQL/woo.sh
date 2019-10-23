@@ -138,8 +138,7 @@ def add_reverse_edges(schema: GraphQLSchema):
             continue
 
         for field_name, field_type in _type.fields.items():
-            inner_field_type = get_named_type(field_type.type)
-            if is_scalar_type(inner_field_type) or is_enum_type(inner_field_type):
+            if is_enum_or_scalar(get_named_type(field_type.type)):
                 continue
 
             # Reverse edge
@@ -516,47 +515,76 @@ def add_object_type_filters(schema: GraphQLSchema):
     return schema
 
 
-def add_create_edge_objects(schema: GraphQLSchema):
+def get_field_annotations(field: GraphQLField):
+    annotation_fields = []
+    for arg, arg_type in field.args.items():
+        if arg == 'filter':
+            continue
+        if not is_enum_or_scalar(get_named_type(arg_type.type)):
+            raise Exception("Input object fields are not supported.")
+        annotation_fields.append(f'{arg}: {arg_type.type}')
+    return " ".join(annotation_fields)
+
+
+def add_edge_objects(schema: GraphQLSchema):
     make = ''
     for _type in schema.type_map.values():
         if not is_schema_defined_type(_type) or is_interface_type(_type):
             continue
-
+        connected_types = schema.get_possible_types(_type) if is_interface_type(_type) else [_type]
         for field_name, field in _type.fields.items():
-            if field_name[0] == '_':
+            inner_field_type = get_named_type(field.type)
+            if field_name.startswith('_') or is_enum_or_scalar(inner_field_type):
                 continue
-            field_type = field.type
-            inner_field_type = get_named_type(field_type)
-            if is_scalar_type(inner_field_type) or is_enum_type(inner_field_type):
-                continue
-
-            if is_interface_type(_type):
-                connected_types = schema.get_possible_types(_type)
-            else:
-                connected_types = [_type]
-
             for t in connected_types:
                 edge_from = f'{capitalize(field_name)}EdgeFrom{t.name}'
-                edge_create = f'create{edge_from}'
+                annotations = get_field_annotations(field)
+                make += f'type _{edge_from} {{id:ID! source: {t.name}! target: {inner_field_type}! {annotations}}}\n'
+
+    schema = add_to_schema(schema, make)
+    return schema
+
+
+def add_input_to_create_edge_objects(schema: GraphQLSchema):
+    make = ''
+    for _type in schema.type_map.values():
+        if not is_schema_defined_type(_type) or is_interface_type(_type):
+            continue
+        connected_types = schema.get_possible_types(_type) if is_interface_type(_type) else [_type]
+        for field_name, field in _type.fields.items():
+            inner_field_type = get_named_type(field.type)
+            if field_name.startswith('_') or is_enum_or_scalar(inner_field_type):
+                continue
+            for t in connected_types:
+                edge_from = f'{capitalize(field_name)}EdgeFrom{t.name}'
                 edge_input = f'_InputToCreate{edge_from}'
                 annotate_input = f'_InputToAnnotate{edge_from}'
-
-                annotation_fields = []
-                for arg, arg_type in field.args.items():
-                    if arg == 'filter':
-                        continue
-                    # if not is_scalar_type(arg_type.type.name) and not is_enum_type(arg_type.type.name):
-                    #     raise Exception("Fields cannot be object types")
-                    annotation_fields.append(f'{arg}: {arg_type.type}')
-                annotations = " ".join(annotation_fields)
+                annotations = get_field_annotations(field)
 
                 if len(annotations) > 0:
                     make += f'input {edge_input} {{sourceID: ID! targetID: ID! annotations: {annotate_input} }}\n'
                     make += f'input {annotate_input}{{{annotations}}}\n'
-                    make += f'type _{edge_from} {{id:ID! source: {t.name}! target: {inner_field_type}! {annotations}}}\n'
                 else:
                     make += f'input {edge_input} {{sourceID: ID! targetID: ID!}}\n'
-                    make += f'type _{edge_from} {{id: ID! source: {t.name}! target: {inner_field_type}!}}\n'
+
+    schema = add_to_schema(schema, make)
+    return schema
+
+
+def add_mutation_create_edge_objects(schema: GraphQLSchema):
+    make = ''
+    for _type in schema.type_map.values():
+        if not is_schema_defined_type(_type) or is_interface_type(_type):
+            continue
+        connected_types = schema.get_possible_types(_type) if is_interface_type(_type) else [_type]
+        for field_name, field in _type.fields.items():
+            inner_field_type = get_named_type(field.type)
+            if field_name.startswith('_') or is_enum_or_scalar(inner_field_type):
+                continue
+            for t in connected_types:
+                edge_from = f'{capitalize(field_name)}EdgeFrom{t.name}'
+                edge_create = f'create{edge_from}'
+                edge_input = f'_InputToCreate{edge_from}'
                 make += f'extend type Mutation{{{edge_create}(data: {edge_input}):_{edge_from}}}\n'
 
     schema = add_to_schema(schema, make)

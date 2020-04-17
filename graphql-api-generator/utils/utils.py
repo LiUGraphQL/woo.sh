@@ -98,6 +98,40 @@ def add_id_to_types(schema: GraphQLSchema):
     return add_to_schema(schema, make)
 
 
+def add_creation_date_to_types(schema: GraphQLSchema):
+    """
+    Extend all object types in the schema with an creationDate field.
+    :param schema:
+    :return:
+    """
+    make = ''
+    for _type in schema.type_map.values():
+        if not is_schema_defined_type(_type):
+            continue
+        if is_interface_type(_type):
+            make += f'extend interface {_type.name} {{ _creationDate: Date! }} '
+        else:
+            make += f'extend type {_type.name} {{ _creationDate: Date! }} '
+    return add_to_schema(schema, make)
+
+
+def add_last_update_date_to_types(schema: GraphQLSchema):
+    """
+    Extend all object types in the schema with an lastUpdateDate field.
+    :param schema:
+    :return:
+    """
+    make = ''
+    for _type in schema.type_map.values():
+        if not is_schema_defined_type(_type):
+            continue
+        if is_interface_type(_type):
+            make += f'extend interface {_type.name} {{ _lastUpdateDate: Date }} '
+        else:
+            make += f'extend type {_type.name} {{ _lastUpdateDate: Date }} '
+    return add_to_schema(schema, make)
+
+
 def copy_wrapper_structure(_type: GraphQLType, original: GraphQLType):
     """
     Copy the wrapper structure of original to _type.

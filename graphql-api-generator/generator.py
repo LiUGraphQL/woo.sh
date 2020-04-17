@@ -68,6 +68,14 @@ def run(schema: GraphQLSchema, config: dict):
         if config.get('generation').get('field_for_id'):
             schema = add_id_to_types(schema)
 
+        # add creationDate
+        if config.get('generation').get('field_for_creation_date'):
+            schema = add_creation_date_to_types(schema)
+
+        # add lastUpdateDate
+        if config.get('generation').get('field_for_last_update_date'):
+            schema = add_last_update_date_to_types(schema)
+
         # add reverse edges for traversal
         if config.get('generation').get('reverse_edges'):
             schema = add_reverse_edges(schema)

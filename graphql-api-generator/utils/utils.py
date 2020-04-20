@@ -560,8 +560,14 @@ def get_field_annotations(field: GraphQLField):
     return " ".join(annotation_fields)
 
 
-def add_edge_objects(schema: GraphQLSchema):
+def add_edge_objects(schema: GraphQLSchema, field_for_creation_date, field_for_last_update_date):
     make = ''
+    creation_date_string = ''
+    last_update_date_string = ''
+    if field_for_creation_date:
+        creation_date_string = '_creationDate: Date!'
+    if field_for_last_update_date:
+        last_update_date_string = '_lastUpdateDate: Date'
     for _type in schema.type_map.values():
         if not is_schema_defined_type(_type) or is_interface_type(_type):
             continue
@@ -573,7 +579,7 @@ def add_edge_objects(schema: GraphQLSchema):
             for t in connected_types:
                 edge_from = f'{capitalize(field_name)}EdgeFrom{t.name}'
                 annotations = get_field_annotations(field)
-                make += f'type _{edge_from} {{id:ID! source: {t.name}! target: {inner_field_type}! {annotations}}}\n'
+                make += f'type _{edge_from} {{id:ID! source: {t.name}! target: {inner_field_type}! {creation_date_string} {last_update_date_string} {annotations}}}\n'
 
     schema = add_to_schema(schema, make)
     return schema

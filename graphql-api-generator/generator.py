@@ -82,7 +82,7 @@ def run(schema: GraphQLSchema, config: dict):
 
         # add edge types
         if config.get('generation').get('edge_types') or config.get('generation').get('create_edge_objects'):
-            schema = add_edge_objects(schema)
+            schema = add_edge_objects(schema, config.get('generation').get('field_for_creation_date'), config.get('generation').get('field_for_last_update_date'))
         if config.get('generation').get('fields_for_edge_types'):
             raise UnsupportedOperation('{0} is currently not supported'.format('fields_for_edge_types'))
 

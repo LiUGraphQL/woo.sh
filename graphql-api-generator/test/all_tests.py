@@ -62,7 +62,7 @@ class Tests(TestCase):
                _creationDate: DateTime!
            }
         ''')
-        schema_out = run(schema_in, config)
+        schema_out = generator.run(schema_in, config)
         assert compare.is_equals_schema(schema_out, expected)
 
     def test_add_lastUpdateDate_1(self):
@@ -76,7 +76,7 @@ class Tests(TestCase):
                _lastUpdateDate: DateTime
            }
         ''')
-        schema_out = run(schema_in, config)
+        schema_out = generator.run(schema_in, config)
         assert compare.is_equals_schema(schema_out, expected)
 
     def test_datetime_scalar_1(self):
@@ -97,7 +97,7 @@ class Tests(TestCase):
         ''')
         config = {'generation': {'generate_datetime': True}}
         try:
-            run(schema_in, config)
+            generator.run(schema_in, config)
             assert True
         except:
             assert False
@@ -112,7 +112,7 @@ class Tests(TestCase):
         ''')
         config = {'generation': {'generate_datetime': True}}
         try:
-            run(schema_in, config)
+            generator.run(schema_in, config)
             assert False
         except:
             assert True

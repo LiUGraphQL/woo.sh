@@ -144,16 +144,6 @@ def run(schema: GraphQLSchema, config: dict):
 
 
 def validate_names(schema: GraphQLSchema, validate):
-    # scalars
-    if validate.get('scalar_names'):
-        # type names
-        f = string_transforms.get(validate.get('scalar_names'))
-        if f is None:
-            raise Exception('Unrecognized option: ' + validate.get('type_names'))
-        for type_name, _type in schema.type_map.items():
-            if is_sclara_type(_type):
-                if f(type_name) != type_name:
-                    raise Exception(f'Scalar "{type_name}" does not follow {validate.get("scalar_names")}')
 
     # types and interfaces
     if validate.get('type_names'):
@@ -196,12 +186,6 @@ def validate_names(schema: GraphQLSchema, validate):
 
 
 def transform_names(schema: GraphQLSchema, transform):
-    # scalar
-    if transform.get('scalar_names'):
-        if transform.get('scalar_names') in string_transforms:
-            transform_scalars(schema, string_transforms[transform.get('scalar_names')])
-        else:
-            raise Exception('Unsupported scalar name transform: ' + transform.get('scalar_names'))
 
     # types and interfaces
     if transform.get('type_names'):
@@ -227,16 +211,6 @@ def transform_names(schema: GraphQLSchema, transform):
     # comments
     if transform.get('drop_comments'):
         drop_comments(schema)
-
-
-def transform_scalars(schema, transform):
-    type_names = set(schema.type_map.keys())
-    for type_name in type_names:
-        _type = schema.type_map[type_name]
-        if is_scalar_type(_type):
-            schema.type_map.pop(type_name)
-            _type.name = transform(type_name)
-            schema.type_map[_type.name] = _type
 
 
 def transform_types(schema, transform):

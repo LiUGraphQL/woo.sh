@@ -49,6 +49,10 @@ def cmd(args):
 
 
 def run(schema: GraphQLSchema, config: dict):
+    # check if DateTime exists, or should be added
+    if config.get('generation').get('generate_datetime') or config.get('generation').get('field_for_creation_date') or config.get('generation').get('field_for_last_update_date'):
+        datetime_control(schema)
+
     # validate
     if config.get('validate'):
         validate_names(schema, config.get('validate'))
@@ -68,13 +72,21 @@ def run(schema: GraphQLSchema, config: dict):
         if config.get('generation').get('field_for_id'):
             schema = add_id_to_types(schema)
 
+        # add creationDate
+        if config.get('generation').get('field_for_creation_date'):
+            schema = add_creation_date_to_types(schema)
+
+        # add lastUpdateDate
+        if config.get('generation').get('field_for_last_update_date'):
+            schema = add_last_update_date_to_types(schema)
+
         # add reverse edges for traversal
         if config.get('generation').get('reverse_edges'):
             schema = add_reverse_edges(schema)
 
         # add edge types
         if config.get('generation').get('edge_types') or config.get('generation').get('create_edge_objects'):
-            schema = add_edge_objects(schema)
+            schema = add_edge_objects(schema, config.get('generation').get('field_for_creation_date'), config.get('generation').get('field_for_last_update_date'))
         if config.get('generation').get('fields_for_edge_types'):
             raise UnsupportedOperation('{0} is currently not supported'.format('fields_for_edge_types'))
 
@@ -132,6 +144,7 @@ def run(schema: GraphQLSchema, config: dict):
 
 
 def validate_names(schema: GraphQLSchema, validate):
+
     # types and interfaces
     if validate.get('type_names'):
         # type names
@@ -173,6 +186,7 @@ def validate_names(schema: GraphQLSchema, validate):
 
 
 def transform_names(schema: GraphQLSchema, transform):
+
     # types and interfaces
     if transform.get('type_names'):
         if transform.get('type_names') in string_transforms:
@@ -246,6 +260,17 @@ def drop_comments(schema):
         else:
             for field in _type.fields.values():
                 field.description = None
+
+
+def datetime_control(schema):
+    type_names = set(schema.type_map.keys())
+    if 'DateTime' in type_names:
+        if not is_scalar_type(schema.type_map['DateTime']):
+            raise Exception('DateTime exists but is not scalar type: ' + schema.type_map['DateTime'])
+    else:
+        schema.type_map['DateTime'] = GraphQLScalarType('DateTime')
+        if not is_scalar_type(schema.type_map['DateTime']):
+            raise Exception('DateTime could not be added as scalar!')
 
 
 if __name__ == '__main__':

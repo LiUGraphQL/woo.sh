@@ -13,6 +13,7 @@ generation:
     # add id field to all schema types
     field_for_id: true
     # add creation date and last update date field(s) to all schema types
+    generate_datetime: false
     field_for_creation_date: false
     field_for_last_update_date: false
     # add reverse edges for traversal

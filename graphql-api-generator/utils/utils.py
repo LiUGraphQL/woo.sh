@@ -109,9 +109,9 @@ def add_creation_date_to_types(schema: GraphQLSchema):
         if not is_schema_defined_type(_type):
             continue
         if is_interface_type(_type):
-            make += f'extend interface {_type.name} {{ _creationDate: Date! }} '
+            make += f'extend interface {_type.name} {{ _creationDate: DateTime! }} '
         else:
-            make += f'extend type {_type.name} {{ _creationDate: Date! }} '
+            make += f'extend type {_type.name} {{ _creationDate: DateTime! }} '
     return add_to_schema(schema, make)
 
 
@@ -126,9 +126,9 @@ def add_last_update_date_to_types(schema: GraphQLSchema):
         if not is_schema_defined_type(_type):
             continue
         if is_interface_type(_type):
-            make += f'extend interface {_type.name} {{ _lastUpdateDate: Date }} '
+            make += f'extend interface {_type.name} {{ _lastUpdateDate: DateTime }} '
         else:
-            make += f'extend type {_type.name} {{ _lastUpdateDate: Date }} '
+            make += f'extend type {_type.name} {{ _lastUpdateDate: DateTime }} '
     return add_to_schema(schema, make)
 
 

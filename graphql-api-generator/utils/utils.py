@@ -412,13 +412,15 @@ def add_list_queries(schema: GraphQLSchema):
     return schema
 
 
-def add_scalar_filters(schema: GraphQLSchema):
+def add_scalar_filters(schema: GraphQLSchema, config: dict):
     """
     Add filter inputs for GrahpQL types (Hasura-style).
     :param schema:
     :return:
     """
     make = ''
+    manually_handled_scalars = ['Int', 'Float', 'String', 'Boolean', 'ID']
+
     # Numeric
     scalars = ['Int', 'Float']
     for scalar in scalars:
@@ -471,9 +473,37 @@ def add_scalar_filters(schema: GraphQLSchema):
             '   _neq: Boolean ' \
             '} '
 
+    # Date
+    if config.get('generation').get('generate_date'):
+        manually_handled_scalars.append('Date')
+        make += 'input _DateFilter {' \
+                '   _eq: Date ' \
+                '   _neq: Date ' \
+                '   _in: [Date] ' \
+                '   _nin: [Date] ' \
+                '   _gt: Date ' \
+                '   _egt: Date ' \
+                '   _lt: Date ' \
+                '   _elt: Date ' \
+                '} '
+
+    # DateTime
+    if config.get('generation').get('generate_datetime'):
+        manually_handled_scalars.append('DateTime')
+        make += 'input _DateTimeFilter {' \
+                '   _eq: DateTime ' \
+                '   _neq: DateTime ' \
+                '   _in: [DateTime] ' \
+                '   _nin: [DateTime] ' \
+                '   _gt: DateTime ' \
+                '   _egt: DateTime ' \
+                '   _lt: DateTime ' \
+                '   _elt: DateTime ' \
+                '} '
+
     # Schema-defined scalars
     for scalar_name, scalar in schema.type_map.items():
-        if not is_scalar_type(scalar) or scalar_name in ['Int', 'Float', 'String', 'Boolean', 'ID']:
+        if not is_scalar_type(scalar) or scalar_name in manually_handled_scalars:
             continue
 
         make += f'input _{scalar_name}Filter {{' \
@@ -488,7 +518,7 @@ def add_scalar_filters(schema: GraphQLSchema):
     return schema
 
 
-def add_type_filters(schema: GraphQLSchema):
+def add_type_filters(schema: GraphQLSchema, field_for_creation_date, field_for_last_update_date):
     """
     Add filter types (Hasura-style filters).
     :param schema: schema
@@ -505,7 +535,7 @@ def add_type_filters(schema: GraphQLSchema):
             f'   _not: _FilterFor{_type.name} '
 
         for field_name, field in _type.fields.items():
-            if field_name[0] == '_':
+            if field_name[0] == '_' and not (field_for_creation_date and field_name == '_creationDate') and not (field_for_last_update_date and field_name == '_lastUpdateDate'):
                 continue
 
             # remove outer required
@@ -565,9 +595,9 @@ def add_edge_objects(schema: GraphQLSchema, field_for_creation_date, field_for_l
     creation_date_string = ''
     last_update_date_string = ''
     if field_for_creation_date:
-        creation_date_string = '_creationDate: Date!'
+        creation_date_string = '_creationDate: DateTime!'
     if field_for_last_update_date:
-        last_update_date_string = '_lastUpdateDate: Date'
+        last_update_date_string = '_lastUpdateDate: DateTime'
     for _type in schema.type_map.values():
         if not is_schema_defined_type(_type) or is_interface_type(_type):
             continue

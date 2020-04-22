@@ -16,8 +16,8 @@ generation:
     generate_date: false
     # add creation date and last update date field(s) to all schema types
     generate_datetime: false
-    field_for_creation_date: false
-    field_for_last_update_date: false
+    field_for_creation_date: true
+    field_for_last_update_date: true
     # add reverse edges for traversal
     reverse_edges: true
     # add edge types

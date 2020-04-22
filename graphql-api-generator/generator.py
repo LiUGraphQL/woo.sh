@@ -53,7 +53,7 @@ def run(schema: GraphQLSchema, config: dict):
     config.get('generation')['generate_datetime'] = config.get('generation').get('generate_datetime') or config.get('generation').get('field_for_creation_date') or config.get('generation').get('field_for_last_update_date')
 
     # check if Date exists, or should be added
-    # If it already exists (in the excpected way, we handle it as if we added it
+    # If it already exists (in the expected way, we handle it as if we added it
     config.get('generation')['generate_date'] = date_control(schema, config.get('generation').get('generate_date'))
 
     # check if DateTime exists, or should be added
@@ -292,7 +292,6 @@ def date_control(schema, config: dict):
             raise Exception('Date could not be added as scalar!')
         return True
     return False
-
 
 
 if __name__ == '__main__':

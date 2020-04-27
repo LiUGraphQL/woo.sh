@@ -473,7 +473,7 @@ def add_scalar_filters(schema: GraphQLSchema, config: dict):
             '   _neq: Boolean ' \
             '} '
 
-    # Date
+    # Date (behaves like a string?)
     if config.get('generation').get('generate_date'):
         manually_handled_scalars.append('Date')
         make += 'input _DateFilter {' \
@@ -487,7 +487,7 @@ def add_scalar_filters(schema: GraphQLSchema, config: dict):
                 '   _elt: Date ' \
                 '} '
 
-    # DateTime
+    # DateTime (behaves like a integer)
     if config.get('generation').get('generate_datetime'):
         manually_handled_scalars.append('DateTime')
         make += 'input _DateTimeFilter {' \
@@ -535,6 +535,7 @@ def add_type_filters(schema: GraphQLSchema, field_for_creation_date, field_for_l
             f'   _not: _FilterFor{_type.name} '
 
         for field_name, field in _type.fields.items():
+            # This is a bit questionable
             if field_name[0] == '_' and not (field_for_creation_date and field_name == '_creationDate') and not (field_for_last_update_date and field_name == '_lastUpdateDate'):
                 continue
 

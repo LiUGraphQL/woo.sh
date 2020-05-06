@@ -14,7 +14,7 @@ mkdir -p ${output}/resources
 
 # copy server files
 cp graphql-server/server.js ${output}/
-cp graphql-server/drivers/arangodb/* ${output}/
+cp graphql-server/drivers/${driver}/* ${output}/
 
 # install dependencies
 cd bin/woosh-server

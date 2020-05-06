@@ -473,7 +473,8 @@ def add_scalar_filters(schema: GraphQLSchema, config: dict):
             '   _neq: Boolean ' \
             '} '
 
-    # Date (behaves like a string?)
+    # TODO: Scrap this when we remove the Date scalar
+    # Date (behaves like a string)
     if config.get('generation').get('generate_date'):
         manually_handled_scalars.append('Date')
         make += 'input _DateFilter {' \
@@ -481,10 +482,6 @@ def add_scalar_filters(schema: GraphQLSchema, config: dict):
                 '   _neq: Date ' \
                 '   _in: [Date] ' \
                 '   _nin: [Date] ' \
-                '   _gt: Date ' \
-                '   _egt: Date ' \
-                '   _lt: Date ' \
-                '   _elt: Date ' \
                 '} '
 
     # DateTime (behaves like a integer)

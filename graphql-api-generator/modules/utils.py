@@ -108,7 +108,7 @@ def add_creation_date_to_types(schema: GraphQLSchema):
     """
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type):
+        if not is_object_type(_type) or _type.name == 'Mutation' or _type.name == 'Query':
             continue
         if is_interface_type(_type):
             make += f'extend interface {_type.name} {{ _creationDate: DateTime! }} '
@@ -125,12 +125,12 @@ def add_last_update_date_to_types(schema: GraphQLSchema):
     """
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type):
+        if not is_object_type(_type) or _type.name == 'Mutation' or _type.name == 'Query':
             continue
         if is_interface_type(_type):
-            make += f'extend interface {_type.name} {{ _lastUpdateDate: DateTime }} '
+            make += f'extend interface {_type.name} {{ _lastUpdateDate: DateTime! }} '
         else:
-            make += f'extend type {_type.name} {{ _lastUpdateDate: DateTime }} '
+            make += f'extend type {_type.name} {{ _lastUpdateDate: DateTime! }} '
     return add_to_schema(schema, make)
 
 
@@ -477,13 +477,19 @@ def add_scalar_filters(schema: GraphQLSchema):
     for scalar_name, scalar in schema.type_map.items():
         if not is_scalar_type(scalar) or scalar_name in ['Int', 'Float', 'String', 'Boolean', 'ID']:
             continue
-
         make += f'input _{scalar_name}Filter {{' \
                f'   _eq: {scalar_name} ' \
                f'   _neq: {scalar_name} ' \
                f'   _in: [{scalar_name}] ' \
                f'   _nin: [{scalar_name}] ' \
                f'}} '
+        if scalar_name == 'DateTime':
+             make += f'extend input _{scalar_name}Filter {{' \
+                 '   _gt: String ' \
+                 '   _egt: String ' \
+                 '   _lt: String ' \
+                 '   _elt: String ' \
+                 f'}} '
 
     schema = add_to_schema(schema, make)
 
@@ -562,14 +568,8 @@ def get_field_annotations(field: GraphQLField):
     return " ".join(annotation_fields)
 
 
-def add_edge_objects(schema: GraphQLSchema, field_for_creation_date, field_for_last_update_date):
+def add_edge_objects(schema: GraphQLSchema):
     make = ''
-    creation_date_string = ''
-    last_update_date_string = ''
-    if field_for_creation_date:
-        creation_date_string = '_creationDate: Date!'
-    if field_for_last_update_date:
-        last_update_date_string = '_lastUpdateDate: Date'
     for _type in schema.type_map.values():
         if not is_schema_defined_type(_type) or is_interface_type(_type):
             continue
@@ -581,7 +581,7 @@ def add_edge_objects(schema: GraphQLSchema, field_for_creation_date, field_for_l
             for t in connected_types:
                 edge_from = f'{capitalize(field_name)}EdgeFrom{t.name}'
                 annotations = get_field_annotations(field)
-                make += f'type _{edge_from} {{id:ID! source: {t.name}! target: {inner_field_type}! {creation_date_string} {last_update_date_string} {annotations}}}\n'
+                make += f'type _{edge_from} {{id:ID! source: {t.name}! target: {inner_field_type}! {annotations}}}\n'
 
     schema = add_to_schema(schema, make)
     return schema

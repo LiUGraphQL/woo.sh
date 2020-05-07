@@ -18,6 +18,16 @@ def uppercase(string: str):
     return string.upper()
 
 
+def is_meta_field(field):
+    """
+    Returns true if a field should be recognized as a system defined meta data field.
+    :param field:
+    :return:
+    """
+    meta_fields = ['_creationDate', '_lastUpdateDate']
+    return field in meta_fields
+
+
 def capitalize(string: str):
     """
     Make the first letter of string upper case.
@@ -487,8 +497,9 @@ def add_scalar_filters(schema: GraphQLSchema, config: dict):
             '   _neq: Boolean ' \
             '} '
 
-    # DateTime (behaves like a integer)
-    if config.get('generation').get('generate_datetime'):
+    # If DateTime is defined as a scalar then create filter (behaves like an integer)
+    date_time = schema.type_map.get("DateTime")
+    if is_scalar_type(date_time):
         manually_handled_scalars.append('DateTime')
         make += 'input _DateTimeFilter {' \
                 '   _eq: DateTime ' \
@@ -518,7 +529,7 @@ def add_scalar_filters(schema: GraphQLSchema, config: dict):
     return schema
 
 
-def add_type_filters(schema: GraphQLSchema, field_for_creation_date, field_for_last_update_date):
+def add_type_filters(schema: GraphQLSchema):
     """
     Add filter types (Hasura-style filters).
     :param schema: schema
@@ -535,8 +546,7 @@ def add_type_filters(schema: GraphQLSchema, field_for_creation_date, field_for_l
             f'   _not: _FilterFor{_type.name} '
 
         for field_name, field in _type.fields.items():
-            # This is a bit questionable
-            if field_name[0] == '_' and not (field_for_creation_date and field_name == '_creationDate') and not (field_for_last_update_date and field_name == '_lastUpdateDate'):
+            if field_name[0] == '_' and not is_meta_field(field_name):
                 continue
 
             # remove outer required

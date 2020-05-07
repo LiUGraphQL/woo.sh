@@ -96,7 +96,7 @@ def run(schema: GraphQLSchema, config: dict):
         if config.get('generation').get('query_type_filter') or config.get('generation').get('query_list_of'):
             schema = add_enum_filters(schema)
             schema = add_scalar_filters(schema, config)
-            schema = add_type_filters(schema, config.get('generation').get('field_for_creation_date'), config.get('generation').get('field_for_last_update_date'))
+            schema = add_type_filters(schema)
 
         if config.get('generation').get('query_type_filter'):
             schema = add_object_type_filters(schema)

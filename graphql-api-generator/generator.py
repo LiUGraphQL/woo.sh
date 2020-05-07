@@ -49,18 +49,6 @@ def cmd(args):
 
 
 def run(schema: GraphQLSchema, config: dict):
-    #Avoid some weird config combinations
-    config.get('generation')['generate_datetime'] = config.get('generation').get('generate_datetime') or config.get('generation').get('field_for_creation_date') or config.get('generation').get('field_for_last_update_date')
-
-    # TODO: Remove this when we scrap the Date scalar
-    # check if Date exists, or should be added
-    # If it already exists (in the expected way, we handle it as if we added it
-    config.get('generation')['generate_date'] = date_control(schema, config.get('generation').get('generate_date'))
-
-    # check if DateTime exists, or should be added
-    if config.get('generation').get('generate_datetime'):
-        datetime_control(schema)
-
     # validate
     if config.get('validate'):
         validate_names(schema, config.get('validate'))
@@ -79,6 +67,15 @@ def run(schema: GraphQLSchema, config: dict):
         # add id
         if config.get('generation').get('field_for_id'):
             schema = add_id_to_types(schema)
+
+        # check if DateTime exists, or should be added
+        if config.get('generation').get('generate_datetime'):
+            datetime_control(schema)
+
+        # TODO: Remove this when we scrap the Date scalar
+        # check if Date exists, or should be added
+        if config.get('generation').get('generate_date'):
+            date_control(schema)
 
         # add creationDate
         if config.get('generation').get('field_for_creation_date'):
@@ -282,17 +279,16 @@ def datetime_control(schema):
 
 
 # TODO: Remove this when we scrap the Date scalar
-def date_control(schema, config: dict):
+def date_control(schema):
     type_names = set(schema.type_map.keys())
     if 'Date' in type_names:
         if not is_scalar_type(schema.type_map['Date']):
             raise Exception('Date exists but is not scalar type: ' + schema.type_map['Date'])
-        return True
-    elif config.get('generation').get('generate_date'):
+    else:
         schema.type_map['Date'] = GraphQLScalarType('Date')
         if not is_scalar_type(schema.type_map['Date']):
             raise Exception('Date could not be added as scalar!')
-        return True
+
     return False
 
 

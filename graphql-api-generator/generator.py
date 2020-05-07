@@ -77,23 +77,23 @@ def run(schema: GraphQLSchema, config: dict):
         if config.get('generation').get('generate_date'):
             date_control(schema)
 
-        # add creationDate
-        if config.get('generation').get('field_for_creation_date'):
-            schema = add_creation_date_to_types(schema)
-
-        # add lastUpdateDate
-        if config.get('generation').get('field_for_last_update_date'):
-            schema = add_last_update_date_to_types(schema)
-
         # add reverse edges for traversal
         if config.get('generation').get('reverse_edges'):
             schema = add_reverse_edges(schema)
 
         # add edge types
         if config.get('generation').get('edge_types') or config.get('generation').get('create_edge_objects'):
-            schema = add_edge_objects(schema, config.get('generation').get('field_for_creation_date'), config.get('generation').get('field_for_last_update_date'))
+            schema = add_edge_objects(schema)
         if config.get('generation').get('fields_for_edge_types'):
             raise UnsupportedOperation('{0} is currently not supported'.format('fields_for_edge_types'))
+
+        # add creation date
+        if config.get('generation').get('field_for_creation_date'):
+            schema = add_creation_date_to_types(schema)
+
+        # add last update date
+        if config.get('generation').get('field_for_last_update_date'):
+            schema = add_last_update_date_to_types(schema)
 
         # add queries
         if config.get('generation').get('query_by_id'):

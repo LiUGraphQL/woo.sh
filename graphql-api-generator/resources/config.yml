@@ -12,8 +12,6 @@ generation:
     add_mutation_type: true
     # add id field to all schema types
     field_for_id: true
-    # add the Data scalar
-    generate_date: true
     # add creation date and last update date field(s) to all schema types
     generate_datetime: true
     field_for_creation_date: true

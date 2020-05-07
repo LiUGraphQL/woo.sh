@@ -72,11 +72,6 @@ def run(schema: GraphQLSchema, config: dict):
         if config.get('generation').get('generate_datetime'):
             datetime_control(schema)
 
-        # TODO: Remove this when we scrap the Date scalar
-        # check if Date exists, or should be added
-        if config.get('generation').get('generate_date'):
-            date_control(schema)
-
         # add reverse edges for traversal
         if config.get('generation').get('reverse_edges'):
             schema = add_reverse_edges(schema)
@@ -276,20 +271,6 @@ def datetime_control(schema):
         schema.type_map['DateTime'] = GraphQLScalarType('DateTime')
         if not is_scalar_type(schema.type_map['DateTime']):
             raise Exception('DateTime could not be added as scalar!')
-
-
-# TODO: Remove this when we scrap the Date scalar
-def date_control(schema):
-    type_names = set(schema.type_map.keys())
-    if 'Date' in type_names:
-        if not is_scalar_type(schema.type_map['Date']):
-            raise Exception('Date exists but is not scalar type: ' + schema.type_map['Date'])
-    else:
-        schema.type_map['Date'] = GraphQLScalarType('Date')
-        if not is_scalar_type(schema.type_map['Date']):
-            raise Exception('Date could not be added as scalar!')
-
-    return False
 
 
 if __name__ == '__main__':

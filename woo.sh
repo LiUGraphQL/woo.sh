@@ -78,11 +78,11 @@ function __b3bp_log () {
   # shellcheck disable=SC2034
   local color_error="\\x1b[31m"
   # shellcheck disable=SC2034
-  local color_critical="\\x1b[1;31m"
+  local color_critical="\\x1b[31m"
   # shellcheck disable=SC2034
-  local color_alert="\\x1b[1;37;41m"
+  local color_alert="\\x1b[31m"
   # shellcheck disable=SC2034
-  local color_emergency="\\x1b[1;4;5;37;41m"
+  local color_emergency="\\x1b[31m"
 
   local colorvar="color_${log_level}"
 
@@ -364,7 +364,7 @@ fi
 ##############################################################################
 
 function __b3bp_cleanup_before_exit () {
-  info "Cleaning up. Done"
+  info "Cleaning up before exit. Done."
 }
 trap __b3bp_cleanup_before_exit EXIT
 
@@ -395,7 +395,6 @@ fi
 ### Validation. Error out if the things required for your script are not present
 ##############################################################################
 
-
 ### Runtime
 ##############################################################################
 
@@ -409,11 +408,45 @@ info "arg_i: ${arg_i}"
 info "arg_c: ${arg_c}"
 info "arg_d: ${arg_d}"
 info "arg_o: ${arg_o}"
-info "arg_s: ${arg_d}"
-info "arg_r: ${arg_o}"
+info "arg_s: ${arg_s}"
+info "arg_r: ${arg_r}"
 info "arg_l: ${arg_l}"
 info "arg_n: ${arg_n}"
 
 # woo.sh
 echo "Now ready for GrahpQL server generation!"
-echo "${LOG_LEVEL}"
+
+input_dir=${arg_i}
+config_file="$(cd "$(dirname "${arg_c}")" && pwd)/$(basename "${arg_c}")"
+
+# Check if driver exists
+if [[ ! -d "${__dir}/graphql-server/drivers/${arg_d}" ]]; then
+  emergency "Could not locate the driver '${arg_d}' in ${__dir}/graphql-server/drivers/"
+  exit 1
+fi
+driver_dir=$(cd ${__dir}/graphql-server/drivers/${arg_d}; pwd)
+
+# Create output directory
+mkdir -p ${arg_o}/api-schema
+output_dir=$(cd ${arg_o}; pwd)
+
+# custom API schema
+if [[ -n "${arg_s}" ]]; then
+  custom_schema=${arg_s}
+else
+  custom_schema=${__dir}/graphql-server/empty_custom_schema.graphql
+fi
+
+# custom API resolvers
+if [[ -n "${arg_r}" ]]; then
+  custom_resolvers=${arg_r}
+else
+  custom_resolvers=${__dir}/graphql-server/empty_custom_resolvers.js
+fi
+
+echo ${input_dir}
+echo ${config_file}
+echo ${driver_dir}
+echo ${output_dir}
+echo ${custom_schema}
+echo ${custom_resolvers}

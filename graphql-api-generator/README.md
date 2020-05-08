@@ -1,15 +1,16 @@
-# pgschema-to-apischema
+# graphql-api-generator
 The tool in this repository extends a schema for Property Graphs into a GraphQL schema for a GraphQL API, where [the Property Graph schema is assumed to be represented using the GraphQL Schema Definition Language (SDL)](http://blog.liu.se/olafhartig/documents/graphql-schemas-for-property-graphs/). The actual approach to extend the Property Graph schemas into GraphQL API schemas (as implemented by this tool) is documented in the [wiki of this repo](https://github.com/LiUGraphQL/pgschema-to-apischema/wiki).
 
 ## Prerequisites
 ```bash
 $ pip3 install graphql-core-next
+$ pip3 install PyYAML
 ```
 
 ## Example
 ```bash
 $ python3 generator.py \
-      --input resources/schema.graphql \
+      --input schema.graphql \
       --output api-schema.graphql \
       --config resources/config.yml
 ```
@@ -22,7 +23,7 @@ usage: generator.py [-h] --input INPUT [--output OUTPUT] [--config CONFIG]
 optional arguments:
   -h, --help       show this help message and exit
   --input INPUT    Input schema files (separated by commas)
-  --output OUTPUT  Output schema file (default stdout)
+  --output OUTPUT  Output schema file (optional)
   --config CONFIG  Path to configuration file
 ```
 
@@ -41,7 +42,7 @@ generation:
     # add id field to all schema types
     field_for_id: true
     # add creation date and last update date field(s) to all schema types
-    generate_datetime: false
+    generate_datetime: true
     field_for_creation_date: true
     field_for_last_update_date: true
     # add reverse edges for traversal

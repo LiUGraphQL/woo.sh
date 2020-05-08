@@ -1,0 +1,402 @@
+interface Character {
+  friends: [Character]
+  species: Species
+  homeWorld: Planet
+  name: String
+  id: ID!
+  _friendsFromDroid(filter: _FilterForDroid): [Droid]
+  _friendsFromCharacter: [Character]
+  _friendsFromHuman(filter: _FilterForHuman): [Human]
+}
+
+scalar DateTime
+
+type Droid implements Character {
+  friends: [Character]
+  name: String!
+  primaryFunction: String
+  appearsIn: [Episode]!
+  id: ID!
+  _friendsFromDroid(filter: _FilterForDroid): [Droid]
+  _friendsFromCharacter: [Character]
+  _friendsFromHuman(filter: _FilterForHuman): [Human]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime!
+}
+
+enum Episode {
+  NEWHOPE
+  EMPIRE
+  JEDI
+}
+
+type Human implements Character {
+  friends: [Character]
+  totalCredits: Int
+  starships(filter: _FilterForStarship): [Starship]
+  name: String!
+  appearsIn: [Episode]!
+  id: ID!
+  _friendsFromDroid(filter: _FilterForDroid): [Droid]
+  _friendsFromCharacter: [Character]
+  _friendsFromHuman(filter: _FilterForHuman): [Human]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime!
+}
+
+type Mutation {
+  createDroid(data: _InputToCreateDroid!): Droid
+  createSpecies(data: _InputToCreateSpecies!): Species
+  createPlanet(data: _InputToCreatePlanet!): Planet
+  createHuman(data: _InputToCreateHuman!): Human
+  createStarship(data: _InputToCreateStarship!): Starship
+  updateDroid(id: ID!, data: _InputToUpdateDroid!): Droid
+  updateSpecies(id: ID!, data: _InputToUpdateSpecies!): Species
+  updatePlanet(id: ID!, data: _InputToUpdatePlanet!): Planet
+  updateHuman(id: ID!, data: _InputToUpdateHuman!): Human
+  updateStarship(id: ID!, data: _InputToUpdateStarship!): Starship
+  createFriendsEdgeFromDroid(data: _InputToCreateFriendsEdgeFromDroid): _FriendsEdgeFromDroid
+  createOriginEdgeFromSpecies(data: _InputToCreateOriginEdgeFromSpecies): _OriginEdgeFromSpecies
+  createFriendsEdgeFromHuman(data: _InputToCreateFriendsEdgeFromHuman): _FriendsEdgeFromHuman
+  createStarshipsEdgeFromHuman(data: _InputToCreateStarshipsEdgeFromHuman): _StarshipsEdgeFromHuman
+}
+
+type Planet {
+  name: String
+  climate: String
+  id: ID!
+  _homeWorldFromCharacter: [Character]
+  _originFromSpecies(filter: _FilterForSpecies): [Species]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime!
+}
+
+type Query {
+  droid(id: ID!): Droid
+  character(id: ID!): Character
+  species(id: ID!): Species
+  planet(id: ID!): Planet
+  human(id: ID!): Human
+  starship(id: ID!): Starship
+  listOfDroids(first: Int = 10, after: ID = "", filter: _FilterForDroid): _ListOfDroids
+  listOfCharacters(first: Int = 10, after: ID = "", filter: _FilterForCharacter): _ListOfCharacters
+  listOfSpeciess(first: Int = 10, after: ID = "", filter: _FilterForSpecies): _ListOfSpeciess
+  listOfPlanets(first: Int = 10, after: ID = "", filter: _FilterForPlanet): _ListOfPlanets
+  listOfHumans(first: Int = 10, after: ID = "", filter: _FilterForHuman): _ListOfHumans
+  listOfStarships(first: Int = 10, after: ID = "", filter: _FilterForStarship): _ListOfStarships
+}
+
+type Species {
+  lifespan: Int
+  name: String
+  origin: Planet
+  id: ID!
+  _speciesFromCharacter: [Character]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime!
+}
+
+type Starship {
+  name: String!
+  length: Float
+  id: ID!
+  _starshipsFromHuman(filter: _FilterForHuman): [Human]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime!
+}
+
+input _BooleanFilter {
+  _eq: Boolean
+  _neq: Boolean
+}
+
+input _DateTimeFilter {
+  _eq: DateTime
+  _neq: DateTime
+  _in: [DateTime]
+  _nin: [DateTime]
+}
+
+input _EpisodeFilter {
+  _eq: Episode
+  _neq: Episode
+  _in: [Episode]
+  _nin: [Episode]
+}
+
+input _FilterForCharacter {
+  _and: [_FilterForCharacter]
+  _or: [_FilterForCharacter]
+  _not: _FilterForCharacter
+  name: _StringFilter
+  id: _IDFilter
+}
+
+input _FilterForDroid {
+  _and: [_FilterForDroid]
+  _or: [_FilterForDroid]
+  _not: _FilterForDroid
+  name: _StringFilter
+  primaryFunction: _StringFilter
+  id: _IDFilter
+}
+
+input _FilterForHuman {
+  _and: [_FilterForHuman]
+  _or: [_FilterForHuman]
+  _not: _FilterForHuman
+  totalCredits: _IntFilter
+  name: _StringFilter
+  id: _IDFilter
+}
+
+input _FilterForPlanet {
+  _and: [_FilterForPlanet]
+  _or: [_FilterForPlanet]
+  _not: _FilterForPlanet
+  name: _StringFilter
+  climate: _StringFilter
+  id: _IDFilter
+}
+
+input _FilterForSpecies {
+  _and: [_FilterForSpecies]
+  _or: [_FilterForSpecies]
+  _not: _FilterForSpecies
+  lifespan: _IntFilter
+  name: _StringFilter
+  id: _IDFilter
+}
+
+input _FilterForStarship {
+  _and: [_FilterForStarship]
+  _or: [_FilterForStarship]
+  _not: _FilterForStarship
+  name: _StringFilter
+  length: _FloatFilter
+  id: _IDFilter
+}
+
+input _FloatFilter {
+  _eq: Float
+  _neq: Float
+  _gt: Float
+  _egt: Float
+  _lt: Float
+  _elt: Float
+  _in: [Float]
+  _nin: [Float]
+}
+
+type _FriendsEdgeFromDroid {
+  id: ID!
+  source: Droid!
+  target: Character!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime!
+}
+
+type _FriendsEdgeFromHuman {
+  id: ID!
+  source: Human!
+  target: Character!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime!
+}
+
+input _IDFilter {
+  _eq: String
+  _neq: String
+  _gt: String
+  _egt: String
+  _lt: String
+  _elt: String
+  _in: [String]
+  _nin: [String]
+  _like: String
+  _ilike: String
+  _nlike: String
+  _nilike: String
+}
+
+input _InputToConnectFriendsOfDroid {
+  connect: ID
+  createDroid: _InputToCreateDroid
+  createHuman: _InputToCreateHuman
+}
+
+input _InputToConnectFriendsOfHuman {
+  connect: ID
+  createDroid: _InputToCreateDroid
+  createHuman: _InputToCreateHuman
+}
+
+input _InputToConnectOriginOfSpecies {
+  connect: ID
+  create: _InputToCreatePlanet
+}
+
+input _InputToConnectStarshipsOfHuman {
+  connect: ID
+  create: _InputToCreateStarship
+}
+
+input _InputToCreateDroid {
+  friends: [_InputToConnectFriendsOfDroid]
+  name: String!
+  primaryFunction: String
+  appearsIn: [Episode]!
+}
+
+input _InputToCreateFriendsEdgeFromDroid {
+  sourceID: ID!
+  targetID: ID!
+}
+
+input _InputToCreateFriendsEdgeFromHuman {
+  sourceID: ID!
+  targetID: ID!
+}
+
+input _InputToCreateHuman {
+  friends: [_InputToConnectFriendsOfHuman]
+  totalCredits: Int
+  starships: [_InputToConnectStarshipsOfHuman]
+  name: String!
+  appearsIn: [Episode]!
+}
+
+input _InputToCreateOriginEdgeFromSpecies {
+  sourceID: ID!
+  targetID: ID!
+}
+
+input _InputToCreatePlanet {
+  name: String
+  climate: String
+}
+
+input _InputToCreateSpecies {
+  lifespan: Int
+  name: String
+  origin: _InputToConnectOriginOfSpecies
+}
+
+input _InputToCreateStarship {
+  name: String!
+  length: Float
+}
+
+input _InputToCreateStarshipsEdgeFromHuman {
+  sourceID: ID!
+  targetID: ID!
+}
+
+input _InputToUpdateDroid {
+  friends: [_InputToConnectFriendsOfDroid]
+  name: String
+  primaryFunction: String
+  appearsIn: [Episode]
+}
+
+input _InputToUpdateHuman {
+  friends: [_InputToConnectFriendsOfHuman]
+  totalCredits: Int
+  starships: [_InputToConnectStarshipsOfHuman]
+  name: String
+  appearsIn: [Episode]
+}
+
+input _InputToUpdatePlanet {
+  name: String
+  climate: String
+}
+
+input _InputToUpdateSpecies {
+  lifespan: Int
+  name: String
+  origin: _InputToConnectOriginOfSpecies
+}
+
+input _InputToUpdateStarship {
+  name: String
+  length: Float
+}
+
+input _IntFilter {
+  _eq: Int
+  _neq: Int
+  _gt: Int
+  _egt: Int
+  _lt: Int
+  _elt: Int
+  _in: [Int]
+  _nin: [Int]
+}
+
+type _ListOfCharacters {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [Character]!
+}
+
+type _ListOfDroids {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [Droid]!
+}
+
+type _ListOfHumans {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [Human]!
+}
+
+type _ListOfPlanets {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [Planet]!
+}
+
+type _ListOfSpeciess {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [Species]!
+}
+
+type _ListOfStarships {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [Starship]!
+}
+
+type _OriginEdgeFromSpecies {
+  id: ID!
+  source: Species!
+  target: Planet!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime!
+}
+
+type _StarshipsEdgeFromHuman {
+  id: ID!
+  source: Human!
+  target: Starship!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime!
+}
+
+input _StringFilter {
+  _eq: String
+  _neq: String
+  _gt: String
+  _egt: String
+  _lt: String
+  _elt: String
+  _in: [String]
+  _nin: [String]
+  _like: String
+  _ilike: String
+  _nlike: String
+  _nilike: String
+}

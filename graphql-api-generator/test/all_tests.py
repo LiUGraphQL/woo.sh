@@ -1,7 +1,7 @@
 from unittest import TestCase
 from graphql import build_schema
 import generator
-from utils import compare
+from modules.utils import compare
 
 # TODO Many tests...
 

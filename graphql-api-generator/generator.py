@@ -4,7 +4,7 @@ import os
 from io import UnsupportedOperation
 
 import yaml
-from modules.utils import *
+from utils.utils import *
 
 string_transforms = {
     'uppercase': uppercase,
@@ -35,7 +35,6 @@ def cmd(args):
     for file in files:
         with open(file, 'r') as f:
             schema_string += f.read() + '\n'
-
     schema = build_schema(schema_string)
 
     # run
@@ -60,21 +59,18 @@ def run(schema: GraphQLSchema, config: dict):
 
     # API generation
     if config.get('generation'):
-        # check if DateTime exists or should be added
-        if config.get('generation').get('field_for_creation_date'):
-            datetime_control(schema)
-
-        # add query type
         if config.get('generation').get('add_query_type'):
             schema = add_query_type(schema)
-
-        # add mutation type
         if config.get('generation').get('add_mutation_type'):
             schema = add_mutation_type(schema)
 
         # add id
         if config.get('generation').get('field_for_id'):
             schema = add_id_to_types(schema)
+
+        # check if DateTime exists, or should be added
+        if config.get('generation').get('generate_datetime'):
+            datetime_control(schema)
 
         # add reverse edges for traversal
         if config.get('generation').get('reverse_edges'):
@@ -97,11 +93,9 @@ def run(schema: GraphQLSchema, config: dict):
         # add queries
         if config.get('generation').get('query_by_id'):
             schema = add_get_queries(schema)
-
-        # add filters
         if config.get('generation').get('query_type_filter') or config.get('generation').get('query_list_of'):
             schema = add_enum_filters(schema)
-            schema = add_scalar_filters(schema)
+            schema = add_scalar_filters(schema, config)
             schema = add_type_filters(schema)
 
         if config.get('generation').get('query_type_filter'):
@@ -150,6 +144,7 @@ def run(schema: GraphQLSchema, config: dict):
 
 
 def validate_names(schema: GraphQLSchema, validate):
+
     # types and interfaces
     if validate.get('type_names'):
         # type names
@@ -191,6 +186,7 @@ def validate_names(schema: GraphQLSchema, validate):
 
 
 def transform_names(schema: GraphQLSchema, transform):
+
     # types and interfaces
     if transform.get('type_names'):
         if transform.get('type_names') in string_transforms:
@@ -218,7 +214,7 @@ def transform_names(schema: GraphQLSchema, transform):
 
 
 def transform_types(schema, transform):
-    type_names = set(schema.type_map.keys())
+    type_names = list(schema.type_map.keys())
     for type_name in type_names:
         _type = schema.type_map[type_name]
         if type_name.startswith('_') or is_scalar_type(_type):
@@ -232,7 +228,7 @@ def transform_fields(schema, transform):
     for _type in schema.type_map.values():
         if _type.name.startswith('_') or is_scalar_type(_type) or is_enum_type(_type):
             continue
-        field_names = set(_type.fields.keys())
+        field_names = list(_type.fields.keys())
         for field_name in field_names:
             if field_name.startswith('_'):
                 continue
@@ -246,7 +242,7 @@ def transform_enums(schema, transform):
         if _type.name.startswith('_') or not is_enum_type(_type):
             continue
 
-        enum_values_names = set(_type.values.keys())
+        enum_values_names = list(_type.values.keys())
         for i in enum_values_names:
             enum_value = _type.values[i]
             _type.values.pop(i)
@@ -267,12 +263,12 @@ def drop_comments(schema):
 
 
 def datetime_control(schema):
-    type_names = set(schema.type_map.keys())
+    type_names = list(schema.type_map.keys())
     if 'DateTime' in type_names:
         if not is_scalar_type(schema.type_map['DateTime']):
             raise Exception('DateTime exists but is not scalar type: ' + schema.type_map['DateTime'])
     else:
-        schema.type_map['DateTime'] = GraphQLScalarType('DateTime', serialize=lambda x: str(x))
+        schema.type_map['DateTime'] = GraphQLScalarType('DateTime')
         if not is_scalar_type(schema.type_map['DateTime']):
             raise Exception('DateTime could not be added as scalar!')
 
@@ -282,9 +278,10 @@ if __name__ == '__main__':
     parser.add_argument('--input', type=str, required=True,
                         help='GraphQL DB schema files (separated by commas), or a path to a schema directory')
     parser.add_argument('--output', type=str,
-                        help='Output schema file (optional)')
+                        help='Output schema file (default stdout)')
     parser.add_argument('--config', type=str,
                         help='Path to configuration file')
+
     cmd(parser.parse_args())
 
 

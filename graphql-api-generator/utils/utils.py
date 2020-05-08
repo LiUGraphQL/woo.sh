@@ -18,6 +18,16 @@ def uppercase(string: str):
     return string.upper()
 
 
+def is_meta_field(field):
+    """
+    Returns true if a field should be recognized as a system defined meta data field.
+    :param field:
+    :return:
+    """
+    meta_fields = ['_creationDate', '_lastUpdateDate']
+    return field in meta_fields
+
+
 def capitalize(string: str):
     """
     Make the first letter of string upper case.
@@ -36,14 +46,27 @@ def decapitalize(string: str):
     return string[0].lower() + string[1:]
 
 
-def is_schema_defined_type(_type: GraphQLType):
+def is_db_schema_defined_type(_type: GraphQLType):
     """
-    Returns true if a type is a schema-defined GraphQL type.
+    Returns true if _type is a GraphQL type defined in the DB schema.
     :param _type:
     :return:
     """
     if is_input_type(_type) or _type.name.startswith('_') or _type.name == 'Mutation' or _type.name == 'Query':
         return False
+
+    return True
+
+
+def is_schema_defined_type(_type: GraphQLType):
+    """
+    Returns true if _type is a schema-defined GraphQL type.
+    :param _type:
+    :return:
+    """
+    if is_input_type(_type) or _type.name.startswith('__') or _type.name == 'Mutation' or _type.name == 'Query':
+        return False
+
     return True
 
 
@@ -89,7 +112,7 @@ def add_id_to_types(schema: GraphQLSchema):
     """
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type):
             continue
         if is_interface_type(_type):
             make += f'extend interface {_type.name} {{ id: ID! }} '
@@ -108,6 +131,7 @@ def add_creation_date_to_types(schema: GraphQLSchema):
     for _type in schema.type_map.values():
         if not is_schema_defined_type(_type):
             continue
+
         if is_interface_type(_type):
             make += f'extend interface {_type.name} {{ _creationDate: DateTime! }} '
         else:
@@ -168,7 +192,7 @@ def add_reverse_edges(schema: GraphQLSchema):
     """
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type):
             continue
 
         for field_name, field_type in _type.fields.items():
@@ -200,7 +224,7 @@ def add_input_to_create(schema: GraphQLSchema):
     # add create types (placeholders)
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type) or is_interface_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
         make += f'input _InputToCreate{_type.name} '
     schema = add_to_schema(schema, make)
@@ -208,7 +232,7 @@ def add_input_to_create(schema: GraphQLSchema):
     # add fields to create types
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type) or is_interface_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
         make += f'\nextend input _InputToCreate{_type.name} {{ '
         for field_name, field in _type.fields.items():
@@ -248,7 +272,7 @@ def add_key_input_types(schema: GraphQLSchema):
     make_types = ''
     extend_fields = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type) or is_interface_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
         keys = _get_keys_for_type(_type)
         # TODO: Modify this when we need to handle multiple keys.
@@ -279,7 +303,7 @@ def add_key_queries(schema: GraphQLSchema):
     # Create queries for object types
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type):
             continue
         keys = _get_keys_for_type(_type)
         # TODO: Handle multiple keys here, somehow.
@@ -329,7 +353,7 @@ def add_input_update(schema: GraphQLSchema):
     # Create update inputs
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type) or is_interface_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
         update_name = f'_InputToUpdate{_type.name}'
         make += f'input {update_name} '
@@ -338,7 +362,7 @@ def add_input_update(schema: GraphQLSchema):
     # Add fields to update type
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type) or is_interface_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
         for field_name, field in _type.fields.items():
             if field_name == 'id' or field_name[0] == '_':
@@ -368,7 +392,7 @@ def add_get_queries(schema: GraphQLSchema):
     # Create queries for object types
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type):
             continue
         make += f'extend type Query {{ {decapitalize(_type.name)}(id:ID!): {_type.name} }} '
     schema = add_to_schema(schema, make)
@@ -383,7 +407,7 @@ def add_list_of_types(schema: GraphQLSchema):
     """
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type):
             continue
 
         make += f'type _ListOf{_type.name}s {{ ' \
@@ -403,7 +427,7 @@ def add_list_queries(schema: GraphQLSchema):
     """
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type):
             continue
         make += f'extend type Query {{ ' \
             f'   listOf{_type.name}s(first:Int=10, after:ID="", filter:_FilterFor{_type.name}): _ListOf{_type.name}s ' \
@@ -412,13 +436,15 @@ def add_list_queries(schema: GraphQLSchema):
     return schema
 
 
-def add_scalar_filters(schema: GraphQLSchema):
+def add_scalar_filters(schema: GraphQLSchema, config: dict):
     """
     Add filter inputs for GrahpQL types (Hasura-style).
     :param schema:
     :return:
     """
     make = ''
+    manually_handled_scalars = ['Int', 'Float', 'String', 'Boolean', 'ID']
+
     # Numeric
     scalars = ['Int', 'Float']
     for scalar in scalars:
@@ -471,9 +497,24 @@ def add_scalar_filters(schema: GraphQLSchema):
             '   _neq: Boolean ' \
             '} '
 
+    # If DateTime is defined as a scalar then create filter (behaves like an integer)
+    date_time = schema.type_map.get("DateTime")
+    if is_scalar_type(date_time):
+        manually_handled_scalars.append('DateTime')
+        make += 'input _DateTimeFilter {' \
+                '   _eq: DateTime ' \
+                '   _neq: DateTime ' \
+                '   _in: [DateTime] ' \
+                '   _nin: [DateTime] ' \
+                '   _gt: DateTime ' \
+                '   _egt: DateTime ' \
+                '   _lt: DateTime ' \
+                '   _elt: DateTime ' \
+                '} '
+
     # Schema-defined scalars
     for scalar_name, scalar in schema.type_map.items():
-        if not is_scalar_type(scalar) or scalar_name in ['Int', 'Float', 'String', 'Boolean', 'ID']:
+        if not is_scalar_type(scalar) or scalar_name in manually_handled_scalars:
             continue
 
         make += f'input _{scalar_name}Filter {{' \
@@ -496,7 +537,7 @@ def add_type_filters(schema: GraphQLSchema):
     """
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type):
             continue
 
         make += f'input _FilterFor{_type.name} {{ ' \
@@ -505,7 +546,7 @@ def add_type_filters(schema: GraphQLSchema):
             f'   _not: _FilterFor{_type.name} '
 
         for field_name, field in _type.fields.items():
-            if field_name[0] == '_':
+            if field_name[0] == '_' and not is_meta_field(field_name):
                 continue
 
             # remove outer required
@@ -532,7 +573,7 @@ def add_object_type_filters(schema: GraphQLSchema):
     :return:
     """
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type):
             continue
 
         for field_name, field in _type.fields.items():
@@ -560,16 +601,10 @@ def get_field_annotations(field: GraphQLField):
     return " ".join(annotation_fields)
 
 
-def add_edge_objects(schema: GraphQLSchema, field_for_creation_date, field_for_last_update_date):
+def add_edge_objects(schema: GraphQLSchema):
     make = ''
-    creation_date_string = ''
-    last_update_date_string = ''
-    if field_for_creation_date:
-        creation_date_string = '_creationDate: Date!'
-    if field_for_last_update_date:
-        last_update_date_string = '_lastUpdateDate: Date'
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type) or is_interface_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
         connected_types = schema.get_possible_types(_type) if is_interface_type(_type) else [_type]
         for field_name, field in _type.fields.items():
@@ -579,7 +614,7 @@ def add_edge_objects(schema: GraphQLSchema, field_for_creation_date, field_for_l
             for t in connected_types:
                 edge_from = f'{capitalize(field_name)}EdgeFrom{t.name}'
                 annotations = get_field_annotations(field)
-                make += f'type _{edge_from} {{id:ID! source: {t.name}! target: {inner_field_type}! {creation_date_string} {last_update_date_string} {annotations}}}\n'
+                make += f'type _{edge_from} {{id:ID! source: {t.name}! target: {inner_field_type}! {annotations}}}\n'
 
     schema = add_to_schema(schema, make)
     return schema
@@ -588,7 +623,7 @@ def add_edge_objects(schema: GraphQLSchema, field_for_creation_date, field_for_l
 def add_input_to_create_edge_objects(schema: GraphQLSchema):
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type) or is_interface_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
         connected_types = schema.get_possible_types(_type) if is_interface_type(_type) else [_type]
         for field_name, field in _type.fields.items():
@@ -614,7 +649,7 @@ def add_input_to_create_edge_objects(schema: GraphQLSchema):
 def add_mutation_create_edge_objects(schema: GraphQLSchema):
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type) or is_interface_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
         connected_types = schema.get_possible_types(_type) if is_interface_type(_type) else [_type]
         for field_name, field in _type.fields.items():
@@ -634,7 +669,7 @@ def add_mutation_create_edge_objects(schema: GraphQLSchema):
 def remove_field_arguments_for_types(schema: GraphQLSchema):
     keep_args = ['filter']
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type):
             continue
         for field_name, field in _type.fields.items():
             args = {}
@@ -674,7 +709,7 @@ def add_create_mutations(schema: GraphQLSchema):
     """
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type) or is_interface_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
         create = f'create{_type.name}'
         input_type = f'_InputToCreate{_type.name}'
@@ -692,7 +727,7 @@ def add_update_mutations(schema: GraphQLSchema):
     """
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type) or is_interface_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
         update = f'update{capitalize(_type.name)} '
         input_type = f'_InputToUpdate{_type.name}'
@@ -710,7 +745,7 @@ def add_delete_mutations(schema: GraphQLSchema):
     """
     make = ''
     for _type in schema.type_map.values():
-        if not is_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type):
             continue
         delete = f'delete{_type.name}'
         make += f'extend type Mutation {{ {delete}(id: ID!): {_type.name} }} '

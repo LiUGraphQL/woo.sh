@@ -1,2 +1,2 @@
-GraphQL-core-next==1.0.5
+graphql-core>=3
 PyYAML

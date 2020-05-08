@@ -49,10 +49,6 @@ def cmd(args):
 
 
 def run(schema: GraphQLSchema, config: dict):
-    # check if DateTime exists, or should be added
-    if config.get('generation').get('generate_datetime') or config.get('generation').get('field_for_creation_date') or config.get('generation').get('field_for_last_update_date'):
-        datetime_control(schema)
-
     # validate
     if config.get('validate'):
         validate_names(schema, config.get('validate'))
@@ -72,13 +68,9 @@ def run(schema: GraphQLSchema, config: dict):
         if config.get('generation').get('field_for_id'):
             schema = add_id_to_types(schema)
 
-        # add creationDate
-        if config.get('generation').get('field_for_creation_date'):
-            schema = add_creation_date_to_types(schema)
-
-        # add lastUpdateDate
-        if config.get('generation').get('field_for_last_update_date'):
-            schema = add_last_update_date_to_types(schema)
+        # check if DateTime exists, or should be added
+        if config.get('generation').get('generate_datetime'):
+            datetime_control(schema)
 
         # add reverse edges for traversal
         if config.get('generation').get('reverse_edges'):
@@ -86,16 +78,24 @@ def run(schema: GraphQLSchema, config: dict):
 
         # add edge types
         if config.get('generation').get('edge_types') or config.get('generation').get('create_edge_objects'):
-            schema = add_edge_objects(schema, config.get('generation').get('field_for_creation_date'), config.get('generation').get('field_for_last_update_date'))
+            schema = add_edge_objects(schema)
         if config.get('generation').get('fields_for_edge_types'):
             raise UnsupportedOperation('{0} is currently not supported'.format('fields_for_edge_types'))
+
+        # add creation date
+        if config.get('generation').get('field_for_creation_date'):
+            schema = add_creation_date_to_types(schema)
+
+        # add last update date
+        if config.get('generation').get('field_for_last_update_date'):
+            schema = add_last_update_date_to_types(schema)
 
         # add queries
         if config.get('generation').get('query_by_id'):
             schema = add_get_queries(schema)
         if config.get('generation').get('query_type_filter') or config.get('generation').get('query_list_of'):
             schema = add_enum_filters(schema)
-            schema = add_scalar_filters(schema)
+            schema = add_scalar_filters(schema, config)
             schema = add_type_filters(schema)
 
         if config.get('generation').get('query_type_filter'):

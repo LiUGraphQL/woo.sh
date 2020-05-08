@@ -3,11 +3,16 @@ Framework for generating an [Apollo GraphQL](https://www.apollographql.com/) bas
 backed by a configurable database.
 
 # Try it out
-The example is based on a simplified version of the Star Wars GrapQL schema and requires an running
+The example is based on a simplified version of the Star Wars GraphQL schema and requires a running
 instance of ArangoDB.
 ```bash
-$ ./build.sh
-$ cd bin/woosh-server/
+$ sh ./woo.sh --input example/db-schema/ \
+              --output ./generated-example-server \
+              --config example/config.yml \
+              --driver arangodb \
+              --custom-api-schema example/custom-api-schema.graphql \
+              --custom-resolvers example/custom-resolvers.js
+
 $ npm server.js
 
 Waiting for ArangoDB to become available at http://localhost:8529

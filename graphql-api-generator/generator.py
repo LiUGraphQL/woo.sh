@@ -214,7 +214,7 @@ def transform_names(schema: GraphQLSchema, transform):
 
 
 def transform_types(schema, transform):
-    type_names = set(schema.type_map.keys())
+    type_names = list(schema.type_map.keys())
     for type_name in type_names:
         _type = schema.type_map[type_name]
         if type_name.startswith('_') or is_scalar_type(_type):
@@ -228,7 +228,7 @@ def transform_fields(schema, transform):
     for _type in schema.type_map.values():
         if _type.name.startswith('_') or is_scalar_type(_type) or is_enum_type(_type):
             continue
-        field_names = set(_type.fields.keys())
+        field_names = list(_type.fields.keys())
         for field_name in field_names:
             if field_name.startswith('_'):
                 continue
@@ -242,7 +242,7 @@ def transform_enums(schema, transform):
         if _type.name.startswith('_') or not is_enum_type(_type):
             continue
 
-        enum_values_names = set(_type.values.keys())
+        enum_values_names = list(_type.values.keys())
         for i in enum_values_names:
             enum_value = _type.values[i]
             _type.values.pop(i)
@@ -263,7 +263,7 @@ def drop_comments(schema):
 
 
 def datetime_control(schema):
-    type_names = set(schema.type_map.keys())
+    type_names = list(schema.type_map.keys())
     if 'DateTime' in type_names:
         if not is_scalar_type(schema.type_map['DateTime']):
             raise Exception('DateTime exists but is not scalar type: ' + schema.type_map['DateTime'])

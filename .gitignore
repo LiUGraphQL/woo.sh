@@ -4,4 +4,4 @@
 __pycache__/
 venv*/
 .cache/
-bin/
+generated-example-server/

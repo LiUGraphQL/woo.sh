@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from graphql import *
 
 
@@ -131,7 +129,7 @@ def add_creation_date_to_types(schema: GraphQLSchema):
     """
     make = ''
     for _type in schema.type_map.values():
-        if not is_object_type(_type) or _type.name == 'Mutation' or _type.name == 'Query':
+        if not is_schema_defined_type(_type):
             continue
 
         if is_interface_type(_type):
@@ -149,12 +147,12 @@ def add_last_update_date_to_types(schema: GraphQLSchema):
     """
     make = ''
     for _type in schema.type_map.values():
-        if not is_object_type(_type) or _type.name == 'Mutation' or _type.name == 'Query':
+        if not is_schema_defined_type(_type):
             continue
         if is_interface_type(_type):
-            make += f'extend interface {_type.name} {{ _lastUpdateDate: DateTime! }} '
+            make += f'extend interface {_type.name} {{ _lastUpdateDate: DateTime }} '
         else:
-            make += f'extend type {_type.name} {{ _lastUpdateDate: DateTime! }} '
+            make += f'extend type {_type.name} {{ _lastUpdateDate: DateTime }} '
     return add_to_schema(schema, make)
 
 
@@ -518,19 +516,13 @@ def add_scalar_filters(schema: GraphQLSchema, config: dict):
     for scalar_name, scalar in schema.type_map.items():
         if not is_scalar_type(scalar) or scalar_name in manually_handled_scalars:
             continue
+
         make += f'input _{scalar_name}Filter {{' \
                f'   _eq: {scalar_name} ' \
                f'   _neq: {scalar_name} ' \
                f'   _in: [{scalar_name}] ' \
                f'   _nin: [{scalar_name}] ' \
                f'}} '
-        if scalar_name == 'DateTime':
-             make += f'extend input _{scalar_name}Filter {{' \
-                 '   _gt: String ' \
-                 '   _egt: String ' \
-                 '   _lt: String ' \
-                 '   _elt: String ' \
-                 f'}} '
 
     schema = add_to_schema(schema, make)
 

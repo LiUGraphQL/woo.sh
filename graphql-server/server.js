@@ -4,8 +4,8 @@ const driver = require('./driver.js');
 const graphqlResolvers = require('./resolvers.js');
 const graphqlCustomResolvers = require('./custom-resolvers.js');
 
-const text = fs.readFileSync('resources/api-schema.graphql', 'utf8');
-const textExtend = fs.readFileSync('resources/api-schema-custom-extensions.graphql', 'utf8');
+const text = fs.readFileSync('api-schema/api-schema.graphql', 'utf8');
+const textExtend = fs.readFileSync('api-schema/custom-extensions.graphql', 'utf8');
 const typeDefs = gql`${text + textExtend}`;
 
 async function run(){

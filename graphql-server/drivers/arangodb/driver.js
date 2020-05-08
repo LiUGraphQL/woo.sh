@@ -22,8 +22,7 @@ module.exports = {
             resources: [ urlGet ],
             delay: 1000, // initial delay in ms
             interval: 1000, // poll interval in ms
-            followAllRedirects: true,
-            followRedirect: true,
+            followRedirect: true
         };
         await waitOn(opts);
         console.log(`ArangoDB is now available at ${url}`);

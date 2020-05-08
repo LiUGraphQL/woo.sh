@@ -5,7 +5,7 @@ const graphqlResolvers = require('./resolvers.js');
 const graphqlCustomResolvers = require('./custom-resolvers.js');
 
 const text = fs.readFileSync('api-schema/api-schema.graphql', 'utf8');
-const textExtend = fs.readFileSync('api-schema/custom-extensions.graphql', 'utf8');
+const textExtend = fs.readFileSync('api-schema/custom-api-schema.graphql', 'utf8');
 const typeDefs = gql`${text + textExtend}`;
 
 async function run(){

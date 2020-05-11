@@ -191,16 +191,7 @@ function getScalarOrEnumFields(type) {
  */
 function getScalarsAndEnums(object, type){
     let doc = {};
-    for (let i in type.getFields()) {
-        let field = type.getFields()[i];
-        let t = graphql.getNamedType(field.type);
-        if(graphql.isEnumType(t) || graphql.isScalarType(t)){
-            if(object[field.name] !== undefined) {
-                doc[field.name] = object[field.name];
-            }
-        }
-    }
-    return doc;
+    return formatFixInput(doc, object, type);
 }
 
 /**
@@ -281,7 +272,7 @@ async function getEdge(parent, args, info){
     // add filters
     let query_filters = [];
     if(args.filter != undefined && !isEmptyObject(args.filter)){
-        let filters = getFilters(args.filter);
+        let filters = getFilters(args.filter, info);
         for(let i in filters){
             i == 0 ? query_filters.push(aql`FILTER`) : query_filters.push(aql`AND`);
             query_filters = query_filters.concat(filters[i]);
@@ -319,8 +310,6 @@ async function create(isRoot, ctxt, data, returnType, info){
     // check key
     validateKey(ctxt, data, returnType, info.schema);
 
-    //Set creationDate
-    data['_creationDate'] = new Date();
 
     // Do not increment the var counter
     let resVar = getVar(ctxt, false);
@@ -328,6 +317,9 @@ async function create(isRoot, ctxt, data, returnType, info){
 
     // add doc
     let doc = getScalarsAndEnums(data, returnType);
+    //Set creationDate
+    let date = new Date();
+    doc['_creationDate'] = date.valueOf();
     let docVar = getParamVar(ctxt);
     let aqlDocVar = asAQLVar(`params.${docVar}`);
     let collection = asAQLVar(`db.${returnType.name}`);
@@ -421,9 +413,11 @@ async function createEdge(isRoot, ctxt, source, sourceType, sourceField, target,
     if(annotations !== undefined) {
         doc = annotations;
     }
+    doc = formatFixInput(doc, doc, info.returnType);
     doc['_from'] = source;
     doc['_to'] = target;
-    doc['_creationDate'] = new Date();
+    let date = new Date();
+    doc['_creationDate'] = date.valueOf();
     let docVar = getParamVar(ctxt);
     let aqlDocVar = asAQLVar(`params.${docVar}`);
     let collection = asAQLVar(`db.${returnTypeName}`);
@@ -577,13 +571,14 @@ async function update(isRoot, ctxt, id, data, returnType, info){
         }
     }
 
-    //Update lastUpdateDate
-    data['_lastUpdateDate'] = new Date();
 
     // add doc
     // Do not increment the var counter
     let resVar = getVar(ctxt, false);
     let doc = getScalarsAndEnums(data, returnType);
+    //Update lastUpdateDate
+    let date = new Date();
+    doc['_lastUpdateDate'] = date.valueOf();
     let docVar = getParamVar(ctxt);
     ctxt.trans.write.add(returnType.name);
     ctxt.trans.params[docVar] = doc;
@@ -682,7 +677,64 @@ function asAqlArray(array){
     return q;
 }
 
-function getFilters(filter_arg){
+/**
+ * Converts all values of enum or scalar type in inputDoc to mach format used for storage in the database,
+ * and return result in output map
+ * @param map to be changed and returned, map to be used as input, type
+ * @returns map given as output
+ */
+function formatFixInput(outputDoc, inputDoc, type) {
+    // Adds scalar/enum values to outputDoc
+    for (let i in type.getFields()) {
+        let field = type.getFields()[i];
+        let t = graphql.getNamedType(field.type);
+        if(graphql.isEnumType(t) || graphql.isScalarType(t)){
+            if(inputDoc[field.name] !== undefined) {
+                outputDoc[field.name] = formatFixVariable(t, inputDoc[field.name]);
+            }
+        }
+    }
+    return outputDoc;
+}
+
+/**
+ * Convert input data (value) to match format used for storage in the database
+ * @param type (of field), value
+ * @returns value (in database ready format)
+ */
+function formatFixVariable(_type, v) {
+    // DateTime has to be handled separately, which is currently the only reason for this function to exist
+    if (_type == 'DateTime')
+        // Arrays of DateTime needs special, special care.
+        if(Array.isArray(v)){
+            let newV = []
+            for(let i in v)
+                newV.push(aql`DATE_TIMESTAMP(${v})`);
+            return newV;
+        }
+        else
+            return aql`DATE_TIMESTAMP(${v})`;
+    else
+        return v;
+}
+
+/**
+ * A small wrapper used by getFilters to call formatFixVariable.
+ * @param field, info, value
+ * @returns value (in database ready format)
+ */
+function formatFixVariableWrapper(field, info, v) {
+    // no need to even try when we have _id as field
+    if(field == '_id')
+        return v;
+
+    let namedReturnType = graphql.getNamedType(info.returnType.getFields()['content'].type)
+    let _type = graphql.getNamedType(namedReturnType.getFields()[field].type);
+
+    return formatFixVariable(_type, v);
+}
+
+function getFilters(filter_arg, info, alias = 'x'){
     let filters = [];
     for(let i in filter_arg){
         let filter = filter_arg[i];
@@ -697,7 +749,7 @@ function getFilters(filter_arg){
                 if(x != 0){
                     f.push(aql`AND`);
                 }
-                let arr = getFilters(filter[x]);
+                let arr = getFilters(filter[x], info);
                 for(let j in arr){
                     f = f.concat(arr[j]);
                 }
@@ -714,7 +766,7 @@ function getFilters(filter_arg){
                 if(x != 0){
                     f.push(aql`OR`);
                 }
-                let arr = getFilters(filter[x]);
+                let arr = getFilters(filter[x], info);
                 for(let j in arr){
                     f = f.concat(arr[j]);
                 }
@@ -727,7 +779,7 @@ function getFilters(filter_arg){
         if(i == '_not'){
             let f = [];
             f.push(aql`NOT (`);
-            let arr = getFilters(filter);
+            let arr = getFilters(filter, info);
             for(let j in arr){
                 f = f.concat(arr[j]);
             }
@@ -736,50 +788,63 @@ function getFilters(filter_arg){
         }
 
         if(filter._eq != null){
-            filters.push([aql`x.${i} == ${filter._eq}`]);
+            let preparedArg = formatFixVariableWrapper(i, info, filter._eq);
+            filters.push([aql`${alias}.${i} == ${preparedArg}`]);
         }
         if(filter._neq != null){
-            filters.push([aql`x.${i} != ${filter._neq}`]);
+            let preparedArgs = formatFixVariableWrapper(i, info, filter._neq);
+            filters.push([aql`${alias}.${i} != ${preparedArgs}`]);
         }
         if(filter._gt != null){
-            filters.push([aql`x.${i} > ${filter._gt}`]);
+            let preparedArgs = formatFixVariableWrapper(i, info, filter._gt);
+            filters.push([aql`${alias}.${i} > ${preparedArgs}`]);
         }
         if(filter._egt != null){
-            filters.push([aql`x.${i} >= ${filter._egt}`]);
+            let preparedArgs = formatFixVariableWrapper(i, info, filter._egt);
+            filters.push([aql`${alias}.${i} >= ${preparedArgs}`]);
         }
         if(filter._lt != null){
-            filters.push([aql`x.${i} < ${filter._lt}`]);
+            let preparedArgs = formatFixVariableWrapper(i, info, filter._lt);
+            filters.push([aql`${alias}.${i} < ${preparedArgs}`]);
         }
         if(filter._elt != null){
-            filters.push([aql`x.${i} <= ${filter._elt}`]);
+            let preparedArgs = formatFixVariableWrapper(i, info, filter._elt);
+            filters.push([aql`${alias}.${i} <= ${preparedArgs}`]);
         }
         if(filter._in != null){
+            let preparedArgs = formatFixVariableWrapper(i, info, filter._in)
             let q = [];
-            q = q.concat([aql`x.${i} IN `]);
-            q = q.concat(asAqlArray(filter._in));
+            q = q.concat([aql`${alias}.${i} IN `]);
+            q = q.concat(asAqlArray(preparedArgs));
             filters.push(q);
         }
         if(filter._nin != null){
+            let preparedArgs = formatFixVariableWrapper(i, info, filter._nin);
             let q = [];
-            q = q.concat([aql`x.${i} NOT IN `]);
-            q = q.concat(asAqlArray(filter._nin));
+            q = q.concat([aql`${alias}.${i} NOT IN `]);
+            q = q.concat(asAqlArray(preparedArgs));
             filters.push(q);
         }
 
         if(filter._like != null){
-            filters.push([aql`LIKE(x.${i}, ${filter._like}, false)`]);
+            let preparedArgs = formatFixVariableWrapper(i, info, filter._like);
+            filters.push([aql`LIKE(${alias}.${i}, ${preparedArgs}, false)`]);
         }
         if(filter._ilike != null){
-            filters.push([aql`LIKE(x.${i}, ${filter._ilike}, true)`]);
+            let preparedArgs = formatFixVariableWrapper(i, info, filter._ilike);
+            filters.push([aql`LIKE(${alias}.${i}, ${preparedArgs}, true)`]);
         }
         if(filter._nlike != null){
-            filters.push([aql`NOT LIKE(x.${i}, ${filter._nlike}, false)`]);
+            let preparedArgs = formatFixVariableWrapper(i, info, filter._nlike);
+            filters.push([aql`NOT LIKE(${alias}.${i}, ${preparedArgs}, false)`]);
         }
         if(filter._nilike != null){
-            filters.push([aql`NOT LIKE(x.${i}, ${filter._nilike}, true)`]);
+            let preparedArgs = formatFixVariableWrapper(i, info, filter._nilike);
+            filters.push([aql`NOT LIKE(${alias}.${i}, ${preparedArgs}, true)`]);
         }
 
     }
+
     return filters;
 }
 
@@ -827,7 +892,7 @@ async function getList(args, info){
     // add filters
     let query_filters = [];
     if(args.filter != undefined && !isEmptyObject(args.filter)){
-        let filters = getFilters(args.filter);
+        let filters = getFilters(args.filter, info);
         if(filters.length > 0) {
             query_filters.push(aql`FILTER`);
             for (let i in filters) {

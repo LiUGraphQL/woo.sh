@@ -734,7 +734,7 @@ function formatFixVariableWrapper(field, info, v) {
     return formatFixVariable(_type, v);
 }
 
-function getFilters(filter_arg, info, alias = 'x'){
+function getFilters(filter_arg, info){
     let filters = [];
     for(let i in filter_arg){
         let filter = filter_arg[i];
@@ -789,58 +789,58 @@ function getFilters(filter_arg, info, alias = 'x'){
 
         if(filter._eq != null){
             let preparedArg = formatFixVariableWrapper(i, info, filter._eq);
-            filters.push([aql`${alias}.${i} == ${preparedArg}`]);
+            filters.push([aql`x.${i} == ${preparedArg}`]);
         }
         if(filter._neq != null){
             let preparedArgs = formatFixVariableWrapper(i, info, filter._neq);
-            filters.push([aql`${alias}.${i} != ${preparedArgs}`]);
+            filters.push([aql`x.${i} != ${preparedArgs}`]);
         }
         if(filter._gt != null){
             let preparedArgs = formatFixVariableWrapper(i, info, filter._gt);
-            filters.push([aql`${alias}.${i} > ${preparedArgs}`]);
+            filters.push([aql`x.${i} > ${preparedArgs}`]);
         }
         if(filter._egt != null){
             let preparedArgs = formatFixVariableWrapper(i, info, filter._egt);
-            filters.push([aql`${alias}.${i} >= ${preparedArgs}`]);
+            filters.push([aql`x.${i} >= ${preparedArgs}`]);
         }
         if(filter._lt != null){
             let preparedArgs = formatFixVariableWrapper(i, info, filter._lt);
-            filters.push([aql`${alias}.${i} < ${preparedArgs}`]);
+            filters.push([aql`x.${i} < ${preparedArgs}`]);
         }
         if(filter._elt != null){
             let preparedArgs = formatFixVariableWrapper(i, info, filter._elt);
-            filters.push([aql`${alias}.${i} <= ${preparedArgs}`]);
+            filters.push([aql`x.${i} <= ${preparedArgs}`]);
         }
         if(filter._in != null){
             let preparedArgs = formatFixVariableWrapper(i, info, filter._in)
             let q = [];
-            q = q.concat([aql`${alias}.${i} IN `]);
+            q = q.concat([aql`x.${i} IN `]);
             q = q.concat(asAqlArray(preparedArgs));
             filters.push(q);
         }
         if(filter._nin != null){
             let preparedArgs = formatFixVariableWrapper(i, info, filter._nin);
             let q = [];
-            q = q.concat([aql`${alias}.${i} NOT IN `]);
+            q = q.concat([aql`x.${i} NOT IN `]);
             q = q.concat(asAqlArray(preparedArgs));
             filters.push(q);
         }
 
         if(filter._like != null){
             let preparedArgs = formatFixVariableWrapper(i, info, filter._like);
-            filters.push([aql`LIKE(${alias}.${i}, ${preparedArgs}, false)`]);
+            filters.push([aql`LIKE(x.${i}, ${preparedArgs}, false)`]);
         }
         if(filter._ilike != null){
             let preparedArgs = formatFixVariableWrapper(i, info, filter._ilike);
-            filters.push([aql`LIKE(${alias}.${i}, ${preparedArgs}, true)`]);
+            filters.push([aql`LIKE(x.${i}, ${preparedArgs}, true)`]);
         }
         if(filter._nlike != null){
             let preparedArgs = formatFixVariableWrapper(i, info, filter._nlike);
-            filters.push([aql`NOT LIKE(${alias}.${i}, ${preparedArgs}, false)`]);
+            filters.push([aql`NOT LIKE(x.${i}, ${preparedArgs}, false)`]);
         }
         if(filter._nilike != null){
             let preparedArgs = formatFixVariableWrapper(i, info, filter._nilike);
-            filters.push([aql`NOT LIKE(${alias}.${i}, ${preparedArgs}, true)`]);
+            filters.push([aql`NOT LIKE(x.${i}, ${preparedArgs}, true)`]);
         }
 
     }

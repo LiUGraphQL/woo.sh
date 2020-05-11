@@ -67,6 +67,9 @@ const resolvers = {
 % for type in data['types']:
     ${type['Name']}: {
         id: (parent, args, context, info) => parent._id,
+        % for field in type['DateTime']:
+        ${field}: async (parent, args, context, info) => new Date(parent.${field}),
+        % endfor
         % for field in type['fields']:
         ${field}: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),

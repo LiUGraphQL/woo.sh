@@ -39,6 +39,7 @@ def generate(input_file, output_dir):
                 'name': camelCase(type_name),
                 'fields': [],
                 'edgeFields': [],
+                'DateTime': [],
                 'hasKeyDirective': f'_KeyFor{type_name}' in schema.type_map.keys()
             }
             # add object fields
@@ -46,6 +47,8 @@ def generate(input_file, output_dir):
                 inner_field_type = get_named_type(field_type.type)
                 if is_schema_defined_object_type(inner_field_type) or is_interface_type(inner_field_type):
                     t['fields'].append(field_name)
+                if inner_field_type.name == 'DateTime':
+                    t['DateTime'].append(field_name)
                 if field_name[0] == '_':
                     continue
                 if is_schema_defined_object_type(inner_field_type) or is_interface_type(inner_field_type):

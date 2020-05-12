@@ -415,7 +415,7 @@ info "arg_n: ${arg_n}"
 
 # woo.sh
 echo "Now ready for GrahpQL server generation!"
-
+input="$(pwd)/${arg_i}"
 config_file="$(cd "$(dirname "${arg_c}")" && pwd)/$(basename "${arg_c}")"
 
 # Check if driver exists
@@ -443,27 +443,27 @@ else
   custom_resolvers=${__dir}/graphql-server/empty_custom_resolvers.js
 fi
 
-echo ${arg_i}
-echo ${config_file}
-echo ${driver_dir}
-echo ${output_dir}
-echo ${custom_schema}
-echo ${custom_resolvers}
+echo "Input:            ${arg_i}"
+echo "Output:           ${output_dir}"
+echo "Config:           ${config_file}"
+echo "Driver:           ${driver_dir}"
+echo "Custom schema:    ${custom_schema}"
+echo "Custom resolvers: ${custom_resolvers}"
 
 # copy server files
-cp ./graphql-server/server.js ${output_dir}
+cp ${__dir}/graphql-server/server.js ${output_dir}
 cp ${driver_dir}/* ${output_dir}
 (cd ${output_dir}; npm install)
 # Hack: Modify executeFieldsSerially(...) in /node_modules/graphql/execution/execute.js
 # The mod is required to support nested transactions.
-cp ./graphql-server/graphql/execution/execution.js ${output_dir}/node_modules/graphql/execution/execute.js
+cp ${__dir}/graphql-server/graphql/execution/execution.js ${output_dir}/node_modules/graphql/execution/execute.js
 cp ${custom_schema} ${output_dir}/api-schema/custom-api-schema.graphql
 cp ${custom_resolvers} ${output_dir}/custom-resolvers.js
 
 # generate GraphQL API schema (for now, assume that arg_i is a relative path/file)
-cd ./graphql-api-generator
+cd ${__dir}/graphql-api-generator
 python3 generator.py \
-    --input ../${arg_i} \
+    --input ${input} \
     --output ${output_dir}/api-schema/api-schema.graphql \
     --config ${config_file}
 cd ..

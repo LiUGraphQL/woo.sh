@@ -2,7 +2,7 @@ module.exports = {
     get: function(options) {
         return {
             Query: {
-                hello: async (parent, args, context, info) => "Custom function says hello!"
+                version: async (parent, args, context, info) => "X.Y.Z"
             }
         };
     }

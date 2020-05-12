@@ -53,6 +53,8 @@ def generate(input_file, output_dir):
                     continue
                 if is_schema_defined_object_type(inner_field_type) or is_interface_type(inner_field_type):
                     t['edgeFields'].append((pascalCase(field_name), inner_field_type))
+
+            sort_before_rendering(t)
             data['types'].append(t)
 
     # sort
@@ -66,6 +68,21 @@ def generate(input_file, output_dir):
     else:
         with open(f'{output_dir}/resolvers.js', 'w') as f:
             f.write(template.render(data=data))
+
+
+def sort_before_rendering(d: dict):
+    """
+    Sort all list values in the dictionary to allow consistent generation of resolver files.
+    :param d:
+    :return:
+    """
+    for k in d:
+        if type(d[k]) is not list or not len(d[k]):
+            continue
+        if type(d[k][0] == tuple):
+            d[k].sort(key=lambda x: x[0].replace("_", "}"))
+        else:
+            d[k].sort(key=lambda x: x.replace("_", "}"))
 
 
 def cmd(args):

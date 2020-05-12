@@ -1,5 +1,6 @@
 import argparse
-from graphql import build_schema, is_object_type, get_named_type, is_interface_type
+
+from graphql import build_schema, is_object_type, get_named_type, is_interface_type, assert_valid_schema
 from mako.template import Template
 
 
@@ -67,7 +68,10 @@ def generate(input_file, output_dir):
         print(template.render(data=data))
     else:
         with open(f'{output_dir}/resolvers.js', 'w') as f:
-            f.write(template.render(data=data))
+            updated_schema_string = template.render(data=data)
+            api_schema = build_schema(schema_string)
+            assert_valid_schema(api_schema)
+            f.write(updated_schema_string)
 
 
 def sort_before_rendering(d: dict):

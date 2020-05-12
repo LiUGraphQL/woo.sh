@@ -155,7 +155,7 @@ def validate_names(schema: GraphQLSchema, validate):
             if is_introspection_type(_type):
                 continue
             if f(type_name) != type_name:
-                raise Exception(f'Type "{type_name}" does not follow {validate.get("type_names")}')
+                print(f'Warning: Type "{type_name}" does not follow {validate.get("type_names")}')
 
     # field names
     if validate.get('field_names'):
@@ -169,7 +169,7 @@ def validate_names(schema: GraphQLSchema, validate):
                 if field_name.startswith('_'):
                     continue
                 if f(field_name) != field_name:
-                    raise Exception(f'Field "{field_name}" does not follow {validate.get("field_names")}')
+                    print(f'Warning: Field "{field_name}" does not follow {validate.get("field_names")}')
 
     # enum names
     if validate.get('enum_values'):
@@ -182,7 +182,7 @@ def validate_names(schema: GraphQLSchema, validate):
 
             for i in _type.values.keys():
                 if f(i) != i:
-                    raise Exception(f'Enum "{i}" does not follow {validate.get("enum_values")}')
+                    print(f'Warning: Enum "{i}" does not follow {validate.get("enum_values")}')
 
 
 def transform_names(schema: GraphQLSchema, transform):

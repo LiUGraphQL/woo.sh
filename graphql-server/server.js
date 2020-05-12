@@ -11,7 +11,7 @@ const typeDefs = gql`${text + textExtend}`;
 async function run(){
     // setup resolvers
     const resolvers = await graphqlResolvers.get({ driver: driver });
-    const customResolvers = await graphqlCustomResolvers.get({});
+    const customResolvers = await graphqlCustomResolvers.get({ driver: driver });
     resolvers.Query = {...resolvers.Query, ...customResolvers.Query};
 
     const server = new ApolloServer({typeDefs, resolvers: resolvers});

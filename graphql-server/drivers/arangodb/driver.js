@@ -66,6 +66,9 @@ module.exports = {
     isEndOfList: async function (parent, args, info) {
         return await isEndOfList(parent, args, info);
     },
+    addPossibleEdgeTypes: function(query, schema, type_name, field_name){
+        return addPossibleEdgeTypes(query, schema, type_name, field_name);
+    },
     getEdgeCollectionName: function(type, field){
         return getEdgeCollectionName(type, field);
     },
@@ -1093,5 +1096,26 @@ function conditionalThrow(msg){
     //console.warn(msg);
     if(!disableEdgeValidation){
         throw msg;
+    }
+}
+
+/**
+ * Add all possible edge-collections for the given type and field to query
+ * @param query, schema, type_name, field_name, directionString (Optional)
+ */
+function addPossibleEdgeTypes(query, schema, type_name, field_name, directionString = ""){
+    let type = schema._typeMap[type_name];
+    if(graphql.isInterfaceType(type)){
+        let possible_types = schema.getPossibleTypes(type);
+        for (let i in possible_types) {
+            if (i != 0) {
+                query.push(aql`,`);
+            }
+            let collection = db.collection(getEdgeCollectionName(possible_types[i].name, field_name));
+            query.push(aql`${collection}`);
+        }
+    } else {
+        let collection = db.collection(getEdgeCollectionName(type.name, field_name));
+        query.push(aql`${collection}`);
     }
 }

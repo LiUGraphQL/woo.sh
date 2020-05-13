@@ -5,3 +5,4 @@ __pycache__/
 venv*/
 .cache/
 generated-example-server/
+node_modules/

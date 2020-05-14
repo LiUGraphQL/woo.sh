@@ -8,18 +8,19 @@ let db;
 let disableEdgeValidation;
 
 module.exports = {
-    init: async function(schema){
-        let db_name = process.env.db ? process.env.db: 'dev-db';
+    init: async function (schema) {
+        let db_name = process.env.db ? process.env.db : 'dev-db';
         let url = process.env.URL ? process.env.URL : 'http://localhost:8529';
         let drop = process.env.DROP === 'true';
+        drop = true; // TODO: Remove
         disableEdgeValidation = process.env.DISABLE_EDGE_VALIDATION === 'true';
         db = new arangojs.Database({ url: url });
 
         // wait for ArangoDB
         console.log(`Waiting for ArangoDB to become available at ${url}`);
-        let urlGet = url.replace(/^http(s?)(.+$)/,'http$1-get$2');
+        let urlGet = url.replace(/^http(s?)(.+$)/, 'http$1-get$2');
         const opts = {
-            resources: [ urlGet ],
+            resources: [urlGet],
             delay: 1000, // initial delay in ms
             interval: 1000, // poll interval in ms
             followRedirect: true
@@ -28,9 +29,9 @@ module.exports = {
         console.log(`ArangoDB is now available at ${url}`);
 
         // if drop is set
-        if(drop) {
+        if (drop) {
             await db.dropDatabase(db_name).then(
-                (msg) => console.info(`Database ${db_name} deleted: ${! msg['error']}`),
+                (msg) => console.info(`Database ${db_name} deleted: ${!msg['error']}`),
                 () => console.log()
             );
         }
@@ -39,25 +40,25 @@ module.exports = {
         await createEdgeCollections(db, schema);
     },
     getConnection: () => db,
-    get: function(id, returnType, schema){
+    get: function (id, returnType, schema) {
         return get(id, returnType, schema);
     },
-    getByKey: function(key, info){
+    getByKey: function (key, info) {
         return getByKey(key, info);
     },
-    create: function(isRoot, context, data, returnType, info) {
+    create: function (isRoot, context, data, returnType, info) {
         return create(isRoot, context, data, returnType, info);
     },
-    createEdge: async function(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info) {
+    createEdge: async function (isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info) {
         return await createEdge(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info);
     },
-    update: async function(isRoot, ctxt, id, data, returnType, info){
+    update: async function (isRoot, ctxt, id, data, returnType, info) {
         return await update(isRoot, ctxt, id, data, returnType, info);
     },
-    getEdge: async function(parent, args, info){
+    getEdge: async function (parent, args, info) {
         return await getEdge(parent, args, info)
     },
-    getList: async function(args, info){
+    getList: async function (args, info) {
         return await getList(args, info);
     },
     getTotalCount: async function (parent, args, info) {
@@ -66,20 +67,20 @@ module.exports = {
     isEndOfList: async function (parent, args, info) {
         return await isEndOfList(parent, args, info);
     },
-    addPossibleEdgeTypes: function(query, schema, type_name, field_name){
+    addPossibleEdgeTypes: function (query, schema, type_name, field_name) {
         return addPossibleEdgeTypes(query, schema, type_name, field_name);
     },
-    getEdgeCollectionName: function(type, field){
+    getEdgeCollectionName: function (type, field) {
         return getEdgeCollectionName(type, field);
     },
     hello: () => hello() // TODO: Remove after testing
 };
 
-async function hello(){
+async function hello() {
     return "This is the arangodb.tools saying hello!"
 }
 
-async function createAndUseDatabase(db, db_name){
+async function createAndUseDatabase(db, db_name) {
     await db.createDatabase(db_name).then(
         () => { console.info(`Database '${db_name}' created`); },
         err => { console.warn(`Database '${db_name}' not created:`, err.response.body.errorMessage); }
@@ -88,9 +89,9 @@ async function createAndUseDatabase(db, db_name){
 }
 
 async function createTypeCollections(db, schema) {
-    const type_definitions = getTypeDefinitions(schema, kind='GraphQLObjectType');
+    const type_definitions = getTypeDefinitions(schema, kind = 'GraphQLObjectType');
     for (let collection_name in type_definitions) {
-        if(collection_name.startsWith('_') || collection_name.includes('EdgeFrom')){
+        if (collection_name.startsWith('_') || collection_name.includes('EdgeFrom')) {
             continue; // skip
         }
         let collection = await db.collection(collection_name);
@@ -103,11 +104,11 @@ async function createTypeCollections(db, schema) {
     }
 }
 
-async function createEdgeCollections(db, schema){
+async function createEdgeCollections(db, schema) {
     let collections = [];
-    const type_definitions = getTypeDefinitions(schema, kind='GraphQLObjectType');
+    const type_definitions = getTypeDefinitions(schema, kind = 'GraphQLObjectType');
     for (let type_name in type_definitions) {
-        if(type_name.startsWith('_') || type_name.includes('EdgeFrom')){
+        if (type_name.startsWith('_') || type_name.includes('EdgeFrom')) {
             continue;
         }
         let type = type_definitions[type_name];
@@ -115,9 +116,9 @@ async function createEdgeCollections(db, schema){
 
         // collections for type and interface fields
         fields = getObjectOrInterfaceFields(type);
-        for(let i in fields){
+        for (let i in fields) {
             let field_name = fields[i];
-            if(field_name.startsWith('_')) {
+            if (field_name.startsWith('_')) {
                 continue;
             }
             let collection_name = getEdgeCollectionName(type_name, field_name);
@@ -126,7 +127,7 @@ async function createEdgeCollections(db, schema){
     }
 
     // create collections
-    for(let i in collections) {
+    for (let i in collections) {
         let collection_name = collections[i];
         let collection = await db.edgeCollection(collection_name);
         await collection.create().then(
@@ -140,11 +141,11 @@ async function createEdgeCollections(db, schema){
     }
 }
 
-function getKeyName(type){
+function getKeyName(type) {
     return `_KeyFor${type}`;
 }
 
-function getEdgeCollectionName(type, field){
+function getEdgeCollectionName(type, field) {
     let f = capitalizeFirstLetter(field);
     let t = capitalizeFirstLetter(type);
     // return `EdgeToConnect${f}Of${t}`;
@@ -155,12 +156,12 @@ function capitalizeFirstLetter(string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-function getTypeDefinitions(schema, kind=null) {
+function getTypeDefinitions(schema, kind = null) {
     let types = {};
-    for(let i in schema.getTypeMap()){
+    for (let i in schema.getTypeMap()) {
         let type = schema.getType(i);
         let name = type.name;
-        if(name == 'Query' || name == 'Mutation'){
+        if (name == 'Query' || name == 'Mutation') {
             continue;
         }
         if (kind == null || type.constructor.name == kind) {
@@ -180,7 +181,7 @@ function getScalarOrEnumFields(type) {
     for (let i in type.getFields()) {
         let value = type.getFields()[i];
         let t = graphql.getNamedType(value.type);
-        if(graphql.isEnumType(t) || graphql.isScalarType(t)){
+        if (graphql.isEnumType(t) || graphql.isScalarType(t)) {
             keys.push(value.name);
         }
     }
@@ -192,7 +193,7 @@ function getScalarOrEnumFields(type) {
  * scalars, enums, lists of scalars, and lists of enums.
  * @param object
  */
-function getScalarsAndEnums(object, type){
+function getScalarsAndEnums(object, type) {
     let doc = {};
     return formatFixInput(doc, object, type);
 }
@@ -202,13 +203,13 @@ function getScalarsAndEnums(object, type){
  * GraphQL types, GraphQL interfaces, lists of GraphQL types, and lists of GraphQL interfaces.
  * @param object
  */
-function getTypesAndInterfaces(object, type){
+function getTypesAndInterfaces(object, type) {
     let doc = {};
     for (let i in type.getFields()) {
         let field = type.getFields()[i];
         let t = graphql.getNamedType(field.type);
-        if(graphql.isObjectType(t) || graphql.isInterfaceType(t)){
-            if(object[field.name] !== undefined) {
+        if (graphql.isObjectType(t) || graphql.isInterfaceType(t)) {
+            if (object[field.name] !== undefined) {
                 doc[field.name] = object[field.name];
             }
         }
@@ -227,7 +228,7 @@ function getObjectOrInterfaceFields(type) {
     for (let i in type.getFields()) {
         let value = type.getFields()[i];
         let t = graphql.getNamedType(value.type);
-        if(graphql.isObjectType(t) || graphql.isInterfaceType(t)){
+        if (graphql.isObjectType(t) || graphql.isInterfaceType(t)) {
             keys.push(value.name);
         }
     }
@@ -236,12 +237,12 @@ function getObjectOrInterfaceFields(type) {
 
 // ----------------------------------------------------------
 
-async function getEdge(parent, args, info){
+async function getEdge(parent, args, info) {
     let parent_type = graphql.getNamedType(info.parentType);
     let return_type = graphql.getNamedType(info.returnType);
 
     let field_name = info.fieldName;
-    if(info.fieldName.startsWith('_')){ // reverse edge
+    if (info.fieldName.startsWith('_')) { // reverse edge
         let pattern_string = `^_(.+?)From${return_type.name}$`; // get the non-reversed edge name
         let re = new RegExp(pattern_string);
         field_name = re.exec(info.fieldName)[1];
@@ -249,19 +250,19 @@ async function getEdge(parent, args, info){
 
     // Create query
     let query = [aql`FOR x IN`];
-    if(info.fieldName.startsWith('_')) {
+    if (info.fieldName.startsWith('_')) {
         // If the type that is the origin of the edge is an interface, then we need to check all the edge collections
         // corresponding to its implementing types. Note: This is only necessary when traversing some edges that are
         // defined in in the API schema for interfaces. The parent type will never be an interface type at this stage.
-        if(graphql.isInterfaceType(return_type)){
+        if (graphql.isInterfaceType(return_type)) {
             let possible_types = info.schema.getPossibleTypes(return_type);
-            if(possible_types.length > 1) query.push(aql`UNION(`);
-            for(let i in possible_types) {
-                if(i != 0) query.push(aql`,`);
+            if (possible_types.length > 1) query.push(aql`UNION(`);
+            for (let i in possible_types) {
+                if (i != 0) query.push(aql`,`);
                 let collection = db.collection(getEdgeCollectionName(possible_types[i].name, field_name));
                 query.push(aql`(FOR i IN 1..1 INBOUND ${parent._id} ${collection} RETURN i)`);
             }
-            if(possible_types.length > 1) query.push(aql`)`);
+            if (possible_types.length > 1) query.push(aql`)`);
 
         } else {
             let collection = db.collection(getEdgeCollectionName(return_type.name, field_name));
@@ -274,9 +275,9 @@ async function getEdge(parent, args, info){
 
     // add filters
     let query_filters = [];
-    if(args.filter != undefined && !isEmptyObject(args.filter)){
+    if (args.filter != undefined && !isEmptyObject(args.filter)) {
         let filters = getFilters(args.filter, info);
-        for(let i in filters){
+        for (let i in filters) {
             i == 0 ? query_filters.push(aql`FILTER`) : query_filters.push(aql`AND`);
             query_filters = query_filters.concat(filters[i]);
         }
@@ -295,15 +296,27 @@ async function getEdge(parent, args, info){
 /*
 TODO: We should probably call the createEdge function here (when we've defined it).
  */
-async function create(isRoot, ctxt, data, returnType, info){
+async function create(isRoot, ctxt, data, returnType, info) {
     // define transaction object
-    if(ctxt.trans === undefined) ctxt.trans = initTransaction();
+    if (ctxt.trans === undefined) ctxt.trans = initTransaction();
+
+    // define postcode
+    // postcode will enforce all directives by adding checks, running after the mutations have been completed
+    if (ctxt.trans.postCode === undefined) ctxt.trans.postCode = [];
 
     // is root op and mutatation is already queued
-    if(isRoot && ctxt.trans.queue[info.path.key]){
-        if(ctxt.trans.open) await executeTransaction(ctxt);
-        if(ctxt.trans.error){
-            if(ctxt.trans.errorReported) return null;
+    if (isRoot && ctxt.trans.queue[info.path.key]) {
+
+        if (ctxt.trans.open) {
+            // add all postcode to code before executing
+            //ctxt.trans.code.concat(ctxt.trans.postCode); // concat is not working?
+            for (let i in ctxt.trans.postCode) {
+                ctxt.trans.code.push(ctxt.trans.postCode[i]);
+            }
+            await executeTransaction(ctxt);
+        }
+        if (ctxt.trans.error) {
+            if (ctxt.trans.errorReported) return null;
             ctxt.trans.errorReported = true;
             throw ctxt.trans.error;
         }
@@ -312,7 +325,6 @@ async function create(isRoot, ctxt, data, returnType, info){
 
     // check key
     validateKey(ctxt, data, returnType, info.schema);
-
 
     // Do not increment the var counter
     let resVar = getVar(ctxt, false);
@@ -330,20 +342,21 @@ async function create(isRoot, ctxt, data, returnType, info){
     ctxt.trans.params[docVar] = doc;
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT ${aqlDocVar} IN ${collection} RETURN NEW\`).next();`);
 
+
     // for edges
     let ob = getTypesAndInterfaces(data, returnType);
-    for(let fieldName in ob){
+    for (let fieldName in ob) {
         let innerFieldType = graphql.getNamedType(returnType.getFields()[fieldName].type);
         let edge = getEdgeCollectionName(returnType.name, fieldName);
         ctxt.trans.write.add(edge);
         let edgeCollection = asAQLVar(`db.${edge}`);
         let values = Array.isArray(ob[fieldName]) ? ob[fieldName] : [ob[fieldName]]; // treat as list even if only one value is present
 
-        for(let i in values){
+        for (let i in values) {
             let value = values[i];
             console.log(value);
-            if(graphql.isInterfaceType(innerFieldType)){ // interface
-                if(value['connect']){
+            if (graphql.isInterfaceType(innerFieldType)) { // interface
+                if (value['connect']) {
                     validateType(ctxt, value['connect'], innerFieldType, info.schema);
                     let typeToConnect = value['connect'].split('/')[0];
                     // add edge
@@ -379,8 +392,11 @@ async function create(isRoot, ctxt, data, returnType, info){
         }
     }
 
+    // directives handling
+    addPostCodeDirectivesForTypes(ctxt, returnType, resVar);
+
     // overwrite the current action
-    if(isRoot) {
+    if (isRoot) {
         ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar};`); // add root result
         ctxt.trans.queue[info.path.key] = true; // indicate that this mutation op has been added to the transaction
         getVar(ctxt); // increment varCounter
@@ -390,15 +406,15 @@ async function create(isRoot, ctxt, data, returnType, info){
     return null;
 }
 
-async function createEdge(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info){
+async function createEdge(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info) {
     // define transaction object
-    if(ctxt.trans === undefined) ctxt.trans = initTransaction();
+    if (ctxt.trans === undefined) ctxt.trans = initTransaction();
 
     // is root op and mutation is already queued
-    if(isRoot && ctxt.trans.queue[info.path.key]){
-        if(ctxt.trans.open) await executeTransaction(ctxt);
-        if(ctxt.trans.error){
-            if(ctxt.trans.errorReported) return null;
+    if (isRoot && ctxt.trans.queue[info.path.key]) {
+        if (ctxt.trans.open) await executeTransaction(ctxt);
+        if (ctxt.trans.error) {
+            if (ctxt.trans.errorReported) return null;
             ctxt.trans.errorReported = true;
             throw ctxt.trans.error;
         }
@@ -409,11 +425,11 @@ async function createEdge(isRoot, ctxt, source, sourceType, sourceField, target,
     await validateEdge(ctxt, source, sourceType, sourceField, target, targetType, info);
 
     // variable reference to object that will be created
-    let resVar = getVar(ctxt,false); // Note: This should not increment the var counter, but use the previously allocated var name.
+    let resVar = getVar(ctxt, false); // Note: This should not increment the var counter, but use the previously allocated var name.
 
     // add doc
     let doc = {};
-    if(annotations !== undefined) {
+    if (annotations !== undefined) {
         doc = annotations;
     }
     doc = formatFixInput(doc, doc, info.returnType);
@@ -428,7 +444,7 @@ async function createEdge(isRoot, ctxt, source, sourceType, sourceField, target,
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT ${aqlDocVar} IN ${collection} RETURN NEW\`).next();`);
 
     // overwrite the current action
-    if(isRoot) {
+    if (isRoot) {
         ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar};`); // add root result
         ctxt.trans.queue[info.path.key] = true; // indicate that this mutation op has been added to the transaction
         getVar(ctxt); // increment varCounter
@@ -441,22 +457,22 @@ async function createEdge(isRoot, ctxt, source, sourceType, sourceField, target,
 async function validateEdge(ctxt, source, sourceType, sourceField, target, targetType, info) {
 
     let schema = info.schema;
-    if(!isOfType(source, sourceType, schema)) {
+    if (!isOfType(source, sourceType, schema)) {
         ctxt.trans.code.push(`throw \`Source object ${source} is not of type ${sourceType}\``);
         return
     }
     let sourceObject = await get(source, sourceType, schema);
-    if(sourceObject === undefined) {
+    if (sourceObject === undefined) {
         ctxt.trans.code.push(`throw \`Source object ${source} does not exist in collection ${sourceType}\``);
         return
     }
 
-    if(!isOfType(target, targetType, schema)) {
+    if (!isOfType(target, targetType, schema)) {
         ctxt.trans.code.push(`throw \`Target object ${target} is not of type ${targetType}\``);
         return
     }
     let targetObject = await get(target, targetType, schema);
-    if(targetObject === undefined) {
+    if (targetObject === undefined) {
         ctxt.trans.code.push(`throw \`Target object ${target} does not exist in collection ${targetType}\``);
         return
     }
@@ -465,22 +481,22 @@ async function validateEdge(ctxt, source, sourceType, sourceField, target, targe
     let fieldType = schema.getType(sourceType).getFields()[sourceField].type;
     let collection = db.edgeCollection(getEdgeCollectionName(sourceType.name, sourceField));
     let query = [aql`FOR x IN 1..1 OUTBOUND ${source} ${collection}`];
-    if(graphql.isListType(fieldType)){
+    if (graphql.isListType(fieldType)) {
         query.push(aql`FILTER(x._id == ${target})`);
     }
     query.push(aql`RETURN x`);
     const cursor = await db.query(aql.join(query));
     let otherEdge = await cursor.next();
-    if(otherEdge !== undefined) {
+    if (otherEdge !== undefined) {
         ctxt.trans.code.push(`throw \`Edge already exists for ${sourceField} from ${source}.\``);
     }
 }
 
-function asAQLVar(varName){
+function asAQLVar(varName) {
     return '${' + varName + '}';
 }
 
-function initTransaction(){
+function initTransaction() {
     return {
         write: new Set(), params: {}, open: true, queue: {},
         code: [
@@ -488,22 +504,23 @@ function initTransaction(){
             'const {aql} = require("@arangodb");',
             'let result = Object.create(null);'
         ],
+        postCode: [],
         error: false
     };
 }
 
-async function executeTransaction(ctxt){
+async function executeTransaction(ctxt) {
     try {
         let action = `function(params){\n\t${ctxt.trans.code.join('\n\t')}\n\treturn result;\n}`;
         console.log(action);
-        ctxt.trans.results = await db.transaction({write: Array.from(ctxt.trans.write), read: []}, action, ctxt.trans.params);
+        ctxt.trans.results = await db.transaction({ write: Array.from(ctxt.trans.write), read: [] }, action, ctxt.trans.params);
     } catch (e) {
         ctxt.trans.error = new ApolloError(e.message);
     }
     ctxt.trans.open = false;
 }
 
-function validateKey(ctxt, data, type, schema, id=undefined){
+function validateKey(ctxt, data, type, schema, id = undefined) {
     let collection = asAQLVar(`db.${type.name}`);
     let keyType = schema["_typeMap"][getKeyName(type.name)];
     if (keyType) {
@@ -522,25 +539,36 @@ function validateKey(ctxt, data, type, schema, id=undefined){
     }
 }
 
-function validateType(ctxt, id, type, schema){
-    if(graphql.isInterfaceType(type)) {
-        if(!isImplementingType(id.split('/')[0], type, schema)) {
+function validateType(ctxt, id, type, schema) {
+    if (graphql.isInterfaceType(type)) {
+        if (!isImplementingType(id.split('/')[0], type, schema)) {
             ctxt.trans.code.push(`throw "ID ${id} is not a document of the interface ${type}";`);
         }
-    } else if(id.split('/')[0] != type.name){
+    } else if (id.split('/')[0] != type.name) {
         ctxt.trans.code.push(`throw "ID ${id} is not a document of the type ${type}";`);
     }
 }
 
-async function update(isRoot, ctxt, id, data, returnType, info){
+async function update(isRoot, ctxt, id, data, returnType, info) {
     // define transaction object
-    if(ctxt.trans === undefined) ctxt.trans = initTransaction();
+    if (ctxt.trans === undefined) ctxt.trans = initTransaction();
+
+    // define postcode
+    // postcode will enforce all directives by adding checks, running after the mutations have been completed
+    if (ctxt.trans.postCode === undefined) ctxt.trans.postCode = [];
 
     // is root op and mutation is already queued
-    if(isRoot && ctxt.trans.queue[info.path.key]){
-        if(ctxt.trans.open) await executeTransaction(ctxt);
-        if(ctxt.trans.error){
-            if(ctxt.trans.errorReported) return null;
+    if (isRoot && ctxt.trans.queue[info.path.key]) {
+        if (ctxt.trans.open) {
+            // add all postcode to code before executing
+            //ctxt.trans.code.concat(ctxt.trans.postCode); // concat is not working?
+            for (let i in ctxt.trans.postCode) {
+                ctxt.trans.code.push(ctxt.trans.postCode[i]);
+            }
+            await executeTransaction(ctxt);
+        }
+        if (ctxt.trans.error) {
+            if (ctxt.trans.errorReported) return null;
             ctxt.trans.errorReported = true;
             throw ctxt.trans.error;
         }
@@ -552,24 +580,24 @@ async function update(isRoot, ctxt, id, data, returnType, info){
     // 3) Add key check to transaction
     let keyName = getKeyName(returnType.name);
     let keyType = info.schema["_typeMap"][keyName];
-    if(keyType){
+    if (keyType) {
         try {
             let collection = db.collection(returnType);
             const cursor = await db.query(aql`FOR i IN ${collection} FILTER(i._id == ${id}) RETURN i`);
             let doc = await cursor.next();
-            if(doc == undefined){
+            if (doc == undefined) {
                 throw new ApolloError(`ID ${id} is not a document in the type ${returnType}`);
             }
 
             let key = {};
-            for(let f in keyType._fields){
+            for (let f in keyType._fields) {
                 key[f] = doc[f];
-                if(data[f] !== undefined){
+                if (data[f] !== undefined) {
                     key[f] = data[f];
                 }
             }
             validateKey(ctxt, key, returnType, info.schema, id);
-        } catch(err) {
+        } catch (err) {
             throw new ApolloError(err);
         }
     }
@@ -657,8 +685,11 @@ async function update(isRoot, ctxt, id, data, returnType, info){
         }
     }
 
+    // directives handling
+    addPostCodeDirectivesForTypes(ctxt, returnType, resVar);
+
     // overwrite the current action
-    if(isRoot) {
+    if (isRoot) {
         ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar}.new;`); // add root result
         ctxt.trans.queue[info.path.key] = true; // indicate that this mutation op has been added to the transaction
         getVar(ctxt); // increment varCounter
@@ -668,10 +699,10 @@ async function update(isRoot, ctxt, id, data, returnType, info){
     return null;
 }
 
-function asAqlArray(array){
+function asAqlArray(array) {
     let q = [aql`[`];
-    for(let i in array){
-        if(i != 0){
+    for (let i in array) {
+        if (i != 0) {
             q.push(aql`,`);
         }
         q.push(aql`${array[i]}`);
@@ -683,16 +714,18 @@ function asAqlArray(array){
 /**
  * Converts all values of enum or scalar type in inputDoc to mach format used for storage in the database,
  * and return result in output map
- * @param map to be changed and returned, map to be used as input, type
- * @returns map given as output
+ * @param {map} outputDoc 
+ * @param {map} inputDoc
+ * @param type
+ * @returns {map} outputDoc
  */
 function formatFixInput(outputDoc, inputDoc, type) {
     // Adds scalar/enum values to outputDoc
     for (let i in type.getFields()) {
         let field = type.getFields()[i];
         let t = graphql.getNamedType(field.type);
-        if(graphql.isEnumType(t) || graphql.isScalarType(t)){
-            if(inputDoc[field.name] !== undefined) {
+        if (graphql.isEnumType(t) || graphql.isScalarType(t)) {
+            if (inputDoc[field.name] !== undefined) {
                 outputDoc[field.name] = formatFixVariable(t, inputDoc[field.name]);
             }
         }
@@ -702,16 +735,17 @@ function formatFixInput(outputDoc, inputDoc, type) {
 
 /**
  * Convert input data (value) to match format used for storage in the database
- * @param type (of field), value
+ * @param type (of field) 
+ * @param value
  * @returns value (in database ready format)
  */
 function formatFixVariable(_type, v) {
     // DateTime has to be handled separately, which is currently the only reason for this function to exist
     if (_type == 'DateTime')
         // Arrays of DateTime needs special, special care.
-        if(Array.isArray(v)){
+        if (Array.isArray(v)) {
             let newV = []
-            for(let i in v)
+            for (let i in v)
                 newV.push(aql`DATE_TIMESTAMP(${v})`);
             return newV;
         }
@@ -728,7 +762,7 @@ function formatFixVariable(_type, v) {
  */
 function formatFixVariableWrapper(field, info, v) {
     // no need to even try when we have _id as field
-    if(field == '_id')
+    if (field == '_id')
         return v;
 
     let namedReturnType = graphql.getNamedType(info.returnType.getFields()['content'].type)
@@ -737,23 +771,23 @@ function formatFixVariableWrapper(field, info, v) {
     return formatFixVariable(_type, v);
 }
 
-function getFilters(filter_arg, info){
+function getFilters(filter_arg, info) {
     let filters = [];
-    for(let i in filter_arg){
+    for (let i in filter_arg) {
         let filter = filter_arg[i];
         /// Rewrite id field
-        if(i == 'id'){ i = '_id'; }
+        if (i == 'id') { i = '_id'; }
 
         // AND expression
-        if(i == '_and'){
+        if (i == '_and') {
             let f = [];
             f.push(aql`(`);
-            for(let x in filter) {
-                if(x != 0){
+            for (let x in filter) {
+                if (x != 0) {
                     f.push(aql`AND`);
                 }
                 let arr = getFilters(filter[x], info);
-                for(let j in arr){
+                for (let j in arr) {
                     f = f.concat(arr[j]);
                 }
             }
@@ -762,15 +796,15 @@ function getFilters(filter_arg, info){
         }
 
         // OR expression
-        if(i == '_or'){
+        if (i == '_or') {
             let f = [];
             f.push(aql`(`);
-            for(let x in filter) {
-                if(x != 0){
+            for (let x in filter) {
+                if (x != 0) {
                     f.push(aql`OR`);
                 }
                 let arr = getFilters(filter[x], info);
-                for(let j in arr){
+                for (let j in arr) {
                     f = f.concat(arr[j]);
                 }
             }
@@ -779,49 +813,49 @@ function getFilters(filter_arg, info){
         }
 
         // NOT expression
-        if(i == '_not'){
+        if (i == '_not') {
             let f = [];
             f.push(aql`NOT (`);
             let arr = getFilters(filter, info);
-            for(let j in arr){
+            for (let j in arr) {
                 f = f.concat(arr[j]);
             }
             f.push(aql`)`);
             filters.push(f);
         }
 
-        if(filter._eq != null){
+        if (filter._eq != null) {
             let preparedArg = formatFixVariableWrapper(i, info, filter._eq);
             filters.push([aql`x.${i} == ${preparedArg}`]);
         }
-        if(filter._neq != null){
+        if (filter._neq != null) {
             let preparedArgs = formatFixVariableWrapper(i, info, filter._neq);
             filters.push([aql`x.${i} != ${preparedArgs}`]);
         }
-        if(filter._gt != null){
+        if (filter._gt != null) {
             let preparedArgs = formatFixVariableWrapper(i, info, filter._gt);
             filters.push([aql`x.${i} > ${preparedArgs}`]);
         }
-        if(filter._egt != null){
+        if (filter._egt != null) {
             let preparedArgs = formatFixVariableWrapper(i, info, filter._egt);
             filters.push([aql`x.${i} >= ${preparedArgs}`]);
         }
-        if(filter._lt != null){
+        if (filter._lt != null) {
             let preparedArgs = formatFixVariableWrapper(i, info, filter._lt);
             filters.push([aql`x.${i} < ${preparedArgs}`]);
         }
-        if(filter._elt != null){
+        if (filter._elt != null) {
             let preparedArgs = formatFixVariableWrapper(i, info, filter._elt);
             filters.push([aql`x.${i} <= ${preparedArgs}`]);
         }
-        if(filter._in != null){
+        if (filter._in != null) {
             let preparedArgs = formatFixVariableWrapper(i, info, filter._in)
             let q = [];
             q = q.concat([aql`x.${i} IN `]);
             q = q.concat(asAqlArray(preparedArgs));
             filters.push(q);
         }
-        if(filter._nin != null){
+        if (filter._nin != null) {
             let preparedArgs = formatFixVariableWrapper(i, info, filter._nin);
             let q = [];
             q = q.concat([aql`x.${i} NOT IN `]);
@@ -829,19 +863,19 @@ function getFilters(filter_arg, info){
             filters.push(q);
         }
 
-        if(filter._like != null){
+        if (filter._like != null) {
             let preparedArgs = formatFixVariableWrapper(i, info, filter._like);
             filters.push([aql`LIKE(x.${i}, ${preparedArgs}, false)`]);
         }
-        if(filter._ilike != null){
+        if (filter._ilike != null) {
             let preparedArgs = formatFixVariableWrapper(i, info, filter._ilike);
             filters.push([aql`LIKE(x.${i}, ${preparedArgs}, true)`]);
         }
-        if(filter._nlike != null){
+        if (filter._nlike != null) {
             let preparedArgs = formatFixVariableWrapper(i, info, filter._nlike);
             filters.push([aql`NOT LIKE(x.${i}, ${preparedArgs}, false)`]);
         }
-        if(filter._nilike != null){
+        if (filter._nilike != null) {
             let preparedArgs = formatFixVariableWrapper(i, info, filter._nilike);
             filters.push([aql`NOT LIKE(x.${i}, ${preparedArgs}, true)`]);
         }
@@ -851,7 +885,7 @@ function getFilters(filter_arg, info){
     return filters;
 }
 
-async function getByKey(key, returnType){
+async function getByKey(key, returnType) {
     let type = graphql.getNamedType(returnType);
     let query = [aql`FOR x IN`];
     let collection = db.collection(type.name);
@@ -866,21 +900,21 @@ async function getByKey(key, returnType){
     try {
         const cursor = await db.query(aql.join(query));
         return await cursor.next();
-    } catch(err) {
+    } catch (err) {
         //console.error(err);
         throw new ApolloError(err);
     }
 }
 
-async function getList(args, info){
+async function getList(args, info) {
     let type = graphql.getNamedType(info.returnType.getFields()['content'].type);
     let first = args.first;
     let after = args.after;
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
-    if(graphql.isInterfaceType(type)){
+    if (graphql.isInterfaceType(type)) {
         let possible_types = info.schema.getPossibleTypes(type);
-        for(let i in possible_types) {
-            if(i != 0){
+        for (let i in possible_types) {
+            if (i != 0) {
                 query.push(aql`,`);
             }
             let collection = db.collection(possible_types[i].name);
@@ -894,9 +928,9 @@ async function getList(args, info){
 
     // add filters
     let query_filters = [];
-    if(args.filter != undefined && !isEmptyObject(args.filter)){
+    if (args.filter != undefined && !isEmptyObject(args.filter)) {
         let filters = getFilters(args.filter, info);
-        if(filters.length > 0) {
+        if (filters.length > 0) {
             query_filters.push(aql`FILTER`);
             for (let i in filters) {
                 if (i != 0) {
@@ -916,19 +950,19 @@ async function getList(args, info){
             'content': result
         };
         return list;
-    } catch(err) {
+    } catch (err) {
         //console.error(err);
         throw new ApolloError(err);
     }
 }
 
-async function isEndOfList(parent, args, info){
+async function isEndOfList(parent, args, info) {
     let type = graphql.getNamedType(info.parentType.getFields()['content'].type);
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
-    if(graphql.isInterfaceType(type)){
+    if (graphql.isInterfaceType(type)) {
         let possible_types = info.schema.getPossibleTypes(type);
-        for(let i in possible_types) {
-            if(i != 0){
+        for (let i in possible_types) {
+            if (i != 0) {
                 query.push(aql`,`);
             }
             let collection = db.collection(possible_types[i].name);
@@ -941,12 +975,12 @@ async function isEndOfList(parent, args, info){
     query.push(aql`] RETURN i)`);
 
     // add filters
-    if(parent._filter){
+    if (parent._filter) {
         query = query.concat(parent._filter);
     }
     // get last ID in parent content
-    if(parent.content.length != 0){
-        const last = parent.content[parent.content.length-1];
+    if (parent.content.length != 0) {
+        const last = parent.content[parent.content.length - 1];
         query.push(aql`FILTER(x._id > ${last._id})`);
     }
 
@@ -955,19 +989,19 @@ async function isEndOfList(parent, args, info){
         const cursor = await db.query(aql.join(query));
         const result = await cursor.next();
         return result == 0;
-    } catch(err) {
+    } catch (err) {
         console.error(err);
         throw new ApolloError(err);
     }
 }
 
-async function getTotalCount(parent, args, info){
+async function getTotalCount(parent, args, info) {
     let type = graphql.getNamedType(info.parentType.getFields()['content'].type);
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
-    if(graphql.isInterfaceType(type)){
+    if (graphql.isInterfaceType(type)) {
         let possible_types = info.schema.getPossibleTypes(type);
-        for(let i in possible_types) {
-            if(i != 0){
+        for (let i in possible_types) {
+            if (i != 0) {
                 query.push(aql`,`);
             }
             let collection = db.collection(possible_types[i].name);
@@ -980,7 +1014,7 @@ async function getTotalCount(parent, args, info){
     query.push(aql`] RETURN i)`);
 
     // add filters
-    if(parent._filter){
+    if (parent._filter) {
         query = query.concat(parent._filter);
     }
 
@@ -988,7 +1022,7 @@ async function getTotalCount(parent, args, info){
     try {
         const cursor = await db.query(aql.join(query));
         return await cursor.next();
-    } catch(err) {
+    } catch (err) {
         console.error(err);
         throw new ApolloError(err);
     }
@@ -1001,22 +1035,22 @@ async function getTotalCount(parent, args, info){
  * @param schema
  * @returns {Promise<*>}
  */
-async function get(id, returnType, schema){
+async function get(id, returnType, schema) {
     let type = returnType;
     let query = [aql`FOR i IN`];
-    if(graphql.isInterfaceType(type)){
+    if (graphql.isInterfaceType(type)) {
         let possible_types = schema.getPossibleTypes(type);
-        if(possible_types.length > 1){
+        if (possible_types.length > 1) {
             query.push(aql`UNION(`);
         }
-        for(let i in possible_types) {
-            if(i != 0){
+        for (let i in possible_types) {
+            if (i != 0) {
                 query.push(aql`,`);
             }
             let collection = db.collection(possible_types[i].name);
             query.push(aql`(FOR x IN ${collection} FILTER(x._id == ${id}) RETURN x)`);
         }
-        if(possible_types.length > 1){
+        if (possible_types.length > 1) {
             query.push(aql`)`);
         }
     } else {
@@ -1028,7 +1062,7 @@ async function get(id, returnType, schema){
     try {
         const cursor = await db.query(aql.join(query));
         return await cursor.next();
-    } catch(err) {
+    } catch (err) {
         console.error(err);
         throw new ApolloError(err);
     }
@@ -1043,27 +1077,27 @@ function isEmptyObject(obj) {
  * @param ob
  * @param props
  */
-function pick(ob, props){
+function pick(ob, props) {
     let sub = {};
-    for(let i in props) {
+    for (let i in props) {
         let prop = props[i];
-        if(ob[prop] !== undefined) {
+        if (ob[prop] !== undefined) {
             sub[prop] = ob[prop];
         }
     }
     return sub;
 }
 
-function getVar(context, increment=true){
-    if(context.varCounter === undefined){
+function getVar(context, increment = true) {
+    if (context.varCounter === undefined) {
         context.varCounter = 0;
     }
-    if(increment) context.varCounter++;
+    if (increment) context.varCounter++;
     return `x${context.varCounter}`;
 }
 
-function getParamVar(context){
-    if(context.paramCounter === undefined){
+function getParamVar(context) {
+    if (context.paramCounter === undefined) {
         context.paramCounter = 0;
     }
     context.paramCounter++;
@@ -1076,13 +1110,13 @@ function getTypeNameFromId(id) {
 
 function isOfType(id, type, schema) {
     let idType = getTypeNameFromId(id);
-    if(type.name == idType || isImplementingType(idType, type, schema)){
-            return true;
+    if (type.name == idType || isImplementingType(idType, type, schema)) {
+        return true;
     }
     return false;
 }
 
-function isImplementingType(name, type_interface, schema){
+function isImplementingType(name, type_interface, schema) {
     let possible_types = schema.getPossibleTypes(type_interface);
     for (let i in possible_types) {
         if (possible_types[i].name == name) {
@@ -1092,20 +1126,24 @@ function isImplementingType(name, type_interface, schema){
     return false;
 }
 
-function conditionalThrow(msg){
+function conditionalThrow(msg) {
     //console.warn(msg);
-    if(!disableEdgeValidation){
+    if (!disableEdgeValidation) {
         throw msg;
     }
 }
 
 /**
  * Add all possible edge-collections for the given type and field to query
- * @param query, schema, type_name, field_name, directionString (Optional)
+ * @param query (modifies)
+ * @param schema
+ * @param type_name
+ * @param field_name
+ * @param directionString (optional)
  */
-function addPossibleEdgeTypes(query, schema, type_name, field_name, directionString = ""){
+function addPossibleEdgeTypes(query, schema, type_name, field_name, directionString = "") {
     let type = schema._typeMap[type_name];
-    if(graphql.isInterfaceType(type)){
+    if (graphql.isInterfaceType(type)) {
         let possible_types = schema.getPossibleTypes(type);
         for (let i in possible_types) {
             if (i != 0) {
@@ -1117,5 +1155,26 @@ function addPossibleEdgeTypes(query, schema, type_name, field_name, directionStr
     } else {
         let collection = db.collection(getEdgeCollectionName(type.name, field_name));
         query.push(aql`${collection}`);
+    }
+}
+
+/**
+ * Append postcode to ctxt for all directives of all fields in input type
+ * @param ctxt (modifies)
+ * @param type
+ * @param resVar
+ */
+function addPostCodeDirectivesForTypes(ctxt, type, resVar) {
+    for (let f in type.getFields()) {
+        let field = type.getFields()[f]
+        for (let d in field.astNode.directives) {
+            let dir = field.astNode.directives[d];
+            if (dir.name.value == 'noloops') {
+                let collection = asAQLVar(`db.${getEdgeCollectionName(type.name, field.name)}`);
+                ctxt.trans.postCode.push(`if(db._query(aql\`FOR v, e, p IN 1..1 OUTBOUND ${asAQLVar(resVar)}._id ${collection} FILTER ${asAQLVar(resVar)}._id == v._id RETURN v\`).next()){`);
+                ctxt.trans.postCode.push(`   throw "Field ${f} in ${type.name} is breaking a @noloops directive! ${resVar}";`);
+                ctxt.trans.postCode.push(`}`);
+            }
+        }
     }
 }

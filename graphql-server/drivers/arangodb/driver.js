@@ -10,7 +10,7 @@ let disableEdgeValidation;
 module.exports = {
     init: async function(schema){
         let db_name = process.env.db ? process.env.db : 'dev-db';
-        let url = process.env.URL ? process.env.URL: 'http://localhost:8529';
+        let url = process.env.URL ? process.env.URL : 'http://localhost:8529';
         let drop = process.env.DROP === 'true';
         disableEdgeValidation = process.env.DISABLE_EDGE_VALIDATION === 'true';
         db = new arangojs.Database({ url: url });
@@ -44,10 +44,10 @@ module.exports = {
     getByKey: function(key, info){
         return getByKey(key, info);
     },
-    create: function(isRoot, context, data, returnType, info){
+    create: function(isRoot, context, data, returnType, info) {
         return create(isRoot, context, data, returnType, info);
     },
-    createEdge: async function(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info){
+    createEdge: async function(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info) {
         return await createEdge(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info);
     },
     update: async function(isRoot, ctxt, id, data, returnType, info){
@@ -59,19 +59,19 @@ module.exports = {
     getList: async function(args, info){
         return await getList(args, info);
     },
-    getTotalCount: async function(parent, args, info){
+    getTotalCount: async function (parent, args, info) {
         return await getTotalCount(parent, args, info);
     },
-    isEndOfList: async function(parent, args, info){
+    isEndOfList: async function (parent, args, info) {
         return await isEndOfList(parent, args, info);
     },
-    addPossibleTypes: function(query, schema, type_name){
+    addPossibleTypes: function (query, schema, type_name) {
         return addPossibleTypes(query, schema, type_name);
     },
-    addPossibleEdgeTypes: function(query, schema, type_name, field_name){
+    addPossibleEdgeTypes: function (query, schema, type_name, field_name) {
         return addPossibleEdgeTypes(query, schema, type_name, field_name);
     },
-    getEdgeCollectionName: function(type, field){
+    getEdgeCollectionName: function (type, field) {
         return getEdgeCollectionName(type, field);
     },
     hello: () => hello() // TODO: Remove after testing
@@ -81,7 +81,7 @@ async function hello(){
     return "This is the arangodb.tools saying hello!"
 }
 
-async function createAndUseDatabase(db, db_name) {
+async function createAndUseDatabase(db, db_name){
     await db.createDatabase(db_name).then(
         () => { console.info(`Database '${db_name}' created`); },
         err => { console.warn(`Database '${db_name}' not created:`, err.response.body.errorMessage); }
@@ -251,13 +251,13 @@ async function getEdge(parent, args, info){
 
     // Create query
     let query = [aql`FOR x IN`];
-    if (info.fieldName.startsWith('_')) {
+    if(info.fieldName.startsWith('_')) {
         // If the type that is the origin of the edge is an interface, then we need to check all the edge collections
         // corresponding to its implementing types. Note: This is only necessary when traversing some edges that are
         // defined in in the API schema for interfaces. The parent type will never be an interface type at this stage.
         if(graphql.isInterfaceType(return_type)){
             let possible_types = info.schema.getPossibleTypes(return_type);
-            if (possible_types.length > 1) query.push(aql`UNION(`);
+            if(possible_types.length > 1) query.push(aql`UNION(`);
             for(let i in possible_types) {
                 if(i != 0) query.push(aql`,`);
                 let collection = db.collection(getEdgeCollectionName(possible_types[i].name, field_name));
@@ -303,7 +303,6 @@ async function create(isRoot, ctxt, data, returnType, info){
 
     // is root op and mutatation is already queued
     if(isRoot && ctxt.trans.queue[info.path.key]){
-
         if(ctxt.trans.open) await executeTransaction(ctxt);
         if(ctxt.trans.error){
             if(ctxt.trans.errorReported) return null;
@@ -386,7 +385,7 @@ async function create(isRoot, ctxt, data, returnType, info){
     addfinalDirectiveChecksForType(ctxt, returnType, aql`${asAQLVar(resVar)}._id`, info.schema);
 
     // overwrite the current action
-    if(isRoot){
+    if(isRoot) {
         ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar};`); // add root result
         ctxt.trans.queue[info.path.key] = true; // indicate that this mutation op has been added to the transaction
         getVar(ctxt); // increment varCounter

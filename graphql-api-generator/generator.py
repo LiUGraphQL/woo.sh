@@ -138,7 +138,7 @@ def run(schema: GraphQLSchema, config: dict):
             raise UnsupportedOperation('{0} is currently not supported'.format('delete_edge_objects'))
 
         # remove field arguments for edges (should not be in the API schema)
-        #schema = remove_field_arguments_for_types(schema)
+        schema = remove_field_arguments_for_types(schema)
 
     return schema
 

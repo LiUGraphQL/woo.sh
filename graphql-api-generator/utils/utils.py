@@ -773,7 +773,7 @@ def ast_type_to_string(_type: GraphQLType):
     :return:
     """
 
-    # ast_nodes types behavies differnetly than for other types (as they are NodeTypes)
+    # ast_nodes types behavies differently than other types (as they are NodeTypes)
     # So we can't use the normal functions
 
 
@@ -803,7 +803,7 @@ def ast_type_to_string(_type: GraphQLType):
 
 def directive_from_interface(directive, interface_name):
     """
-    Return the correct directive string fro directives inhertied from interfaces
+    Return the correct directive string from directives inhertied from interfaces
     :param directive:
     :param interface_name:
     :return string:
@@ -834,6 +834,7 @@ def get_directive_arguments(directive):
         for arg in directive.arguments:
             output+= arg.name.value + ':'
             if isinstance(arg.value, ListValueNode):
+                # List
                 output+= '['
                 for V in arg.value.values:
                     if isinstance(V, StringValueNode):
@@ -844,6 +845,7 @@ def get_directive_arguments(directive):
                 output = output[:-2] + ']'
 
             else:
+                # Non-list
                 if isinstance(arg.value, StringValueNode):
                     output+='"' + arg.value.value + '", '
                 else:

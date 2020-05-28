@@ -829,7 +829,7 @@ def get_directive_arguments(directive):
     """
 
     output = ''
-    if len(directive.arguments) > 0:
+    if directive.arguments:
         output+= '(' 
         for arg in directive.arguments:
             output+= arg.name.value + ':'
@@ -859,16 +859,23 @@ def get_directive_arguments(directive):
 
 
 def printSchemaWithDirectives(schema):
+    """
+    Ouputs the given schema as string, in the format we want it. 
+    Types and fields will all contain directives
+    :param schema:
+    :return string:
+    """
 
     output = ''
 
+    # Start by adding directives
     for _dir in schema.directives:
         if _dir.ast_node is not None:
             # If the directive does not have a proper ast_node
             # Then it is an non-user defined directive, and can hence, be skipped
             output+= 'directive @' + _dir.name
 
-            if len(_dir.ast_node.arguments) > 0:
+            if _dir.ast_node.arguments:
                 output+= '(' 
                 for arg in _dir.ast_node.arguments:
                     output+= arg.name.value + ': ' + ast_type_to_string(arg.type) + ', '
@@ -880,12 +887,14 @@ def printSchemaWithDirectives(schema):
                 
             output = output[:-2] + '\n\n'
 
-
+    # Two special directives that should not exists in the db schema
     output += 'directive @_requiredForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION\n\n'
     output += 'directive @_uniqueForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION\n\n'
 
-
+    # For each type, and output the types sortad after name
     for _type in sorted(schema.type_map.values(), key=lambda x : x.name):
+
+        # Internal type
         if _type.name[:2] == '__':
             continue
 
@@ -902,29 +911,35 @@ def printSchemaWithDirectives(schema):
             output += 'input ' + _type.name
         else: # type, hopefully
             output += 'type ' + _type.name
-            if hasattr(_type, 'interfaces') and len(_type.interfaces) > 0:
+            if hasattr(_type, 'interfaces') and _type.interfaces:
                 output += ' implements '
                 for interface in _type.interfaces:
                     output += interface.name + ', '
                 output = output[:-2]
                 
         if is_enum_type(_type):
+            # For enums we can get the values directly and add them
             output += ' {\n'
             for value in _type.values: 
                 output += '  ' + value + '\n'
             output += '}'
 
         elif not is_enum_or_scalar(_type):
+            # This should be a type, or an interface
+
             if _type.ast_node is not None:
+                # Get directives on type
                 for directive in _type.ast_node.directives:
                     output+= ' @' + directive.name.value
                     output += get_directive_arguments(directive)
 
             output += ' {\n'
 
+            # Get fields
             for field_name, field in _type.fields.items(): 
                 output += '  ' + field_name
                 
+                # Get arguments for field
                 if hasattr(field, 'args') and field.args:
                     output += '('
                     for arg_name, arg in field.args.items():
@@ -933,8 +948,10 @@ def printSchemaWithDirectives(schema):
 
                 output += ': ' + str(field.type)
 
+                # Used to make sure we don't add the same directive multiple times to the same field
                 directives_set = set()
 
+                # Get all directives directly on field
                 for directive in field.ast_node.directives:
                     if not directive.name.value in directives_set:
                         output+= ' @' + directive.name.value  
@@ -943,6 +960,7 @@ def printSchemaWithDirectives(schema):
                             
 
                 if hasattr(_type, 'interfaces'):
+                    # Get all inherited directives
                     for interface in _type.interfaces:
                         if field_name in interface.fields:
                             for directive in interface.fields[field_name].ast_node.directives:
@@ -955,7 +973,7 @@ def printSchemaWithDirectives(schema):
                 output += '\n'
            
             output += '}'
-          
+        
         if _type.ast_node is not None:
             output += '\n\n'
 

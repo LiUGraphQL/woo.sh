@@ -202,14 +202,27 @@ def add_reverse_edges(schema: GraphQLSchema):
             # Reverse edge
             edge_from = get_named_type(field_type.type)
             edge_name = f'_{field_name}From{_type.name}'
-            edge_to = GraphQLList(_type)
+
+            directives = {}
+            directive_to_add = ''
+
+            if hasattr(field_type, 'ast_node') and field_type.ast_node is not None:
+                directives = {directive.name.value: directive for directive in field_type.ast_node.directives}
+
+            if 'requiredForTarget' in directives:
+                directive_to_add = '@required'
+
+            if 'uniqueForTarget' in directives:
+                edge_to = _type
+            else:
+                edge_to = GraphQLList(_type)
 
             if is_interface_type(edge_from):
-                make += 'extend interface {0} {{ {1}: {2} }}\n'.format(edge_from, edge_name, edge_to)
+                make += 'extend interface {0} {{ {1}: {2} {3} }}\n'.format(edge_from, edge_name, edge_to, directive_to_add)
                 for implementing_type in schema.get_possible_types(edge_from):
                     make += 'extend type {0} {{ {1}: {2} }}\n'.format(implementing_type, edge_name, edge_to)
             else:
-                make += 'extend type {0} {{ {1}: {2} }}\n'.format(edge_from, edge_name, edge_to)
+                make += 'extend type {0} {{ {1}: {2} {3} }}\n'.format(edge_from, edge_name, edge_to, directive_to_add)
     schema = add_to_schema(schema, make)
 
     return schema
@@ -751,3 +764,197 @@ def add_delete_mutations(schema: GraphQLSchema):
         make += f'extend type Mutation {{ {delete}(id: ID!): {_type.name} }} '
     schema = add_to_schema(schema, make)
     return schema
+
+
+def ast_type_to_string(_type: GraphQLType):
+    """
+    Print the ast_type properly
+    :param _type:
+    :return:
+    """
+
+    # ast_nodes types behavies differnetly than for other types (as they are NodeTypes)
+    # So we can't use the normal functions
+
+
+    _post_str = ''
+    _pre_str = ''
+    # A, A!, [A!], [A]!, [A!]!
+    wrappers = []
+    if isinstance(_type, NonNullTypeNode):
+        _post_str = '!'
+        _type = _type.type
+    if isinstance(_type, ListTypeNode):
+        _post_str = ']' + _post_str
+        _pre_str = '['
+        _type = _type.type
+    if isinstance(_type, NonNullTypeNode):
+        _post_str = '!' + _post_str
+        _type = _type.type
+        
+    # Dig down to find the actual named node, should be the first one actually
+    name = _type
+    while not isinstance(name, NamedTypeNode):
+        name = name.type
+    name = name.name.value
+
+    return _pre_str + name + _post_str
+
+
+def directive_from_interface(directive, interface_name):
+    """
+    Return the correct directive string fro directives inhertied from interfaces
+    :param directive:
+    :param interface_name:
+    :return string:
+    """
+    directive_string = directive.name.value
+
+    # The only two cases who needs special attention is @requiredForTarget and @uniqueForTarget
+    if directive_string == 'requiredForTarget':
+        directive_string = '_requiredForTarget_AccordingToInterface(interface: "' + interface_name + '")'
+    elif directive_string == 'uniqueForTarget':
+        directive_string = '_uniqueForTarget_AccordingToInterface(interface: "' + interface_name + '")'
+    else:
+        directive_string += get_directive_arguments(directive)
+
+    return directive_string
+
+
+def get_directive_arguments(directive):
+    """
+    Get the arguments of the given directive as string
+    :param directive:
+    :return string:
+    """
+
+    output = ''
+    if len(directive.arguments) > 0:
+        output+= '(' 
+        for arg in directive.arguments:
+            output+= arg.name.value + ':'
+            if isinstance(arg.value, ListValueNode):
+                output+= '['
+                for V in arg.value.values:
+                    if isinstance(V, StringValueNode):
+                        output+='"' + V.value + '", '
+                    else:
+                        output+= V.value + ', '
+
+                output = output[:-2] + ']'
+
+            else:
+                if isinstance(arg.value, StringValueNode):
+                    output+='"' + arg.value.value + '", '
+                else:
+                    output+= arg.value.value + ', '
+
+            output += ', '
+
+        output = output[:-2] + ')'
+
+    return output
+
+
+def printSchemaWithDirectives(schema):
+
+    output = ''
+
+    for _dir in schema.directives:
+        if _dir.ast_node is not None:
+            # If the directive does not have a proper ast_node
+            # Then it is an non-user defined directive, and can hence, be skipped
+            output+= 'directive @' + _dir.name
+
+            if len(_dir.ast_node.arguments) > 0:
+                output+= '(' 
+                for arg in _dir.ast_node.arguments:
+                    output+= arg.name.value + ': ' + ast_type_to_string(arg.type) + ', '
+                output = output[:-2] + ')'
+
+            output+= ' on ' 
+            for _location in _dir.locations:
+                output+= _location._name_ + ', '
+                
+            output = output[:-2] + '\n\n'
+
+
+    output += 'directive @_requiredForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION\n\n'
+    output += 'directive @_uniqueForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION\n\n'
+
+
+    for _type in sorted(schema.type_map.values(), key=lambda x : x.name):
+        if _type.name[:2] == '__':
+            continue
+
+        if is_interface_type(_type):
+            output += 'interface ' + _type.name
+        elif is_enum_type(_type):
+            output += 'enum ' + _type.name
+        elif is_scalar_type(_type):
+            if _type.ast_node is not None:
+                # If the scalar does not have a proper ast_node
+                # Then it is an non-user defined scalar, and can hence, be skipped
+                output += 'scalar ' + _type.name
+        elif is_input_type(_type):
+            output += 'input ' + _type.name
+        else: # type, hopefully
+            output += 'type ' + _type.name
+            if hasattr(_type, 'interfaces') and len(_type.interfaces) > 0:
+                output += ' implements '
+                for interface in _type.interfaces:
+                    output += interface.name + ', '
+                output = output[:-2]
+                
+        if is_enum_type(_type):
+            output += ' {\n'
+            for value in _type.values: 
+                output += '  ' + value + '\n'
+            output += '}'
+
+        elif not is_enum_or_scalar(_type):
+            if _type.ast_node is not None:
+                for directive in _type.ast_node.directives:
+                    output+= ' @' + directive.name.value
+                    output += get_directive_arguments(directive)
+
+            output += ' {\n'
+
+            for field_name, field in _type.fields.items(): 
+                output += '  ' + field_name
+                
+                if hasattr(field, 'args') and field.args:
+                    output += '('
+                    for arg_name, arg in field.args.items():
+                        output += arg_name + ': ' +  str(arg.type) + ', '
+                    output = output[:-2] + ')'
+
+                output += ': ' + str(field.type)
+
+                directives_set = set()
+
+                for directive in field.ast_node.directives:
+                    if not directive.name.value in directives_set:
+                        output+= ' @' + directive.name.value  
+                        directives_set.add(directive.name.value)
+                        output += get_directive_arguments(directive)
+                            
+
+                if hasattr(_type, 'interfaces'):
+                    for interface in _type.interfaces:
+                        if field_name in interface.fields:
+                            for directive in interface.fields[field_name].ast_node.directives:
+                                directive_str = directive_from_interface(directive, interface.name)
+                                if not directive_str in directives_set:
+                                    output+= ' @' + directive_str
+                                    directives_set.add(directive_str)
+                                    
+                    
+                output += '\n'
+           
+            output += '}'
+          
+        if _type.ast_node is not None:
+            output += '\n\n'
+
+    return output

@@ -36,16 +36,16 @@ def cmd(args):
         with open(file, 'r') as f:
             schema_string += f.read() + '\n'
     schema = build_schema(schema_string)
-
+    
     # run
     schema = run(schema, config)
 
     # write to file or stdout
     if args.output:
         with open(args.output, 'w') as out:
-            out.write(print_schema(schema))
+            out.write(printSchemaWithDirectives(schema))
     else:
-        print(print_schema(schema))
+        print(printSchemaWithDirectives(schema))
 
 
 def run(schema: GraphQLSchema, config: dict):
@@ -138,7 +138,7 @@ def run(schema: GraphQLSchema, config: dict):
             raise UnsupportedOperation('{0} is currently not supported'.format('delete_edge_objects'))
 
         # remove field arguments for edges (should not be in the API schema)
-        schema = remove_field_arguments_for_types(schema)
+        #schema = remove_field_arguments_for_types(schema)
 
     return schema
 

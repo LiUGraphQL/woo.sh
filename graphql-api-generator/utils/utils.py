@@ -247,19 +247,20 @@ def add_input_to_create(schema: GraphQLSchema):
     for _type in schema.type_map.values():
         if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
-        make += f'\nextend input _InputToCreate{_type.name} {{ '
+        make += f'\nextend input _InputToCreate{_type.name} {{'
         for field_name, field in _type.fields.items():
             if field_name == 'id' or field_name[0] == '_':
                 continue
             inner_field_type = get_named_type(field.type)
+
             if is_enum_or_scalar(inner_field_type):
-                make += f'{field_name}: {field.type} '
+                make += f'   {field_name}: {field.type} '
             else:
                 schema = extend_connect(schema, _type, inner_field_type, field_name)
                 connect_name = f'_InputToConnect{capitalize(field_name)}Of{_type.name}'
                 connect = copy_wrapper_structure(schema.type_map[connect_name], field.type)
                 make += f'   {field_name}: {connect} '
-        make += '} '
+        make += '}'
     schema = add_to_schema(schema, make)
     return schema
 
@@ -858,6 +859,39 @@ def get_directive_arguments(directive):
     return output
 
 
+def get_field_directives(field, field_name, _type):
+    """
+    Get the directives of given field, and return them as string
+    :param schema:
+    :return string:
+    """
+
+    output = ''
+
+    # Used to make sure we don't add the same directive multiple times to the same field
+    directives_set = set()
+
+    # Get all directives directly on field
+    for directive in field.ast_node.directives:
+        if not directive.name.value in directives_set:
+            output+= ' @' + directive.name.value  
+            directives_set.add(directive.name.value)
+            output += get_directive_arguments(directive)
+                            
+
+    if hasattr(_type, 'interfaces'):
+        # Get all inherited directives
+        for interface in _type.interfaces:
+            if field_name in interface.fields:
+                for directive in interface.fields[field_name].ast_node.directives:
+                    directive_str = directive_from_interface(directive, interface.name)
+                    if not directive_str in directives_set:
+                        output+= ' @' + directive_str
+                        directives_set.add(directive_str)
+
+    return output
+
+
 def printSchemaWithDirectives(schema):
     """
     Ouputs the given schema as string, in the format we want it. 
@@ -883,9 +917,9 @@ def printSchemaWithDirectives(schema):
 
             output+= ' on ' 
             for _location in _dir.locations:
-                output+= _location._name_ + ', '
+                output+= _location._name_ + ' | '
                 
-            output = output[:-2] + '\n\n'
+            output = output[:-3] + '\n\n'
 
     # Two special directives that should not exists in the db schema
     output += 'directive @_requiredForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION\n\n'
@@ -914,8 +948,8 @@ def printSchemaWithDirectives(schema):
             if hasattr(_type, 'interfaces') and _type.interfaces:
                 output += ' implements '
                 for interface in _type.interfaces:
-                    output += interface.name + ', '
-                output = output[:-2]
+                    output += interface.name + ' & ' 
+                output = output[:-3]
                 
         if is_enum_type(_type):
             # For enums we can get the values directly and add them
@@ -948,27 +982,8 @@ def printSchemaWithDirectives(schema):
 
                 output += ': ' + str(field.type)
 
-                # Used to make sure we don't add the same directive multiple times to the same field
-                directives_set = set()
-
-                # Get all directives directly on field
-                for directive in field.ast_node.directives:
-                    if not directive.name.value in directives_set:
-                        output+= ' @' + directive.name.value  
-                        directives_set.add(directive.name.value)
-                        output += get_directive_arguments(directive)
-                            
-
-                if hasattr(_type, 'interfaces'):
-                    # Get all inherited directives
-                    for interface in _type.interfaces:
-                        if field_name in interface.fields:
-                            for directive in interface.fields[field_name].ast_node.directives:
-                                directive_str = directive_from_interface(directive, interface.name)
-                                if not directive_str in directives_set:
-                                    output+= ' @' + directive_str
-                                    directives_set.add(directive_str)
-                                    
+                # Add directives
+                output += get_field_directives(field, field_name, _type)
                     
                 output += '\n'
            

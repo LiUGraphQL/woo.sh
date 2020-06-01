@@ -920,6 +920,7 @@ def printSchemaWithDirectives(schema):
                 output+= _location._name_ + ' | '
                 
             output = output[:-3] + '\n\n'
+        print(_dir.name)
 
     # Two special directives that should not exists in the db schema
     output += 'directive @_requiredForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION\n\n'

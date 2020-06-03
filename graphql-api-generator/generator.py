@@ -43,12 +43,13 @@ def cmd(args):
     # write to file or stdout
     if args.output:
         with open(args.output, 'w') as out:
-            out.write(printSchemaWithDirectives(schema))
+            out.write(print_schema_with_directives(schema))
     else:
-        print(printSchemaWithDirectives(schema))
+        print(print_schema_with_directives(schema))
 
 
 def run(schema: GraphQLSchema, config: dict):
+
     # validate
     if config.get('validate'):
         validate_names(schema, config.get('validate'))

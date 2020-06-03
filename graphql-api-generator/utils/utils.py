@@ -247,20 +247,21 @@ def add_input_to_create(schema: GraphQLSchema):
     for _type in schema.type_map.values():
         if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
-        make += f'\nextend input _InputToCreate{_type.name} {{'
+        make += f'\nextend input _InputToCreate{_type.name} {{\n'
         for field_name, field in _type.fields.items():
             if field_name == 'id' or field_name[0] == '_':
                 continue
+
             inner_field_type = get_named_type(field.type)
 
             if is_enum_or_scalar(inner_field_type):
-                make += f'   {field_name}: {field.type} '
+                make += f'   {field_name}: {field.type} \n'
             else:
                 schema = extend_connect(schema, _type, inner_field_type, field_name)
                 connect_name = f'_InputToConnect{capitalize(field_name)}Of{_type.name}'
                 connect = copy_wrapper_structure(schema.type_map[connect_name], field.type)
-                make += f'   {field_name}: {connect} '
-        make += '}'
+                make += f'   {field_name}: {connect} \n'
+        make += '}\n'
     schema = add_to_schema(schema, make)
     return schema
 
@@ -387,12 +388,12 @@ def add_input_update(schema: GraphQLSchema):
             inner_field_type = get_named_type(f_type)
 
             if is_enum_or_scalar(inner_field_type):
-                make += f'extend input {update_name} {{ {field_name}: {f_type} }} '
+                make += f'extend input {update_name} {{ {field_name}: {f_type} }} \n'
             else:
                 # add create or connect field
                 connect_name = f'_InputToConnect{capitalize(field_name)}Of{_type.name}'
                 connect = copy_wrapper_structure(schema.get_type(connect_name), f_type)
-                make += f'extend input {update_name} {{ {field_name}: {connect} }} '
+                make += f'extend input {update_name} {{ {field_name}: {connect} }} \n'
     schema = add_to_schema(schema, make)
     return schema
 
@@ -814,8 +815,8 @@ def directive_from_interface(directive, interface_name):
     # The only two cases who needs special attention is @requiredForTarget and @uniqueForTarget
     if directive_string == 'requiredForTarget':
         directive_string = '_requiredForTarget_AccordingToInterface(interface: "' + interface_name + '")'
-    elif directive_string == 'uniqueForTarget':
-        directive_string = '_uniqueForTarget_AccordingToInterface(interface: "' + interface_name + '")'
+    #elif directive_string == 'uniqueForTarget':
+    #    directive_string = '_uniqueForTarget_AccordingToInterface(interface: "' + interface_name + '")'
     else:
         directive_string += get_directive_arguments(directive)
 
@@ -859,9 +860,12 @@ def get_directive_arguments(directive):
     return output
 
 
-def get_field_directives(field, field_name, _type):
+def get_field_directives(field, field_name, _type, schema):
     """
     Get the directives of given field, and return them as string
+    :param field:
+    :param field_name:
+    :param _type:
     :param schema:
     :return string:
     """
@@ -870,6 +874,20 @@ def get_field_directives(field, field_name, _type):
 
     # Used to make sure we don't add the same directive multiple times to the same field
     directives_set = set()
+
+    if is_input_type(_type):
+        # Get the target type instead (unless it is a filter or delete input, then we dont care)
+        # We also ignore @required directives for inputs
+        if _type.name[:14] == '_InputToUpdate':
+            directives_set.add('required')
+            _type = schema.get_type(_type.name[14:])
+
+        elif _type.name[:14] == '_InputToCreate':
+            _type = schema.get_type(_type.name[14:])
+            directives_set.add('required')
+
+        else: 
+            return ''
 
     # Get all directives directly on field
     for directive in field.ast_node.directives:
@@ -892,7 +910,35 @@ def get_field_directives(field, field_name, _type):
     return output
 
 
-def printSchemaWithDirectives(schema):
+def get_type_directives(_type, schema):
+    """
+    Get the directives of given type, or target type if create- or update-input
+    :param type:
+    :return string:
+    """
+
+    output = ''
+
+    if is_input_type(_type):
+        # Get the target type instead (unless it is a filter or delete input, then we dont care)
+        if _type.name[:14] == '_InputToUpdate':
+            _type = schema.get_type(_type.name[14:])
+
+        elif _type.name[:14] == '_InputToCreate':
+            _type = schema.get_type(_type.name[14:])
+        else: 
+            return ''
+
+    if hasattr(_type, 'ast_node') and _type.ast_node is not None:
+        # Get directives on type
+        for directive in _type.ast_node.directives:
+            output+= ' @' + directive.name.value
+            output += get_directive_arguments(directive)
+
+    return output
+
+
+def print_schema_with_directives(schema):
     """
     Ouputs the given schema as string, in the format we want it. 
     Types and fields will all contain directives
@@ -900,11 +946,21 @@ def printSchemaWithDirectives(schema):
     :return string:
     """
 
+
+    manual_directives = {'key':'directive @key(fields: [String!]!) on OBJECT | INPUT_OBJECT',\
+                        'distinct':'directive @distinct on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION',\
+                        'noloops':'directive @noloops on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION',\
+                        'requiredForTarget':'directive @requiredForTarget on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION',\
+                        'uniqueForTarget':'directive @uniqueForTarget on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION',\
+                        '_requiredForTarget_AccordingToInterface':'directive @_requiredForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION',\
+                        '_uniqueForTarget_AccordingToInterface':'directive @_uniqueForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION'\
+                        }
+
     output = ''
 
-    # Start by adding directives
+    # Add directives
     for _dir in schema.directives:
-        if _dir.ast_node is not None:
+        if _dir.ast_node is not None and _dir.name not in manual_directives.keys():
             # If the directive does not have a proper ast_node
             # Then it is an non-user defined directive, and can hence, be skipped
             output+= 'directive @' + _dir.name
@@ -920,11 +976,10 @@ def printSchemaWithDirectives(schema):
                 output+= _location._name_ + ' | '
                 
             output = output[:-3] + '\n\n'
-        print(_dir.name)
-
-    # Two special directives that should not exists in the db schema
-    output += 'directive @_requiredForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION\n\n'
-    output += 'directive @_uniqueForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION\n\n'
+        
+    # Manualy handled directives
+    for _dir in manual_directives.values():
+        output+= _dir + '\n\n'
 
     # For each type, and output the types sortad after name
     for _type in sorted(schema.type_map.values(), key=lambda x : x.name):
@@ -962,11 +1017,8 @@ def printSchemaWithDirectives(schema):
         elif not is_enum_or_scalar(_type):
             # This should be a type, or an interface
 
-            if _type.ast_node is not None:
-                # Get directives on type
-                for directive in _type.ast_node.directives:
-                    output+= ' @' + directive.name.value
-                    output += get_directive_arguments(directive)
+            # Get directives on type
+            output += get_type_directives(_type, schema)
 
             output += ' {\n'
 
@@ -984,7 +1036,7 @@ def printSchemaWithDirectives(schema):
                 output += ': ' + str(field.type)
 
                 # Add directives
-                output += get_field_directives(field, field_name, _type)
+                output += get_field_directives(field, field_name, _type, schema)
                     
                 output += '\n'
            

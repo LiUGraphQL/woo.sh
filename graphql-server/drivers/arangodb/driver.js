@@ -6,13 +6,14 @@ const waitOn = require('wait-on');
 
 let db;
 let disableEdgeValidation;
+let diasableDiractivesChecking
 
 module.exports = {
     init: async function(schema){
         let db_name = process.env.db ? process.env.db : 'dev-db';
         let url = process.env.URL ? process.env.URL : 'http://localhost:8529';
         let drop = process.env.DROP === 'true';
-        let diasableDiractivesChecking = process.env.DISABLE_DIRECTIVES_CHECKING === 'true';
+        diasableDiractivesChecking = process.env.DISABLE_DIRECTIVES_CHECKING === 'true';
         disableEdgeValidation = process.env.DISABLE_EDGE_VALIDATION === 'true';
         db = new arangojs.Database({ url: url });
 

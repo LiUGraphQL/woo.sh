@@ -10,10 +10,11 @@
  * possible subfields down to a configurable level. A simple equality filter is added for the ID of the type.
  *
  *
- * What id does NOT do:
+ * What it does NOT do:
  * - Does not verify that the returned object matches the expected result. (TODO)
  * - Executes no queries over annotated edges (TODO)
  * - Executes no mutations to annotate edges (TODO).
+ * - Care about / check directives (Requires process.env.DISABLE_DIRECTIVES_CHECKING to be set to true if directives are used) (TODO).
  * - ... a lot of other things probably.
  */
 

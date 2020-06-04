@@ -955,12 +955,12 @@ def print_schema_with_directives(schema):
 
 
     manual_directives = {'key':'directive @key(fields: [String!]!) on OBJECT | INPUT_OBJECT',\
-                        'distinct':'directive @distinct on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION',\
-                        'noloops':'directive @noloops on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION',\
-                        'requiredForTarget':'directive @requiredForTarget on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION',\
-                        'uniqueForTarget':'directive @uniqueForTarget on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION',\
-                        '_requiredForTarget_AccordingToInterface':'directive @_requiredForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION',\
-                        '_uniqueForTarget_AccordingToInterface':'directive @_uniqueForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION'\
+                        'distinct':'directive @distinct on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',\
+                        'noloops':'directive @noloops on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',\
+                        'requiredForTarget':'directive @requiredForTarget on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',\
+                        'uniqueForTarget':'directive @uniqueForTarget on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',\
+                        '_requiredForTarget_AccordingToInterface':'directive @_requiredForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',\
+                        '_uniqueForTarget_AccordingToInterface':'directive @_uniqueForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION'\
                         }
 
     output = ''

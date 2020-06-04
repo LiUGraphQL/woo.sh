@@ -815,8 +815,8 @@ def directive_from_interface(directive, interface_name):
     # The only two cases who needs special attention is @requiredForTarget and @uniqueForTarget
     if directive_string == 'requiredForTarget':
         directive_string = '_requiredForTarget_AccordingToInterface(interface: "' + interface_name + '")'
-    #elif directive_string == 'uniqueForTarget':
-    #    directive_string = '_uniqueForTarget_AccordingToInterface(interface: "' + interface_name + '")'
+    elif directive_string == 'uniqueForTarget':
+        directive_string = '_uniqueForTarget_AccordingToInterface(interface: "' + interface_name + '")'
     else:
         directive_string += get_directive_arguments(directive)
 
@@ -860,7 +860,7 @@ def get_directive_arguments(directive):
     return output
 
 
-def get_field_directives(field, field_name, _type, schema):
+def get_field_directives(field_name, _type, schema):
     """
     Get the directives of given field, and return them as string
     :param field:
@@ -888,6 +888,13 @@ def get_field_directives(field, field_name, _type, schema):
 
         else: 
             return ''
+
+    # We got type without fields, just return empty
+    if not hasattr(_type, 'fields'):
+        return ''
+
+    # Get the field from the correct type
+    field = _type.fields[field_name]
 
     # Get all directives directly on field
     for directive in field.ast_node.directives:
@@ -1036,7 +1043,7 @@ def print_schema_with_directives(schema):
                 output += ': ' + str(field.type)
 
                 # Add directives
-                output += get_field_directives(field, field_name, _type, schema)
+                output += get_field_directives(field_name, _type, schema)
                     
                 output += '\n'
            

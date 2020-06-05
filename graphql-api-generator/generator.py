@@ -269,7 +269,8 @@ def datetime_control(schema):
         if not is_scalar_type(schema.type_map['DateTime']):
             raise Exception('DateTime exists but is not scalar type: ' + schema.type_map['DateTime'])
     else:
-        schema.type_map['DateTime'] = GraphQLScalarType('DateTime')
+        # ast_node definition ensures that DateTime appears as a user-defined scalar
+        schema.type_map['DateTime'] = GraphQLScalarType('DateTime', ast_node=ScalarTypeDefinitionNode())
         if not is_scalar_type(schema.type_map['DateTime']):
             raise Exception('DateTime could not be added as scalar!')
 

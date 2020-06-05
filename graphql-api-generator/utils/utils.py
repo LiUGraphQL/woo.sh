@@ -947,52 +947,44 @@ def get_type_directives(_type, schema):
 
 def print_schema_with_directives(schema):
     """
-    Ouputs the given schema as string, in the format we want it. 
+    Outputs the given schema as string, in the format we want it.
     Types and fields will all contain directives
     :param schema:
     :return string:
     """
-
-
-    manual_directives = {'key':'directive @key(fields: [String!]!) on OBJECT | INPUT_OBJECT',\
-                        'distinct':'directive @distinct on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',\
-                        'noloops':'directive @noloops on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',\
-                        'requiredForTarget':'directive @requiredForTarget on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',\
-                        'uniqueForTarget':'directive @uniqueForTarget on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',\
-                        '_requiredForTarget_AccordingToInterface':'directive @_requiredForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',\
-                        '_uniqueForTarget_AccordingToInterface':'directive @_uniqueForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION'\
-                        }
-
+    manual_directives = {
+        'required': 'directive @required on FIELD_DEFINITION',
+        'key': 'directive @key(fields: [String!]!) on OBJECT | INPUT_OBJECT',
+        'distinct': 'directive @distinct on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',
+        'noloops': 'directive @noloops on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',
+        'requiredForTarget': 'directive @requiredForTarget on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',
+        'uniqueForTarget': 'directive @uniqueForTarget on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',
+        '_requiredForTarget_AccordingToInterface': 'directive @_requiredForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',
+        '_uniqueForTarget_AccordingToInterface': 'directive @_uniqueForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION'
+    }
     output = ''
-
     # Add directives
     for _dir in schema.directives:
-        if _dir.ast_node is not None and _dir.name not in manual_directives.keys():
-            # If the directive does not have a proper ast_node
-            # Then it is an non-user defined directive, and can hence, be skipped
-            output+= 'directive @' + _dir.name
+        # Skip non-user defined directives
+        if _dir.ast_node is None or _dir.name in manual_directives.keys():
+            continue
 
-            if _dir.ast_node.arguments:
-                output+= '(' 
-                for arg in _dir.ast_node.arguments:
-                    output+= arg.name.value + ': ' + ast_type_to_string(arg.type) + ', '
-                output = output[:-2] + ')'
+        output += f'directive @{_dir.name}'
+        if _dir.ast_node.arguments:
+            args = ', '.join([f'{arg.name.value}: {ast_type_to_string(arg.type)}' for arg in _dir.ast_node.arguments])
+            output += f'({args})'
 
-            output+= ' on ' 
-            for _location in _dir.locations:
-                output+= _location._name_ + ' | '
-                
-            output = output[:-3] + '\n\n'
+        output += ' on ' + ' | '.join([loc.name for loc in _dir.locations])
+        output += '\n\n'
         
-    # Manualy handled directives
+    # Manually handled directives
     for _dir in manual_directives.values():
-        output+= _dir + '\n\n'
+        output += _dir + '\n\n'
 
-    # For each type, and output the types sortad after name
-    for _type in sorted(schema.type_map.values(), key=lambda x : x.name):
-
+    # For each type, and output the types sorted by name
+    for _type in sorted(schema.type_map.values(), key=lambda x: x.name):
         # Internal type
-        if _type.name[:2] == '__':
+        if _type.name.startswith('__'):
             continue
 
         if is_interface_type(_type):
@@ -1000,19 +992,16 @@ def print_schema_with_directives(schema):
         elif is_enum_type(_type):
             output += 'enum ' + _type.name
         elif is_scalar_type(_type):
+            # Skip non-user defined directives
             if _type.ast_node is not None:
-                # If the scalar does not have a proper ast_node
-                # Then it is an non-user defined scalar, and can hence, be skipped
                 output += 'scalar ' + _type.name
         elif is_input_type(_type):
             output += 'input ' + _type.name
-        else: # type, hopefully
+        else:
             output += 'type ' + _type.name
             if hasattr(_type, 'interfaces') and _type.interfaces:
                 output += ' implements '
-                for interface in _type.interfaces:
-                    output += interface.name + ' & ' 
-                output = output[:-3]
+                output += ' & '.join([interface.name for interface in _type.interfaces])
                 
         if is_enum_type(_type):
             # For enums we can get the values directly and add them
@@ -1023,10 +1012,8 @@ def print_schema_with_directives(schema):
 
         elif not is_enum_or_scalar(_type):
             # This should be a type, or an interface
-
             # Get directives on type
             output += get_type_directives(_type, schema)
-
             output += ' {\n'
 
             # Get fields
@@ -1035,16 +1022,13 @@ def print_schema_with_directives(schema):
                 
                 # Get arguments for field
                 if hasattr(field, 'args') and field.args:
-                    output += '('
-                    for arg_name, arg in field.args.items():
-                        output += arg_name + ': ' +  str(arg.type) + ', '
-                    output = output[:-2] + ')'
+                    args = ', '.join([f'{arg_name}: {arg.type}' for arg_name, arg in field.args.items()])
+                    output += f'({args})'
 
                 output += ': ' + str(field.type)
 
                 # Add directives
                 output += get_field_directives(field_name, _type, schema)
-                    
                 output += '\n'
            
             output += '}'

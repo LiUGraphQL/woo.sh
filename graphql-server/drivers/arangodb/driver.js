@@ -1,6 +1,7 @@
 const graphql = require('graphql');
 const arangojs = require("arangojs");
 const aql = arangojs.aql;
+const { makeExecutableSchema } = require('graphql-tools');
 const { ApolloError } = require('apollo-server');
 const waitOn = require('wait-on');
 
@@ -8,11 +9,13 @@ let db;
 let disableEdgeValidation;
 
 module.exports = {
-    init: async function(schema){
-        let db_name = process.env.db ? process.env.db: 'dev-db';
-        let url = process.env.URL ? process.env.URL : 'http://localhost:8529';
-        let drop = process.env.DROP === 'true';
-        disableEdgeValidation = process.env.DISABLE_EDGE_VALIDATION === 'true';
+    init: async function(args){
+        let typeDefs = args.typeDefs;
+        let db_name = args.db_name || 'dev-db';
+        let url = args.url || 'http://localhost:8529';
+        let drop = args.drop || false;
+        disableEdgeValidation = args.disableEdgeValidation || false;
+
         db = new arangojs.Database({ url: url });
 
         // wait for ArangoDB
@@ -34,6 +37,11 @@ module.exports = {
                 () => console.log()
             );
         }
+        const schema = makeExecutableSchema({
+            'typeDefs': typeDefs,
+            'resolvers': {}
+        });
+
         await createAndUseDatabase(db, db_name);
         await createTypeCollections(db, schema);
         await createEdgeCollections(db, schema);
@@ -71,13 +79,8 @@ module.exports = {
     },
     getEdgeCollectionName: function(type, field){
         return getEdgeCollectionName(type, field);
-    },
-    hello: () => hello() // TODO: Remove after testing
+    }
 };
-
-async function hello(){
-    return "This is the arangodb.tools saying hello!"
-}
 
 async function createAndUseDatabase(db, db_name){
     await db.createDatabase(db_name).then(
@@ -97,7 +100,7 @@ async function createTypeCollections(db, schema) {
         await collection.create().then(
             () => { console.info(`Collection '${collection_name}' created`) },
             err => {
-                //console.warn(`Collection '${collection_name}' not created:` , err.response.body.errorMessage);
+                console.warn(`Collection '${collection_name}' not created:` , err.response.body.errorMessage);
             }
         );
     }

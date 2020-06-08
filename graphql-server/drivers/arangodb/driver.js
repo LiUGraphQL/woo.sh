@@ -7,6 +7,7 @@ const waitOn = require('wait-on');
 
 let db;
 let disableEdgeValidation;
+let disableDirectivesChecking;
 
 module.exports = {
     init: async function(args){
@@ -14,15 +15,15 @@ module.exports = {
         let db_name = args.db_name || 'dev-db';
         let url = args.url || 'http://localhost:8529';
         let drop = args.drop || false;
+        disableDirectivesChecking = args.disableDirectivesChecking || true;
         disableEdgeValidation = args.disableEdgeValidation || false;
-
         db = new arangojs.Database({ url: url });
 
         // wait for ArangoDB
         console.log(`Waiting for ArangoDB to become available at ${url}`);
         let urlGet = url.replace(/^http(s?)(.+$)/,'http$1-get$2');
         const opts = {
-            resources: [ urlGet ],
+            resources:[urlGet],
             delay: 1000, // initial delay in ms
             interval: 1000, // poll interval in ms
             followRedirect: true
@@ -33,7 +34,6 @@ module.exports = {
         // if drop is set
         if(drop) {
             await db.dropDatabase(db_name).then(
-                (msg) => console.info(`Database ${db_name} deleted: ${! msg['error']}`),
                 () => console.log()
             );
         }
@@ -74,10 +74,13 @@ module.exports = {
     isEndOfList: async function (parent, args, info) {
         return await isEndOfList(parent, args, info);
     },
-    addPossibleEdgeTypes: function(query, schema, type_name, field_name){
+    addPossibleTypes: function (query, schema, type_name) {
+        return addPossibleTypes(query, schema, type_name);
+    },
+    addPossibleEdgeTypes: function (query, schema, type_name, field_name) {
         return addPossibleEdgeTypes(query, schema, type_name, field_name);
     },
-    getEdgeCollectionName: function(type, field){
+    getEdgeCollectionName: function (type, field) {
         return getEdgeCollectionName(type, field);
     }
 };
@@ -382,6 +385,9 @@ async function create(isRoot, ctxt, data, returnType, info){
         }
     }
 
+    // directives handling
+    addFinalDirectiveChecksForType(ctxt, returnType, aql`${asAQLVar(resVar)}._id`, info.schema);
+
     // overwrite the current action
     if(isRoot) {
         ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar};`); // add root result
@@ -429,6 +435,8 @@ async function createEdge(isRoot, ctxt, source, sourceType, sourceField, target,
     let collection = asAQLVar(`db.${returnTypeName}`);
     ctxt.trans.params[docVar] = doc;
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT ${aqlDocVar} IN ${collection} RETURN NEW\`).next();`);
+
+    addFinalDirectiveChecksForType(ctxt, sourceType, source, info.schema);
 
     // overwrite the current action
     if(isRoot) {
@@ -491,11 +499,17 @@ function initTransaction(){
             'const {aql} = require("@arangodb");',
             'let result = Object.create(null);'
         ],
+        finalConstraintChecks: [],
         error: false
     };
 }
 
 async function executeTransaction(ctxt){
+    // add all finalConstraintChecks to code before executing
+    //ctxt.trans.code.concat(ctxt.trans.finalConstraintChecks); // concat is not working?
+    for (const row of ctxt.trans.finalConstraintChecks) {
+        ctxt.trans.code.push(row);
+    }
     try {
         let action = `function(params){\n\t${ctxt.trans.code.join('\n\t')}\n\treturn result;\n}`;
         console.log(action);
@@ -660,6 +674,9 @@ async function update(isRoot, ctxt, id, data, returnType, info){
         }
     }
 
+    // directives handling
+    addFinalDirectiveChecksForType(ctxt, returnType, aql`${asAQLVar(resVar)}._id`, info.schema);
+
     // overwrite the current action
     if(isRoot) {
         ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar}.new;`); // add root result
@@ -686,16 +703,19 @@ function asAqlArray(array){
 /**
  * Converts all values of enum or scalar type in inputDoc to mach format used for storage in the database,
  * and return result in output map
- * @param map to be changed and returned, map to be used as input, type
- * @returns map given as output
+ * @param {map} outputDoc 
+ * @param {map} inputDoc
+ * @param type
+ * @returns {map} outputDoc
  */
 function formatFixInput(outputDoc, inputDoc, type) {
     // Adds scalar/enum values to outputDoc
-    for (let i in type.getFields()) {
-        let field = type.getFields()[i];
+    for (let f in type.getFields()) {
+        let field = type.getFields()[f];
+        //let field = type.getFields()[i];
         let t = graphql.getNamedType(field.type);
-        if(graphql.isEnumType(t) || graphql.isScalarType(t)){
-            if(inputDoc[field.name] !== undefined) {
+        if (graphql.isEnumType(t) || graphql.isScalarType(t)) {
+            if (inputDoc[field.name] !== undefined) {
                 outputDoc[field.name] = formatFixVariable(t, inputDoc[field.name]);
             }
         }
@@ -705,17 +725,18 @@ function formatFixInput(outputDoc, inputDoc, type) {
 
 /**
  * Convert input data (value) to match format used for storage in the database
- * @param type (of field), value
+ * @param type (of field) 
+ * @param value
  * @returns value (in database ready format)
  */
 function formatFixVariable(_type, v) {
     // DateTime has to be handled separately, which is currently the only reason for this function to exist
     if (_type == 'DateTime')
         // Arrays of DateTime needs special, special care.
-        if(Array.isArray(v)){
+        if (Array.isArray(v)) {
             let newV = []
-            for(let i in v)
-                newV.push(aql`DATE_TIMESTAMP(${v})`);
+            for (date of v)
+                newV.push(aql`DATE_TIMESTAMP(${date})`);
             return newV;
         }
         else
@@ -731,7 +752,7 @@ function formatFixVariable(_type, v) {
  */
 function formatFixVariableWrapper(field, info, v) {
     // no need to even try when we have _id as field
-    if(field == '_id')
+    if (field == '_id')
         return v;
 
     let namedReturnType = graphql.getNamedType(info.returnType.getFields()['content'].type)
@@ -880,19 +901,7 @@ async function getList(args, info){
     let first = args.first;
     let after = args.after;
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
-    if(graphql.isInterfaceType(type)){
-        let possible_types = info.schema.getPossibleTypes(type);
-        for(let i in possible_types) {
-            if(i != 0){
-                query.push(aql`,`);
-            }
-            let collection = db.collection(possible_types[i].name);
-            query.push(aql`${collection}`);
-        }
-    } else {
-        let collection = db.collection(type.name);
-        query.push(aql`${collection}`);
-    }
+    addPossibleTypes(query, info.schema, type);
     query.push(aql`] RETURN i)`);
 
     // add filters
@@ -928,19 +937,7 @@ async function getList(args, info){
 async function isEndOfList(parent, args, info){
     let type = graphql.getNamedType(info.parentType.getFields()['content'].type);
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
-    if(graphql.isInterfaceType(type)){
-        let possible_types = info.schema.getPossibleTypes(type);
-        for(let i in possible_types) {
-            if(i != 0){
-                query.push(aql`,`);
-            }
-            let collection = db.collection(possible_types[i].name);
-            query.push(aql`${collection}`);
-        }
-    } else {
-        let collection = db.collection(type.name);
-        query.push(aql`${collection}`);
-    }
+    addPossibleTypes(query, info.schema, type);
     query.push(aql`] RETURN i)`);
 
     // add filters
@@ -967,19 +964,7 @@ async function isEndOfList(parent, args, info){
 async function getTotalCount(parent, args, info){
     let type = graphql.getNamedType(info.parentType.getFields()['content'].type);
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
-    if(graphql.isInterfaceType(type)){
-        let possible_types = info.schema.getPossibleTypes(type);
-        for(let i in possible_types) {
-            if(i != 0){
-                query.push(aql`,`);
-            }
-            let collection = db.collection(possible_types[i].name);
-            query.push(aql`${collection}`);
-        }
-    } else {
-        let collection = db.collection(type.name);
-        query.push(aql`${collection}`);
-    }
+    addPossibleTypes(query, info.schema, type);
     query.push(aql`] RETURN i)`);
 
     // add filters
@@ -1080,7 +1065,7 @@ function getTypeNameFromId(id) {
 function isOfType(id, type, schema) {
     let idType = getTypeNameFromId(id);
     if(type.name == idType || isImplementingType(idType, type, schema)){
-            return true;
+        return true;
     }
     return false;
 }
@@ -1103,22 +1088,171 @@ function conditionalThrow(msg){
 }
 
 /**
- * Add all possible edge-collections for the given type and field to query
- * @param query, schema, type_name, field_name, directionString (Optional)
+ * Add all possible collections for the given type to query
+ * @param query (modifies)
+ * @param schema
+ * @param type
+ * @param {bool} use_aql = true (optional)
  */
-function addPossibleEdgeTypes(query, schema, type_name, field_name, directionString = ""){
-    let type = schema._typeMap[type_name];
-    if(graphql.isInterfaceType(type)){
+function addPossibleTypes(query, schema, type, use_aql = true) {
+    if (graphql.isInterfaceType(type)) {
         let possible_types = schema.getPossibleTypes(type);
         for (let i in possible_types) {
             if (i != 0) {
-                query.push(aql`,`);
+                if (use_aql) query.push(aql`,`);
+                else query[query.length - 1] += `,`;
             }
-            let collection = db.collection(getEdgeCollectionName(possible_types[i].name, field_name));
-            query.push(aql`${collection}`);
+            if (use_aql) query.push(aql`${db.collection(possible_types[i].name)}`);
+            else {
+                let collection = asAQLVar(`db.${possible_types[i].name}`)
+                query.push(`${collection}`);
+            }
         }
     } else {
-        let collection = db.collection(getEdgeCollectionName(type.name, field_name));
-        query.push(aql`${collection}`);
+        if (use_aql) query.push(aql`${db.collection(type.name)}`);
+        else {
+            let collection = asAQLVar(`db.${type.name}`);
+            query.push(`${collection}`);
+        }
+    }
+}
+
+/**
+ * Add all possible edge-collections for the given type and field to query
+ * @param query (modifies)
+ * @param schema
+ * @param type_name
+ * @param field_name
+ * @param {bool} use_aql = true (optional)
+ * @param directionString (optional)
+ */
+function addPossibleEdgeTypes(query, schema, type_name, field_name, use_aql = true, directionString = "") {
+    let type = schema._typeMap[type_name];
+    if (graphql.isInterfaceType(type)) {
+        let possible_types = schema.getPossibleTypes(type);
+        for (let i in possible_types) {
+            if (i != 0) {
+                if (use_aql) query.push(aql`,`);
+                else query[query.length - 1] += `,`;
+            }
+            let collectionName = getEdgeCollectionName(possible_types[i].name, field_name);
+
+            if (use_aql) query.push(aql`${db.collection(collectionName)}`);
+            else {
+                let collection = asAQLVar(`db.${collectionName}`);
+                query.push(`${collection}`);
+            }
+        }
+    } else {
+        let collectionName = getEdgeCollectionName(type.name, field_name);
+
+        if (use_aql) query.push(aql`${db.collection(collectionName)}`);
+        else {
+            let collection = asAQLVar(`db.${type.name}`);
+            query.push(`${collection}`);
+        }
+    }
+}
+
+/**
+ * Append finalConstraintChecks to ctxt for all directives of all fields in input type
+ * @param ctxt (modifies)
+ * @param type
+ * @param resVar
+ * @param schema
+ */
+function addFinalDirectiveChecksForType(ctxt, type, id, schema) {
+    if (!disableDirectivesChecking) {
+        for (let f in type.getFields()) {
+            let field = type.getFields()[f];
+            for (dir of field.astNode.directives) {
+                if (dir.name.value == 'noloops') {
+                    let collection = asAQLVar(`db.${getEdgeCollectionName(type.name, field.name)}`);
+                    ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR v IN 1..1 OUTBOUND ${id} ${collection} FILTER ${id} == v._id RETURN v\`).next()){`);
+                    ctxt.trans.finalConstraintChecks.push(`   throw "Field ${f} in ${type.name} is breaking a @noloops directive!";`);
+                    ctxt.trans.finalConstraintChecks.push(`}`);
+                }
+                else if (dir.name.value == 'distinct') {
+                    let collection = asAQLVar(`db.${getEdgeCollectionName(type.name, field.name)}`);
+                    ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR v, e IN 1..1 OUTBOUND ${id} ${collection} FOR v2, e2 IN 1..1 OUTBOUND ${id} ${collection} FILTER v._id == v2._id AND e._id != e2._id RETURN v\`).next()){`);
+                    ctxt.trans.finalConstraintChecks.push(`   throw "Field ${f} in ${type.name} is breaking a @distinct directive!";`);
+                    ctxt.trans.finalConstraintChecks.push(`}`);
+                }
+                else if (dir.name.value == 'uniqueForTarget') {
+                    // The direct variant of @uniqueForTarget
+                    // edge is named after current type etc.
+                    let collection = asAQLVar(`db.${getEdgeCollectionName(type.name, field.name)}`);
+                    ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR v, e IN 1..1 OUTBOUND ${id} ${collection} FOR v2, e2 IN 1..1 INBOUND v._id ${collection} FILTER e._id != e2._id RETURN v\`).next()){`);
+                    ctxt.trans.finalConstraintChecks.push(`   throw "Field ${f} in ${type.name} is breaking a @uniqueForTarget directive!";`);
+                    ctxt.trans.finalConstraintChecks.push(`}`);
+                }
+                else if (dir.name.value == '_uniqueForTarget_AccordingToInterface') {
+                    // The inherited/implemented variant of @uniqueForTarget
+                    // The target does not only require at most one edge of this type, but at most one of any type implementing the interface 
+                    // Thankfully we got the name of the interface as a mandatory argument and can hence use this to get all types implementing it
+
+                    let interfaceName = dir.arguments[0].value.value; // If we add more arguments to the directive this will fail horrible. 
+                    // But that should not happen (and it is quite easy to fix)
+
+                    ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR v, e IN 1..1 OUTBOUND ${id}`);
+                    addPossibleEdgeTypes(ctxt.trans.finalConstraintChecks, schema, interfaceName, field.name, false);
+                    ctxt.trans.finalConstraintChecks.push(`FOR v2, e2 IN 1..1 INBOUND v._id`);
+                    addPossibleEdgeTypes(ctxt.trans.finalConstraintChecks, schema, interfaceName, field.name, false);
+                    ctxt.trans.finalConstraintChecks.push(`FILTER e._id != e2._id RETURN v\`).next()){`);
+                    ctxt.trans.finalConstraintChecks.push(`   throw "Field ${f} in ${type.name} is breaking a @_uniqueForTarget_AccordingToInterface directive!";`);
+                    ctxt.trans.finalConstraintChecks.push(`}`);
+                }
+                else if (dir.name.value == 'requiredForTarget') {
+                    // The direct variant of @requiredForTarget
+                    // edge is named after current type etc.
+                    let edgeCollection = asAQLVar(`db.${getEdgeCollectionName(type.name, field.name)}`);
+
+                    // The target type might be an interface, giving us slightly more to keep track of
+                    // First, find the right collections to check
+                    ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR x IN FLATTEN(FOR i IN [`);
+                    addPossibleTypes(ctxt.trans.finalConstraintChecks, schema, graphql.getNamedType(field.type), false);
+                    // Second, count all edges ending at objects in these collections
+                    ctxt.trans.finalConstraintChecks.push(`] RETURN i) LET endpoints = ( FOR v IN 1..1 INBOUND x ${edgeCollection} RETURN v)`);
+                    // If the count returns 0, we have an object breaking the directive
+                    ctxt.trans.finalConstraintChecks.push(`FILTER LENGTH(endpoints) == 0 RETURN x\`).next()){`);
+                    ctxt.trans.finalConstraintChecks.push(`   throw "There are object(s) breaking the @requiredForTarget directive of Field ${f} in ${type.name}!";`);
+                    ctxt.trans.finalConstraintChecks.push(`}`);
+                }
+                else if (dir.name.value == '_requiredForTarget_AccordingToInterface') {
+                    // The inherited/implemented variant of @requiredForTarget
+                    // The target does not directly require an edge of this type, but at least one of any type implementing the interface 
+                    // Thankfully we got the name of the interface as a mandatory argument and can hence use this to get all types implementing it
+
+                    let interfaceName = dir.arguments[0].value.value; // If we add more arguments to the directive this will fail horrible. 
+                    // But that should not happen (and it is quite easy to fix)
+
+                    // The target type might be an interface, giving us slightly more to keep track of
+                    // First, find the right collections to check
+                    ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR x IN FLATTEN(FOR i IN [`);
+                    addPossibleTypes(ctxt.trans.finalConstraintChecks, schema, graphql.getNamedType(field.type), false);
+                    // Second, count all edges ending at objects in these collections
+                    ctxt.trans.finalConstraintChecks.push(`] RETURN i) LET endpoints = ( FOR v IN 1..1 INBOUND x `);
+                    addPossibleEdgeTypes(ctxt.trans.finalConstraintChecks, schema, interfaceName, field.name, false);
+                    ctxt.trans.finalConstraintChecks.push(` RETURN v)`);
+                    // If the count returns 0, we have an object breaking the directive
+                    ctxt.trans.finalConstraintChecks.push(`FILTER LENGTH(endpoints) == 0 RETURN x\`).next()){`);
+                    ctxt.trans.finalConstraintChecks.push(`   throw "There are object(s) breaking the inherited @_requiredForTarget_AccordingToInterface directive of Field ${f} in ${type.name}!";`);
+                    ctxt.trans.finalConstraintChecks.push(`}`);
+                }
+                else if (dir.name.value == 'required' && field.name[0] == '_') {
+                    // This is actually the reverse edge of a @requiredForTarget directive
+
+                    let pattern_string = `^_(.+?)From${type.name}$`; // get the non-reversed edge name
+                    let re = new RegExp(pattern_string);
+                    let field_name = re.exec(field.name)[1];
+
+                    ctxt.trans.finalConstraintChecks.push(`if(!db._query(aql\`FOR v IN 1..1 INBOUND ${id}`);
+                    addPossibleEdgeTypes(ctxt.trans.finalConstraintChecks, schema, graphql.getNamedType(field.type), field_name, false);
+                    ctxt.trans.finalConstraintChecks.push(`RETURN x\`).next()){`);
+                    ctxt.trans.finalConstraintChecks.push(`   throw "Field ${f} in ${type.name} is breaking a @requiredForTarget directive (in reverse)!";`);
+                    ctxt.trans.finalConstraintChecks.push(`}`);
+                }
+            }
+        }
     }
 }

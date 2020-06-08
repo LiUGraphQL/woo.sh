@@ -36,19 +36,20 @@ def cmd(args):
         with open(file, 'r') as f:
             schema_string += f.read() + '\n'
     schema = build_schema(schema_string)
-
+    
     # run
     schema = run(schema, config)
 
     # write to file or stdout
     if args.output:
         with open(args.output, 'w') as out:
-            out.write(print_schema(schema))
+            out.write(print_schema_with_directives(schema))
     else:
-        print(print_schema(schema))
+        print(print_schema_with_directives(schema))
 
 
 def run(schema: GraphQLSchema, config: dict):
+
     # validate
     if config.get('validate'):
         validate_names(schema, config.get('validate'))
@@ -268,7 +269,8 @@ def datetime_control(schema):
         if not is_scalar_type(schema.type_map['DateTime']):
             raise Exception('DateTime exists but is not scalar type: ' + schema.type_map['DateTime'])
     else:
-        schema.type_map['DateTime'] = GraphQLScalarType('DateTime')
+        # ast_node definition ensures that DateTime appears as a user-defined scalar
+        schema.type_map['DateTime'] = GraphQLScalarType('DateTime', ast_node=ScalarTypeDefinitionNode())
         if not is_scalar_type(schema.type_map['DateTime']):
             raise Exception('DateTime could not be added as scalar!')
 

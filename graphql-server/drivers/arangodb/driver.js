@@ -15,7 +15,7 @@ module.exports = {
         let db_name = args.db_name || 'dev-db';
         let url = args.url || 'http://localhost:8529';
         let drop = args.drop || false;
-        disableDirectivesChecking = args.disableDirectivesChecking || false;
+        disableDirectivesChecking = args.disableDirectivesChecking || true;
         disableEdgeValidation = args.disableEdgeValidation || false;
         db = new arangojs.Database({ url: url });
 

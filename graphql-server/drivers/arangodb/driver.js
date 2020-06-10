@@ -396,7 +396,7 @@ async function create(isRoot, ctxt, data, returnType, info) {
                         key = Object.keys(value)[1];
                     }
                     let typeToCreate = key.replace(/^create(.+)$/, '$1');
-                    let to = asAQLVar(getVar(ctxt)); // reference to the object to be addedd
+                    let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
                     await create(false, ctxt, value[key], info.schema.getType(typeToCreate), info);
                     ctxt.trans.code.push(`db._query(aql\`INSERT {_from: ${from}._id, _to: ${to}._id ${getAnnotations(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
@@ -410,10 +410,9 @@ async function create(isRoot, ctxt, data, returnType, info) {
                     ctxt.trans.code.push(`} else { `);
                     ctxt.trans.code.push(`   throw "${value['connect']} does not exist in ${typeToConnect}";`);
                     ctxt.trans.code.push(`}`);
-                } else {// 
+                } else { // create
                     let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
                     await create(false, ctxt, value['create'], innerFieldType, info);
-                    console.log(innerFieldType.name);
                     ctxt.trans.code.push(`db._query(aql\`INSERT {_from: ${from}._id, _to: ${to}._id ${getAnnotations(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
             }

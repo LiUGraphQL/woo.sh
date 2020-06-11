@@ -241,23 +241,17 @@ function getObjectOrInterfaceFields(type) {
 }
 
 /**
- * Get the annotations of an edge and convert them to string to be used in insert operations
- * Would have prefered using createEdge, but we seem unable to pass a properly accesible "context variable"._id as parameter
- * @param annotations
+ * Transforms the doc (field_name, field_value) collection to JSON stringify, strip leading and ending '{' and '}' and insert leading ', '
+ * This allows docs to be appanded to already existing input parameters.
+ * @param doc (should already have passed through getScalarsAndEnums)
  * @returns String
  */
-function getAnnotations(annotations) {
-    // Remeber that annotations should already have passed through getScalarsAndEnums
-    // So injections on field should not be possible
-    // The values need to be checked separatly.
-    let ret = '';
-    for (let field in annotations) {
-        if (typeof annotations[field] === 'string') {
-            // Treat strings as strings
-            ret += `, ${field}: "${annotations[field]}"`;
-        }
-        else
-            ret += `, ${field}: ${annotations[field]}`;
+function convertToInputAppendString(doc) {
+    ret = ''
+    if (doc != null && doc.size > 0) {
+        ret = JSON.stringify(doc);
+        ret[0] = ',';
+        ret = ret - slice(0, -1);
     }
     return ret;
 }
@@ -384,7 +378,7 @@ async function create(isRoot, ctxt, data, returnType, info) {
                     let typeToConnect = value['connect'].split('/')[0];
                     // add edge
                     ctxt.trans.code.push(`if(db._collection('${typeToConnect}').exists('${value['connect']}')){`);
-                    ctxt.trans.code.push(`   db._query(aql\`INSERT {_from: ${from}._id, _to: "${value['connect']}" } IN ${edgeCollection} RETURN NEW\`);`);
+                    ctxt.trans.code.push(`   db._query(aql\`INSERT {_from: ${from}._id, _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                     ctxt.trans.code.push(`} else { `);
                     ctxt.trans.code.push(`   throw "${value['connect']} does not exist in ${typeToConnect}";`);
                     ctxt.trans.code.push(`}`);
@@ -398,7 +392,7 @@ async function create(isRoot, ctxt, data, returnType, info) {
                     let typeToCreate = key.replace(/^create(.+)$/, '$1');
                     let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
                     await create(false, ctxt, value[key], info.schema.getType(typeToCreate), info);
-                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: ${from}._id, _to: ${to}._id ${getAnnotations(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
+                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: ${from}._id, _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
             } else { // type
                 if (value['connect']) {
@@ -406,14 +400,14 @@ async function create(isRoot, ctxt, data, returnType, info) {
                     let typeToConnect = value['connect'].split('/')[0];
                     // add edge
                     ctxt.trans.code.push(`if(db._collection('${typeToConnect}').exists('${value['connect']}')){`);
-                    ctxt.trans.code.push(`   db._query(aql\`INSERT {_from: ${from}._id, _to: "${value['connect']}" } IN ${edgeCollection} RETURN NEW\`);`);
+                    ctxt.trans.code.push(`   db._query(aql\`INSERT {_from: ${from}._id, _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                     ctxt.trans.code.push(`} else { `);
                     ctxt.trans.code.push(`   throw "${value['connect']} does not exist in ${typeToConnect}";`);
                     ctxt.trans.code.push(`}`);
                 } else { // create
                     let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
                     await create(false, ctxt, value['create'], innerFieldType, info);
-                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: ${from}._id, _to: ${to}._id ${getAnnotations(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
+                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: ${from}._id, _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
             }
         }
@@ -671,11 +665,11 @@ async function update(isRoot, ctxt, id, data, returnType, info) {
                     // add edge
                     if (!disableEdgeValidation) { // check the database
                         ctxt.trans.code.push(`if(db._collection('${typeToConnect}').exists('${value['connect']}')){`);
-                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${getAnnotations(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
+                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                         ctxt.trans.code.push(`} else { throw "${value['connect']} does not exist in ${typeToConnect}"; }`);
                     } else {
                         console.warn(`Adding connection to ${value['connect']} in ${edge} without validating ID`);
-                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${getAnnotations(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
+                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                     }
                 } else {
                     // create
@@ -686,7 +680,7 @@ async function update(isRoot, ctxt, id, data, returnType, info) {
                     }
                     let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
                     await create(false, ctxt, value[key], info.schema.getType(typeToCreate), info);
-                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: ${to}._id } IN ${edgeCollection} RETURN NEW\`);`);
+                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
             } else {
                 // type field
@@ -699,17 +693,17 @@ async function update(isRoot, ctxt, id, data, returnType, info) {
                     // add edge
                     if (!disableEdgeValidation) { // check the database
                         ctxt.trans.code.push(`if(db._collection('${typeToConnect}').exists('${value['connect']}')){`);
-                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${getAnnotations(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
+                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                         ctxt.trans.code.push(`} else { throw "${value['connect']} does not exist in ${typeToConnect}"; }`);
                     } else {
                         console.warn(`Adding connection to ${value['connect']} in ${edge} without validating ID`);
-                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${getAnnotations(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
+                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                     }
                 } else {
                     // create
                     let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
                     await create(false, ctxt, value['create'], nestedReturnType, info);
-                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: ${to}._id ${getAnnotations(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
+                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
             }
         }
@@ -777,11 +771,11 @@ function formatFixVariable(_type, v) {
         if (Array.isArray(v)) {
             let newV = []
             for (date of v)
-                newV.push(aql`DATE_TIMESTAMP(${date})`);
+                newV.push(aql`DATE_TIMESTAMP("${date}")`);
             return newV;
         }
         else
-            return aql`DATE_TIMESTAMP(${v})`;
+            return aql`DATE_TIMESTAMP("${v}")`;
     else
         return v;
 }

@@ -65,6 +65,9 @@ module.exports = {
     getEdge: async function(parent, args, info){
         return await getEdge(parent, args, info)
     },
+    getEdgeEndpoint: async function (parent, args, info) {
+        return await getEdgeEndpoint(parent, args, info)
+    },
     getList: async function(args, info){
         return await getList(args, info);
     },
@@ -242,7 +245,7 @@ function getObjectOrInterfaceFields(type) {
 
 // ----------------------------------------------------------
 
-async function getEdge(parent, args, info){
+async function getEdgeEndpoint(parent, args, info){
     let parent_type = graphql.getNamedType(info.parentType);
     let return_type = graphql.getNamedType(info.returnType);
 
@@ -283,6 +286,50 @@ async function getEdge(parent, args, info){
     if(args.filter != undefined && !isEmptyObject(args.filter)){
         let filters = getFilters(args.filter, info);
         for(let i in filters){
+            i == 0 ? query_filters.push(aql`FILTER`) : query_filters.push(aql`AND`);
+            query_filters = query_filters.concat(filters[i]);
+        }
+    }
+    query = query.concat(query_filters);
+    query.push(aql`RETURN x`);
+
+    const cursor = await db.query(aql.join(query));
+    if (graphql.isListType(graphql.getNullableType(info.returnType))) {
+        return await cursor.all();
+    } else {
+        return await cursor.next();
+    }
+}
+
+async function getEdge(parent, args, info) {
+    let parent_type = graphql.getNamedType(info.parentType);
+    let return_type = graphql.getNamedType(info.returnType);
+
+    // Create query
+    let query = [aql`FOR x IN`];
+    // If the type that is the origin of the edge is an interface, then we need to check all the edge collections
+    // corresponding to its implementing types. Note: This is only necessary when traversing some edges that are
+    // defined in in the API schema for interfaces. The parent type will never be an interface type at this stage.
+    if (graphql.isInterfaceType(return_type)) {
+        let possible_types = info.schema.getPossibleTypes(return_type);
+        if (possible_types.length > 1) query.push(aql`UNION(`);
+        for (let i in possible_types) {
+            if (i != 0) query.push(aql`,`);
+            let collection = db.collection(getEdgeCollectionName(possible_types[i].name, field_name));
+            query.push(aql`(FOR i IN 1..1 ANY ${parent._id} ${collection} RETURN i)`);
+        }
+        if (possible_types.length > 1) query.push(aql`)`);
+
+    } else {
+        let collection = db.collection(getEdgeCollectionName(return_type.name, field_name));
+        query.push(aql`1..1 ANY ${parent._id} ${collection}`);
+    }
+
+    // add filters
+    let query_filters = [];
+    if (args.filter != undefined && !isEmptyObject(args.filter)) {
+        let filters = getFilters(args.filter, info);
+        for (let i in filters) {
             i == 0 ? query_filters.push(aql`FILTER`) : query_filters.push(aql`AND`);
             query_filters = query_filters.concat(filters[i]);
         }

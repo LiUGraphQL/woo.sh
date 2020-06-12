@@ -68,8 +68,13 @@ const resolvers = {
     ${type['Name']}: {
         id: (parent, args, context, info) => parent._id,
         % for field in type['fields']:
-        ${field}: async (parent, args, context, info) =>
+        % if field[0:9] == '_outgoing' or field[0:9] == '_incoming':
+            ${field}: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
+        % else:
+        ${field}: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        % endif
         % endfor
         % for field in type['DateTime']:
         ${field}: async (parent, args, context, info) => new Date(parent.${field}),

@@ -314,27 +314,13 @@ async function getEdge(parent, args, info){
     }
 }
 
-/*
-TODO: We should probably call the createEdge function here (when we've defined it).
- */
-async function create(isRoot, ctxt, data, returnType, info) {
+
+function create(isRoot, ctxt, data, returnType, info) {
     // define transaction object
     if (ctxt.trans === undefined) ctxt.trans = initTransaction();
 
-    // is root op and mutatation is already queued
-    if (isRoot && ctxt.trans.queue[info.path.key]) {
-        if (ctxt.trans.open) await executeTransaction(ctxt);
-        if (ctxt.trans.error) {
-            if (ctxt.trans.errorReported) return null;
-            ctxt.trans.errorReported = true;
-            throw ctxt.trans.error;
-        }
-        return ctxt.trans.results[info.path.key]; // return the result
-    }
-
     // check key
     validateKey(ctxt, data, returnType, info.schema);
-
 
     // Do not increment the var counter
     let resVar = getVar(ctxt, false);
@@ -363,7 +349,6 @@ async function create(isRoot, ctxt, data, returnType, info) {
 
         for (let i in values) {
             let value = values[i];
-            console.log(value);
 
             // Prepare annotations
             let annotations = null;
@@ -372,7 +357,8 @@ async function create(isRoot, ctxt, data, returnType, info) {
                 annotations['_creationDate'] = date.valueOf();
             }
 
-            if (graphql.isInterfaceType(innerFieldType)) { // interface
+            if (graphql.isInterfaceType(innerFieldType)) {
+                // interface
                 if (value['connect']) {
                     validateType(ctxt, value['connect'], innerFieldType, info.schema);
                     let typeToConnect = value['connect'].split('/')[0];
@@ -391,10 +377,11 @@ async function create(isRoot, ctxt, data, returnType, info) {
                     }
                     let typeToCreate = key.replace(/^create(.+)$/, '$1');
                     let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
-                    await create(false, ctxt, value[key], info.schema.getType(typeToCreate), info);
+                    create(false, ctxt, value[key], info.schema.getType(typeToCreate), info);
                     ctxt.trans.code.push(`db._query(aql\`INSERT {_from: ${from}._id, _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
-            } else { // type
+            } else {
+                // type
                 if (value['connect']) {
                     validateType(ctxt, value['connect'], innerFieldType, info.schema);
                     let typeToConnect = value['connect'].split('/')[0];
@@ -406,7 +393,7 @@ async function create(isRoot, ctxt, data, returnType, info) {
                     ctxt.trans.code.push(`}`);
                 } else { // create
                     let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
-                    await create(false, ctxt, value['create'], innerFieldType, info);
+                    create(false, ctxt, value['create'], innerFieldType, info);
                     ctxt.trans.code.push(`db._query(aql\`INSERT {_from: ${from}._id, _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
             }
@@ -416,15 +403,46 @@ async function create(isRoot, ctxt, data, returnType, info) {
     // directives handling
     addFinalDirectiveChecksForType(ctxt, returnType, aql`${asAQLVar(resVar)}._id`, info.schema);
 
-    // overwrite the current action
-    if (isRoot) {
-        ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar};`); // add root result
-        ctxt.trans.queue[info.path.key] = true; // indicate that this mutation op has been added to the transaction
-        getVar(ctxt); // increment varCounter
+    // if root then bind result to variable
+    if(isRoot) {
+        ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar};`);
+        getVar(ctxt, true);
+        // remove this field from pending response fields
+        const index = ctxt.responseFields.indexOf(info.path.key);
+        if (index > -1) {
+            ctxt.responseFields.splice(index, 1);
+        }
     }
 
-    // return null, check executeFieldsSerially(...) in /node_modules/graphql/execution/execute.js for details
-    return null;
+    // when response fields are empty execute transaction
+    if(isRoot && ctxt.responseFields.length === 0 && ctxt.trans.open){
+        executeTransaction(ctxt).then(
+            () => console.debug("Executed transaction"),
+            (err) => console.error(err)
+        );
+    }
+
+    // return promises for roots and null for nested result
+    if(isRoot) {
+        return getResultPromise(ctxt, info.path.key);
+    } else {
+        return null;
+    }
+
+}
+
+function getResultPromise(ctxt, key) {
+    return new Promise(function (resolve, reject) {
+        (function waitForResult(){
+            if(ctxt.trans.error !== undefined) {
+                throw ctxt.trans.error;
+            }
+            if(ctxt.trans.results !== undefined){
+                return resolve(ctxt.trans.results[key]);
+            }
+            setTimeout(waitForResult, 10);
+        })();
+    });
 }
 
 async function createEdge(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info){
@@ -527,25 +545,33 @@ function initTransaction(){
             'const {aql} = require("@arangodb");',
             'let result = Object.create(null);'
         ],
-        finalConstraintChecks: [],
-        error: false
+        finalConstraintChecks: []
     };
 }
 
 async function executeTransaction(ctxt){
+    // verify that transaction is still open
+    if(!ctxt.trans.open){
+        console.warn('Warning: Attempted to execute a closed transaction.');
+        return null;
+    }
+    ctxt.trans.open = false;
+
     // add all finalConstraintChecks to code before executing
-    //ctxt.trans.code.concat(ctxt.trans.finalConstraintChecks); // concat is not working?
     for (const row of ctxt.trans.finalConstraintChecks) {
         ctxt.trans.code.push(row);
     }
+
     try {
         let action = `function(params){\n\t${ctxt.trans.code.join('\n\t')}\n\treturn result;\n}`;
-        console.log(action);
-        ctxt.trans.results = await db.transaction({write: Array.from(ctxt.trans.write), read: []}, action, ctxt.trans.params);
+        //console.debug(action);
+        ctxt.trans.results = await db.transaction(
+            { write: Array.from(ctxt.trans.write), read: [] },
+            action,
+            ctxt.trans.params);
     } catch (e) {
         ctxt.trans.error = new ApolloError(e.message);
     }
-    ctxt.trans.open = false;
 }
 
 function validateKey(ctxt, data, type, schema, id=undefined){
@@ -738,7 +764,7 @@ function asAqlArray(array){
 /**
  * Converts all values of enum or scalar type in inputDoc to mach format used for storage in the database,
  * and return result in output map
- * @param {map} outputDoc 
+ * @param {map} outputDoc
  * @param {map} inputDoc
  * @param type
  * @returns {map} outputDoc
@@ -760,7 +786,7 @@ function formatFixInput(outputDoc, inputDoc, type) {
 
 /**
  * Convert input data (value) to match format used for storage in the database
- * @param type (of field) 
+ * @param type (of field)
  * @param value
  * @returns value (in database ready format)
  */

@@ -240,6 +240,22 @@ function getObjectOrInterfaceFields(type) {
     return keys;
 }
 
+/**
+ * Transforms the doc (field_name, field_value) collection to JSON stringify, strip leading and ending '{' and '}' and insert leading ', '
+ * This allows docs to be appanded to already existing input parameters.
+ * @param doc (should already have passed through getScalarsAndEnums)
+ * @returns String
+ */
+function convertToInputAppendString(doc) {
+    ret = ''
+    if (doc != null && doc.size > 0) {
+        ret = JSON.stringify(doc);
+        ret[0] = ',';
+        ret = ret - slice(0, -1);
+    }
+    return ret;
+}
+
 // ----------------------------------------------------------
 
 async function getEdge(parent, args, info){
@@ -301,15 +317,15 @@ async function getEdge(parent, args, info){
 /*
 TODO: We should probably call the createEdge function here (when we've defined it).
  */
-async function create(isRoot, ctxt, data, returnType, info){
+async function create(isRoot, ctxt, data, returnType, info) {
     // define transaction object
-    if(ctxt.trans === undefined) ctxt.trans = initTransaction();
+    if (ctxt.trans === undefined) ctxt.trans = initTransaction();
 
     // is root op and mutatation is already queued
-    if(isRoot && ctxt.trans.queue[info.path.key]){
-        if(ctxt.trans.open) await executeTransaction(ctxt);
-        if(ctxt.trans.error){
-            if(ctxt.trans.errorReported) return null;
+    if (isRoot && ctxt.trans.queue[info.path.key]) {
+        if (ctxt.trans.open) await executeTransaction(ctxt);
+        if (ctxt.trans.error) {
+            if (ctxt.trans.errorReported) return null;
             ctxt.trans.errorReported = true;
             throw ctxt.trans.error;
         }
@@ -338,33 +354,45 @@ async function create(isRoot, ctxt, data, returnType, info){
 
     // for edges
     let ob = getTypesAndInterfaces(data, returnType);
-    for(let fieldName in ob){
+    for (let fieldName in ob) {
         let innerFieldType = graphql.getNamedType(returnType.getFields()[fieldName].type);
         let edge = getEdgeCollectionName(returnType.name, fieldName);
         ctxt.trans.write.add(edge);
         let edgeCollection = asAQLVar(`db.${edge}`);
         let values = Array.isArray(ob[fieldName]) ? ob[fieldName] : [ob[fieldName]]; // treat as list even if only one value is present
 
-        for(let i in values){
+        for (let i in values) {
             let value = values[i];
             console.log(value);
-            if(graphql.isInterfaceType(innerFieldType)){ // interface
-                if(value['connect']){
+
+            // Prepare annotations
+            let annotations = null;
+            if (value['annotations']) {
+                annotations = getScalarsAndEnums(value['annotations'], info.schema.getType("_InputToAnnotate" + edge));
+                annotations['_creationDate'] = date.valueOf();
+            }
+
+            if (graphql.isInterfaceType(innerFieldType)) { // interface
+                if (value['connect']) {
                     validateType(ctxt, value['connect'], innerFieldType, info.schema);
                     let typeToConnect = value['connect'].split('/')[0];
                     // add edge
                     ctxt.trans.code.push(`if(db._collection('${typeToConnect}').exists('${value['connect']}')){`);
-                    ctxt.trans.code.push(`   db._query(aql\`INSERT {_from: ${from}._id, _to: "${value['connect']}" } IN ${edgeCollection} RETURN NEW\`);`);
+                    ctxt.trans.code.push(`   db._query(aql\`INSERT {_from: ${from}._id, _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                     ctxt.trans.code.push(`} else { `);
                     ctxt.trans.code.push(`   throw "${value['connect']} does not exist in ${typeToConnect}";`);
                     ctxt.trans.code.push(`}`);
                 } else {
                     // create
                     let key = Object.keys(value)[0];
+                    if (key == "annotations") {
+                        // In case the user actually specifies the annotations before the edge
+                        key = Object.keys(value)[1];
+                    }
                     let typeToCreate = key.replace(/^create(.+)$/, '$1');
                     let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
                     await create(false, ctxt, value[key], info.schema.getType(typeToCreate), info);
-                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: ${from}._id, _to: ${to}._id } IN ${edgeCollection} RETURN NEW\`);`);
+                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: ${from}._id, _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
             } else { // type
                 if (value['connect']) {
@@ -372,14 +400,14 @@ async function create(isRoot, ctxt, data, returnType, info){
                     let typeToConnect = value['connect'].split('/')[0];
                     // add edge
                     ctxt.trans.code.push(`if(db._collection('${typeToConnect}').exists('${value['connect']}')){`);
-                    ctxt.trans.code.push(`   db._query(aql\`INSERT {_from: ${from}._id, _to: "${value['connect']}" } IN ${edgeCollection} RETURN NEW\`);`);
+                    ctxt.trans.code.push(`   db._query(aql\`INSERT {_from: ${from}._id, _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                     ctxt.trans.code.push(`} else { `);
                     ctxt.trans.code.push(`   throw "${value['connect']} does not exist in ${typeToConnect}";`);
                     ctxt.trans.code.push(`}`);
-                } else {// create
+                } else { // create
                     let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
                     await create(false, ctxt, value['create'], innerFieldType, info);
-                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: ${from}._id, _to: ${to}._id } IN ${edgeCollection} RETURN NEW\`);`);
+                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: ${from}._id, _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
             }
         }
@@ -389,7 +417,7 @@ async function create(isRoot, ctxt, data, returnType, info){
     addFinalDirectiveChecksForType(ctxt, returnType, aql`${asAQLVar(resVar)}._id`, info.schema);
 
     // overwrite the current action
-    if(isRoot) {
+    if (isRoot) {
         ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar};`); // add root result
         ctxt.trans.queue[info.path.key] = true; // indicate that this mutation op has been added to the transaction
         getVar(ctxt); // increment varCounter
@@ -549,15 +577,15 @@ function validateType(ctxt, id, type, schema){
     }
 }
 
-async function update(isRoot, ctxt, id, data, returnType, info){
+async function update(isRoot, ctxt, id, data, returnType, info) {
     // define transaction object
-    if(ctxt.trans === undefined) ctxt.trans = initTransaction();
+    if (ctxt.trans === undefined) ctxt.trans = initTransaction();
 
     // is root op and mutation is already queued
-    if(isRoot && ctxt.trans.queue[info.path.key]){
-        if(ctxt.trans.open) await executeTransaction(ctxt);
-        if(ctxt.trans.error){
-            if(ctxt.trans.errorReported) return null;
+    if (isRoot && ctxt.trans.queue[info.path.key]) {
+        if (ctxt.trans.open) await executeTransaction(ctxt);
+        if (ctxt.trans.error) {
+            if (ctxt.trans.errorReported) return null;
             ctxt.trans.errorReported = true;
             throw ctxt.trans.error;
         }
@@ -569,24 +597,24 @@ async function update(isRoot, ctxt, id, data, returnType, info){
     // 3) Add key check to transaction
     let keyName = getKeyName(returnType.name);
     let keyType = info.schema["_typeMap"][keyName];
-    if(keyType){
+    if (keyType) {
         try {
             let collection = db.collection(returnType);
             const cursor = await db.query(aql`FOR i IN ${collection} FILTER(i._id == ${id}) RETURN i`);
             let doc = await cursor.next();
-            if(doc == undefined){
+            if (doc == undefined) {
                 throw new ApolloError(`ID ${id} is not a document in the type ${returnType}`);
             }
 
             let key = {};
-            for(let f in keyType._fields){
+            for (let f in keyType._fields) {
                 key[f] = doc[f];
-                if(data[f] !== undefined){
+                if (data[f] !== undefined) {
                     key[f] = data[f];
                 }
             }
             validateKey(ctxt, key, returnType, info.schema, id);
-        } catch(err) {
+        } catch (err) {
             throw new ApolloError(err);
         }
     }
@@ -619,6 +647,13 @@ async function update(isRoot, ctxt, id, data, returnType, info){
         for (let i in values) {
             let value = values[i];
 
+            // Prepare annotations
+            let annotations = null;
+            if (value['annotations']) {
+                annotations = getScalarsAndEnums(value['annotations'], info.schema.getType("_InputToAnnotate" + edge));
+                annotations['_creationDate'] = date.valueOf();
+            }
+
             if (graphql.isInterfaceType(nestedReturnType)) {
                 // interface field
                 if (value['connect']) {
@@ -630,11 +665,11 @@ async function update(isRoot, ctxt, id, data, returnType, info){
                     // add edge
                     if (!disableEdgeValidation) { // check the database
                         ctxt.trans.code.push(`if(db._collection('${typeToConnect}').exists('${value['connect']}')){`);
-                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" } IN ${edgeCollection} RETURN NEW\`);`);
+                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                         ctxt.trans.code.push(`} else { throw "${value['connect']} does not exist in ${typeToConnect}"; }`);
                     } else {
                         console.warn(`Adding connection to ${value['connect']} in ${edge} without validating ID`);
-                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" } IN ${edgeCollection} RETURN NEW\`);`);
+                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                     }
                 } else {
                     // create
@@ -645,7 +680,7 @@ async function update(isRoot, ctxt, id, data, returnType, info){
                     }
                     let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
                     await create(false, ctxt, value[key], info.schema.getType(typeToCreate), info);
-                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: ${to}._id } IN ${edgeCollection} RETURN NEW\`);`);
+                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
             } else {
                 // type field
@@ -658,17 +693,17 @@ async function update(isRoot, ctxt, id, data, returnType, info){
                     // add edge
                     if (!disableEdgeValidation) { // check the database
                         ctxt.trans.code.push(`if(db._collection('${typeToConnect}').exists('${value['connect']}')){`);
-                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" } IN ${edgeCollection} RETURN NEW\`);`);
+                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                         ctxt.trans.code.push(`} else { throw "${value['connect']} does not exist in ${typeToConnect}"; }`);
                     } else {
                         console.warn(`Adding connection to ${value['connect']} in ${edge} without validating ID`);
-                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" } IN ${edgeCollection} RETURN NEW\`);`);
+                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                     }
                 } else {
                     // create
                     let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
                     await create(false, ctxt, value['create'], nestedReturnType, info);
-                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: ${to}._id } IN ${edgeCollection} RETURN NEW\`);`);
+                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
             }
         }
@@ -678,7 +713,7 @@ async function update(isRoot, ctxt, id, data, returnType, info){
     addFinalDirectiveChecksForType(ctxt, returnType, aql`${asAQLVar(resVar)}._id`, info.schema);
 
     // overwrite the current action
-    if(isRoot) {
+    if (isRoot) {
         ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar}.new;`); // add root result
         ctxt.trans.queue[info.path.key] = true; // indicate that this mutation op has been added to the transaction
         getVar(ctxt); // increment varCounter
@@ -736,11 +771,11 @@ function formatFixVariable(_type, v) {
         if (Array.isArray(v)) {
             let newV = []
             for (date of v)
-                newV.push(aql`DATE_TIMESTAMP(${date})`);
+                newV.push(aql`DATE_TIMESTAMP("${date}")`);
             return newV;
         }
         else
-            return aql`DATE_TIMESTAMP(${v})`;
+            return aql`DATE_TIMESTAMP("${v}")`;
     else
         return v;
 }

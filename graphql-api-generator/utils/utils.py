@@ -359,6 +359,19 @@ def extend_connect(schema: GraphQLSchema, _type: GraphQLType, field_type: GraphQ
             make += f'{create_field} : {create_implementing_type} '
     else:
         make += f'create: {create_name} '
+        
+    # Get annotations
+    edge_from = f'{capitalize(field_name)}EdgeFrom{_type.name}'
+    annotate_input = f'_InputToAnnotate{edge_from}'
+    annotations = get_field_annotations(_type.fields[field_name])
+
+    if len(annotations) > 0:
+        # Make sure the annotation type actually exists first, and prevent us from defining it multiple times
+        if annotate_input not in schema.type_map:
+            schema = add_to_schema(schema, f'input {annotate_input}{{{annotations}}}')
+
+        make += f'annotations: {annotate_input}'
+
     make += '}'
     schema = add_to_schema(schema, make)
     return schema
@@ -713,7 +726,10 @@ def add_input_to_create_edge_objects(schema: GraphQLSchema):
 
                 if len(annotations) > 0:
                     make += f'input {edge_input} {{sourceID: ID! targetID: ID! annotations: {annotate_input} }}\n'
-                    make += f'input {annotate_input}{{{annotations}}}\n'
+                    
+                    # Make sure the annotation type actually exists first, and prevent us from defining it multiple times
+                    if annotate_input not in schema.type_map:
+                        make += f'input {annotate_input}{{{annotations}}}\n'
                 else:
                     make += f'input {edge_input} {{sourceID: ID! targetID: ID!}}\n'
 

@@ -76,7 +76,7 @@ const resolvers = {
     ${type['Name']}: {
         id: (parent, args, context, info) => parent._id,
         % for field in type['fields']:
-        % if field[0:9] == '_outgoing' or field[0:9] == '_incoming':
+        % if len(field) >= 8 and (field[0:9] == '_outgoing' or field[0:9] == '_incoming'):
         ${field}: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
         % else:

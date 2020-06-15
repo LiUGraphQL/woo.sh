@@ -961,6 +961,25 @@ def get_type_directives(_type, schema):
     return output
 
 
+def get_argument_as_string(arg_name, arg):
+    """
+    Returns the argument as string ready for output, including default values if existent
+    :param arg_name:
+    :param arg:
+    :return string:
+    """
+
+    ret = f'{arg_name}: {arg.type}'
+
+    if arg.default_value != INVALID:
+        if isinstance(arg.default_value, str):
+            ret += f'="{arg.default_value}"'
+        else:
+            ret += f'={arg.default_value}'
+
+    return ret
+
+
 def print_schema_with_directives(schema):
     """
     Outputs the given schema as string, in the format we want it.
@@ -1038,7 +1057,7 @@ def print_schema_with_directives(schema):
                 
                 # Get arguments for field
                 if hasattr(field, 'args') and field.args:
-                    args = ', '.join([f'{arg_name}: {arg.type}' for arg_name, arg in field.args.items()])
+                    args = ', '.join([f'{get_argument_as_string(arg_name, arg)}' for arg_name, arg in field.args.items()])
                     output += f'({args})'
 
                 output += ': ' + str(field.type)

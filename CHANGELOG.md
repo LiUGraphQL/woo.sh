@@ -1,2 +1,3 @@
 **v0.1.0, released on ???**
+* New feature: Edge annotations can now be set when creating and/or updating objects. See: https://github.com/LiUGraphQL/woo.sh/issues/24
 * ...

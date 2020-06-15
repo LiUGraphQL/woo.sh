@@ -34,7 +34,8 @@ module.exports = {
         // if drop is set
         if(drop) {
             await db.dropDatabase(db_name).then(
-                () => console.log()
+                () => console.debug(`Database ${db_name} dropped.`),
+                (err) => console.error(err)
             );
         }
         const schema = makeExecutableSchema({
@@ -59,8 +60,8 @@ module.exports = {
     createEdge: async function(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info) {
         return await createEdge(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info);
     },
-    update: async function(isRoot, ctxt, id, data, returnType, info){
-        return await update(isRoot, ctxt, id, data, returnType, info);
+    update: function(isRoot, ctxt, id, data, returnType, info){
+        return update(isRoot, ctxt, id, data, returnType, info);
     },
     getEdge: async function(parent, args, info){
         return await getEdge(parent, args, info)
@@ -319,9 +320,6 @@ function create(isRoot, ctxt, data, returnType, info) {
     // define transaction object
     if (ctxt.trans === undefined) ctxt.trans = initTransaction();
 
-    // check key
-    validateKey(ctxt, data, returnType, info.schema);
-
     // Do not increment the var counter
     let resVar = getVar(ctxt, false);
     let from = asAQLVar(resVar);
@@ -400,6 +398,9 @@ function create(isRoot, ctxt, data, returnType, info) {
         }
     }
 
+    // check key
+    validateKey(ctxt, resVar, returnType, info.schema);
+
     // directives handling
     addFinalDirectiveChecksForType(ctxt, returnType, aql`${asAQLVar(resVar)}._id`, info.schema);
 
@@ -417,7 +418,7 @@ function create(isRoot, ctxt, data, returnType, info) {
     // when response fields are empty execute transaction
     if(isRoot && ctxt.responseFields.length === 0 && ctxt.trans.open){
         executeTransaction(ctxt).then(
-            () => console.debug("Executed transaction"),
+            () => console.debug('Executed transaction'),
             (err) => console.error(err)
         );
     }
@@ -435,7 +436,8 @@ function getResultPromise(ctxt, key) {
     return new Promise(function (resolve, reject) {
         (function waitForResult(){
             if(ctxt.trans.error !== undefined) {
-                throw ctxt.trans.error;
+                reject(ctxt.trans.error);
+                return null;
             }
             if(ctxt.trans.results !== undefined){
                 return resolve(ctxt.trans.results[key]);
@@ -564,7 +566,8 @@ async function executeTransaction(ctxt){
 
     try {
         let action = `function(params){\n\t${ctxt.trans.code.join('\n\t')}\n\treturn result;\n}`;
-        //console.debug(action);
+        console.debug(action);
+        console.debug(ctxt.trans.params);
         ctxt.trans.results = await db.transaction(
             { write: Array.from(ctxt.trans.write), read: [] },
             action,
@@ -574,21 +577,19 @@ async function executeTransaction(ctxt){
     }
 }
 
-function validateKey(ctxt, data, type, schema, id=undefined){
+function validateKey(ctxt, docVar, type, schema){
     let collection = asAQLVar(`db.${type.name}`);
     let keyType = schema["_typeMap"][getKeyName(type.name)];
     if (keyType) {
-        let check = `if(db._query(aql\`FOR i IN ${collection} `;
-        // make param
-        // add data[field_name] to ctxt.params
-        // replace data[field_name] with param
+        ctxt.trans.code.push('/* check key constraint */');
+        let check = `if(db._query(aql\`FOR doc IN ${collection} `;
+        // add filters for all key fields
+        let x = asAQLVar(docVar);
         for (let field_name in keyType._fields) {
-            check += `FILTER(i.${field_name} == "${data[field_name]}") `;
+            check += `FILTER doc.${field_name} == ${x}.${field_name} `;
         }
-        if (id) {
-            check += `FILTER(i._id != "${id}") `;
-        }
-        check += `return i\`).next()){ throw \`Duplicate key for ${type}\`; }`;
+        check += `FILTER doc._id != ${x}._id `;
+        check += `return doc\`).next()) { throw \`Duplicate key for ${type}\`; }`;
         ctxt.trans.code.push(check);
     }
 }
@@ -603,61 +604,25 @@ function validateType(ctxt, id, type, schema){
     }
 }
 
-async function update(isRoot, ctxt, id, data, returnType, info) {
+function update(isRoot, ctxt, id, data, returnType, info) {
     // define transaction object
     if (ctxt.trans === undefined) ctxt.trans = initTransaction();
 
-    // is root op and mutation is already queued
-    if (isRoot && ctxt.trans.queue[info.path.key]) {
-        if (ctxt.trans.open) await executeTransaction(ctxt);
-        if (ctxt.trans.error) {
-            if (ctxt.trans.errorReported) return null;
-            ctxt.trans.errorReported = true;
-            throw ctxt.trans.error;
-        }
-        return ctxt.trans.results[info.path.key]; // return the result
-    }
-
-    // 1) Recreate key based on 'id'
-    // 2) Update key based on 'data'
-    // 3) Add key check to transaction
-    let keyName = getKeyName(returnType.name);
-    let keyType = info.schema["_typeMap"][keyName];
-    if (keyType) {
-        try {
-            let collection = db.collection(returnType);
-            const cursor = await db.query(aql`FOR i IN ${collection} FILTER(i._id == ${id}) RETURN i`);
-            let doc = await cursor.next();
-            if (doc == undefined) {
-                throw new ApolloError(`ID ${id} is not a document in the type ${returnType}`);
-            }
-
-            let key = {};
-            for (let f in keyType._fields) {
-                key[f] = doc[f];
-                if (data[f] !== undefined) {
-                    key[f] = data[f];
-                }
-            }
-            validateKey(ctxt, key, returnType, info.schema, id);
-        } catch (err) {
-            throw new ApolloError(err);
-        }
-    }
-
-
-    // add doc
     // Do not increment the var counter
     let resVar = getVar(ctxt, false);
+
+    // get doc
     let doc = getScalarsAndEnums(data, returnType);
+
     //Update lastUpdateDate
     let date = new Date();
     doc['_lastUpdateDate'] = date.valueOf();
     let docVar = getParamVar(ctxt);
     ctxt.trans.write.add(returnType.name);
     ctxt.trans.params[docVar] = doc;
-    ctxt.trans.code.push(`let ${resVar} = db._update("${id}", ${JSON.stringify(doc)}, {returnNew: true});`);
+    ctxt.trans.code.push(`let ${resVar} = db._update("${id}", ${JSON.stringify(doc)}, {returnNew: true})['new'];`);
 
+    // TODO: Updating edges as part of an object update will be deprecated as part of #67
     // for edges
     let ob = pick(data, getObjectOrInterfaceFields(returnType));
     for (let f in ob) {
@@ -681,7 +646,7 @@ async function update(isRoot, ctxt, id, data, returnType, info) {
             }
 
             if (graphql.isInterfaceType(nestedReturnType)) {
-                // interface field
+                // interface
                 if (value['connect']) {
                     // connect
                     let typeToConnect = value['connect'].split('/')[0];
@@ -705,11 +670,11 @@ async function update(isRoot, ctxt, id, data, returnType, info) {
                         conditionalThrow(`${key} is not a valid field`); // will never be thrown!
                     }
                     let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
-                    await create(false, ctxt, value[key], info.schema.getType(typeToCreate), info);
+                    create(false, ctxt, value[key], info.schema.getType(typeToCreate), info);
                     ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
             } else {
-                // type field
+                // type
                 if (value['connect']) {
                     // connect
                     let typeToConnect = value['connect'].split('/')[0];
@@ -728,25 +693,46 @@ async function update(isRoot, ctxt, id, data, returnType, info) {
                 } else {
                     // create
                     let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
-                    await create(false, ctxt, value['create'], nestedReturnType, info);
+                    create(false, ctxt, value['create'], nestedReturnType, info);
                     ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
             }
         }
     }
 
+    // check key
+    validateKey(ctxt, resVar, returnType, info.schema);
+
     // directives handling
     addFinalDirectiveChecksForType(ctxt, returnType, aql`${asAQLVar(resVar)}._id`, info.schema);
 
-    // overwrite the current action
-    if (isRoot) {
-        ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar}.new;`); // add root result
-        ctxt.trans.queue[info.path.key] = true; // indicate that this mutation op has been added to the transaction
-        getVar(ctxt); // increment varCounter
+    // if root then bind result to variable
+    if(isRoot) {
+        // grab the 'new' value
+        ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar};`);
+        getVar(ctxt, true);
+        // remove this field from pending response fields
+        const index = ctxt.responseFields.indexOf(info.path.key);
+        if (index > -1) {
+            ctxt.responseFields.splice(index, 1);
+        }
     }
 
-    // return null, check executeFieldsSerially(...) in /node_modules/graphql/execution/execute.js for details
-    return null;
+    // when response fields are empty execute transaction
+    if(isRoot && ctxt.responseFields.length === 0 && ctxt.trans.open){
+        executeTransaction(ctxt).then(
+            () => console.debug("Executed transaction"),
+            (err) => console.error(err)
+        );
+    }
+
+    // return promises for roots and null for nested result
+    if(isRoot) {
+        return getResultPromise(ctxt, info.path.key);
+    } else {
+        console.debug("Returning null for", info.path.key, returnType);
+        return null;
+    }
 }
 
 function asAqlArray(array){
@@ -764,7 +750,7 @@ function asAqlArray(array){
 /**
  * Converts all values of enum or scalar type in inputDoc to mach format used for storage in the database,
  * and return result in output map
- * @param {map} outputDoc
+ * @param {map} outputDoc 
  * @param {map} inputDoc
  * @param type
  * @returns {map} outputDoc
@@ -786,7 +772,7 @@ function formatFixInput(outputDoc, inputDoc, type) {
 
 /**
  * Convert input data (value) to match format used for storage in the database
- * @param type (of field)
+ * @param type (of field) 
  * @param value
  * @returns value (in database ready format)
  */

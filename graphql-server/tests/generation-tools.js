@@ -64,7 +64,6 @@ function generateInput(type, depth=0, limit=3, include_optional){
                 value = {'connect' : `Dummy/${faker.random.number()}` }
             } else {
                 let keys = [];
-                let annotations = null
                 value = {}
                 for (let k in named_type._fields) {
                     if (k == 'connect') {

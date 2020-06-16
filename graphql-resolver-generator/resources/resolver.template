@@ -113,9 +113,16 @@ const resolvers = {
 % endfor
 
 % for interface_name in data['interfaces']:
+    % if interface_name.startswith('_'):
+    ${interface_name}: {
+        __resolveType: (parent, args, context, info) =>
+            '_' + parent._id.split('/')[0]
+    },
+    % else:
     ${interface_name}: {
         __resolveType: (parent, args, context, info) =>
             parent._id.split('/')[0]
     },
+    % endif
 % endfor
 }

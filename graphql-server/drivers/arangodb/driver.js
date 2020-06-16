@@ -251,10 +251,9 @@ function getObjectOrInterfaceFields(type) {
  */
 function convertToInputAppendString(doc) {
     ret = ''
-    if (doc != null && doc.size > 0) {
+    if (doc != null && Object.keys(doc).length > 0) {
         ret = JSON.stringify(doc);
-        ret[0] = ',';
-        ret = ret - slice(0, -1);
+        ret = ', ' + ret.slice(1, -1);
     }
     return ret;
 }
@@ -352,7 +351,7 @@ async function getEdge(parent, args, info) {
     }
     query = query.concat(query_filters);
     query.push(aql`RETURN e`);
-    console.log(aql.join(query));
+
     const cursor = await db.query(aql.join(query));
     if (graphql.isListType(graphql.getNullableType(info.returnType))) {
         return await cursor.all();
@@ -413,11 +412,11 @@ async function create(isRoot, ctxt, data, returnType, info) {
             console.log(value);
 
             // Prepare annotations
-            let annotations = null;
+            let annotations = {};
             if (value['annotations']) {
                 annotations = getScalarsAndEnums(value['annotations'], info.schema.getType("_InputToAnnotate" + edge));
-                annotations['_creationDate'] = date.valueOf();
             }
+            annotations['_creationDate'] = date.valueOf();
 
             if (graphql.isInterfaceType(innerFieldType)) { // interface
                 if (value['connect']) {
@@ -695,11 +694,11 @@ async function update(isRoot, ctxt, id, data, returnType, info) {
             let value = values[i];
 
             // Prepare annotations
-            let annotations = null;
+            let annotations = {};
             if (value['annotations']) {
                 annotations = getScalarsAndEnums(value['annotations'], info.schema.getType("_InputToAnnotate" + edge));
-                annotations['_creationDate'] = date.valueOf();
             }
+            annotations['_creationDate'] = date.valueOf();
 
             if (graphql.isInterfaceType(nestedReturnType)) {
                 // interface field

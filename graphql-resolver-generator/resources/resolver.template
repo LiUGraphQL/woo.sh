@@ -43,7 +43,7 @@ const resolvers = {
     % endfor
 
     % for type in data['types']:
-        % for field, field_type in type['edgeFields']:
+        % for field, field_type in type['edgeFieldEndpoints']:
         create${field}EdgeFrom${type['Name']}: async (parent, args, context, info) =>
             await driver.createEdge(
                 true,
@@ -76,16 +76,15 @@ const resolvers = {
     ${type['Name']}: {
         id: (parent, args, context, info) => parent._id,
         % for field in type['fields']:
-        % if len(field) >= 8 and (field[0:9] == '_outgoing' or field[0:9] == '_incoming'):
-        ${field}: async (parent, args, context, info) =>
-            await driver.getEdge(parent, args, info),
-        % else:
         ${field}: async (parent, args, context, info) =>
             await driver.getEdgeEndpoint(parent, args, info),
-        % endif
         % endfor
         % for field in type['DateTime']:
         ${field}: async (parent, args, context, info) => new Date(parent.${field}),
+        % endfor
+        % for field in type['edgeFields']:
+        ${field}: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
         % endfor
     },
 % endfor
@@ -102,7 +101,7 @@ const resolvers = {
 % endfor
 
 % for type in data['types']:
-    % for field, field_type in type['edgeFields']:
+    % for field, field_type in type['edgeFieldEndpoints']:
     _${field}EdgeFrom${type['Name']}: {
         id: (parent, args, context, info) => parent._id,
         source: async (parent, args, context, info) =>

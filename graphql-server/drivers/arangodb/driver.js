@@ -331,13 +331,13 @@ async function getEdge(parent, args, info) {
         if (possible_types.length > 1) query.push(aql`UNION(`);
         for (let i in possible_types) {
             if (i != 0) query.push(aql`,`);
-            let collection = db.collection(possible_types[i].name);
-            query.push(aql`(FOR v,e IN 1..1 ANY ${parent._id} ${collection} RETURN e)`);
+            let collection = db.collection(possible_types[i].name.substr(1));
+            query.push(aql`(FOR v, inner_e IN 1..1 ANY ${parent._id} ${collection} RETURN inner_e)`);
         }
         if (possible_types.length > 1) query.push(aql`)`);
 
     } else {
-        let collection = db.collection(return_type.name);
+        let collection = db.edgeCollection(return_type.name.substr(1));
         query.push(aql`FOR v, e IN 1..1 ANY ${parent._id} ${collection}`);
     }
 
@@ -352,7 +352,7 @@ async function getEdge(parent, args, info) {
     }
     query = query.concat(query_filters);
     query.push(aql`RETURN e`);
-
+    console.log(aql.join(query));
     const cursor = await db.query(aql.join(query));
     if (graphql.isListType(graphql.getNullableType(info.returnType))) {
         return await cursor.all();

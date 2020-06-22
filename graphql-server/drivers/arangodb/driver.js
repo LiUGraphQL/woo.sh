@@ -803,6 +803,10 @@ function getResultPromise(ctxt, key) {
  * @param info
  */
 function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info) {
+    if(disableEdgeValidation){
+        console.log('Edge validation disabled');
+        return;
+    }
     ctxt.trans.code.push('/* source exists? */');
     exists(ctxt, sourceVar, sourceType, info.schema);
     ctxt.trans.code.push('/* target exists? */');
@@ -1317,10 +1321,10 @@ function addFinalDirectiveChecksForType(ctxt, type, id, schema) {
                 }
                 else if (dir.name.value == '_uniqueForTarget_AccordingToInterface') {
                     // The inherited/implemented variant of @uniqueForTarget
-                    // The target does not only require at most one edge of this type, but at most one of any type implementing the interface 
+                    // The target does not only require at most one edge of this type, but at most one of any type implementing the interface
                     // Thankfully we got the name of the interface as a mandatory argument and can hence use this to get all types implementing it
 
-                    let interfaceName = dir.arguments[0].value.value; // If we add more arguments to the directive this will fail horrible. 
+                    let interfaceName = dir.arguments[0].value.value; // If we add more arguments to the directive this will fail horrible.
                     // But that should not happen (and it is quite easy to fix)
 
                     ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR v, e IN 1..1 OUTBOUND ${id}`);
@@ -1349,10 +1353,10 @@ function addFinalDirectiveChecksForType(ctxt, type, id, schema) {
                 }
                 else if (dir.name.value == '_requiredForTarget_AccordingToInterface') {
                     // The inherited/implemented variant of @requiredForTarget
-                    // The target does not directly require an edge of this type, but at least one of any type implementing the interface 
+                    // The target does not directly require an edge of this type, but at least one of any type implementing the interface
                     // Thankfully we got the name of the interface as a mandatory argument and can hence use this to get all types implementing it
 
-                    let interfaceName = dir.arguments[0].value.value; // If we add more arguments to the directive this will fail horrible. 
+                    let interfaceName = dir.arguments[0].value.value; // If we add more arguments to the directive this will fail horrible.
                     // But that should not happen (and it is quite easy to fix)
 
                     // The target type might be an interface, giving us slightly more to keep track of

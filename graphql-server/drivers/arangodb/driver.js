@@ -11,41 +11,7 @@ let disableDirectivesChecking;
 
 module.exports = {
     init: async function(args){
-        let typeDefs = args.typeDefs;
-        let db_name = args.db_name || 'dev-db';
-        let url = args.url || 'http://localhost:8529';
-        let drop = args.drop || false;
-        disableDirectivesChecking = args.disableDirectivesChecking || true;
-        disableEdgeValidation = args.disableEdgeValidation || false;
-        db = new arangojs.Database({ url: url });
-
-        // wait for ArangoDB
-        console.log(`Waiting for ArangoDB to become available at ${url}`);
-        let urlGet = url.replace(/^http(s?)(.+$)/,'http$1-get$2');
-        const opts = {
-            resources:[urlGet],
-            delay: 1000, // initial delay in ms
-            interval: 1000, // poll interval in ms
-            followRedirect: true
-        };
-        await waitOn(opts);
-        console.log(`ArangoDB is now available at ${url}`);
-
-        // if drop is set
-        if(drop) {
-            await db.dropDatabase(db_name).then(
-                () => console.debug(`Database ${db_name} dropped.`),
-                (err) => console.error(err)
-            );
-        }
-        const schema = makeExecutableSchema({
-            'typeDefs': typeDefs,
-            'resolvers': {}
-        });
-
-        await createAndUseDatabase(db, db_name);
-        await createTypeCollections(db, schema);
-        await createEdgeCollections(db, schema);
+        await init(args);
     },
     getConnection: () => db,
     get: function(id, returnType, schema){
@@ -57,8 +23,8 @@ module.exports = {
     create: function(isRoot, context, data, returnType, info) {
         return create(isRoot, context, data, returnType, info);
     },
-    createEdge: async function(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info) {
-        return await createEdge(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info);
+    createEdge: function(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info) {
+        return createEdge(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info);
     },
     update: function(isRoot, ctxt, id, data, returnType, info){
         return update(isRoot, ctxt, id, data, returnType, info);
@@ -86,10 +52,48 @@ module.exports = {
     }
 };
 
+async function init(args){
+    let typeDefs = args.typeDefs;
+    let db_name = args.db_name || 'dev-db';
+    let url = args.url || 'http://localhost:8529';
+    let drop = args.drop || false;
+    disableDirectivesChecking = args['disableDirectivesChecking'] || true;
+    disableEdgeValidation = args['disableEdgeValidation'] || false;
+    db = new arangojs.Database({ url: url });
+
+    // wait for ArangoDB
+    console.info(`Waiting for ArangoDB to become available at ${url}`);
+    let urlGet = url.replace(/^http(s?)(.+$)/,'http$1-get$2');
+    const opts = {
+        resources:[urlGet],
+        delay: 1000, // initial delay in ms
+        interval: 1000, // poll interval in ms
+        followRedirect: true
+    };
+    await waitOn(opts);
+    console.info(`ArangoDB is now available at ${url}`);
+
+    // if drop is set
+    if(drop) {
+        await db.dropDatabase(db_name).then(
+            () => console.info(`Database ${db_name} dropped.`),
+            (err) => console.error(err)
+        );
+    }
+    const schema = makeExecutableSchema({
+        'typeDefs': typeDefs,
+        'resolvers': {}
+    });
+
+    await createAndUseDatabase(db, db_name);
+    await createTypeCollections(db, schema);
+    await createEdgeCollections(db, schema);
+}
+
 async function createAndUseDatabase(db, db_name){
     await db.createDatabase(db_name).then(
         () => { console.info(`Database '${db_name}' created`); },
-        err => { console.warn(`Database '${db_name}' not created:`, err.response.body.errorMessage); }
+        err => { console.warn(`Database '${db_name}' not created:`, err.response.body['errorMessage']); }
     );
     db.useDatabase(db_name);
 }
@@ -104,7 +108,7 @@ async function createTypeCollections(db, schema) {
         await collection.create().then(
             () => { console.info(`Collection '${collection_name}' created`) },
             err => {
-                console.warn(`Collection '${collection_name}' not created:` , err.response.body.errorMessage);
+                console.warn(`Collection '${collection_name}' not created:` , err.response.body['errorMessage']);
             }
         );
     }
@@ -122,8 +126,7 @@ async function createEdgeCollections(db, schema){
 
         // collections for type and interface fields
         fields = getObjectOrInterfaceFields(type);
-        for(let i in fields){
-            let field_name = fields[i];
+        for(let field_name of fields){
             if(field_name.startsWith('_')) {
                 continue;
             }
@@ -133,15 +136,14 @@ async function createEdgeCollections(db, schema){
     }
 
     // create collections
-    for(let i in collections) {
-        let collection_name = collections[i];
+    for(let collection_name of collections) {
         let collection = await db.edgeCollection(collection_name);
         await collection.create().then(
             () => {
                 console.info(`Edge collection '${collection_name}' created`);
             },
             err => {
-                //console.warn(`Edge collection '${collection_name}' not created:`, err.response.body.errorMessage);
+                console.warn(`Edge collection '${collection_name}' not created:`, err.response.body['errorMessage']);
             }
         );
     }
@@ -151,10 +153,16 @@ function getKeyName(type){
     return `_KeyFor${type}`;
 }
 
+/**
+ * Get the name of the edge collection corresponding to a given type and field.
+ *
+ * @param type
+ * @param field
+ * @returns {string}
+ */
 function getEdgeCollectionName(type, field){
     let f = capitalizeFirstLetter(field);
     let t = capitalizeFirstLetter(type);
-    // return `EdgeToConnect${f}Of${t}`;
     return `${f}EdgeFrom${t}`;
 }
 
@@ -178,30 +186,15 @@ function getTypeDefinitions(schema, kind=null) {
 }
 
 /**
- * Get the names of all scalar and enum type fields.
- * @param type
- * @returns {Array}
- */
-function getScalarOrEnumFields(type) {
-    let keys = [];
-    for (let i in type.getFields()) {
-        let value = type.getFields()[i];
-        let t = graphql.getNamedType(value.type);
-        if(graphql.isEnumType(t) || graphql.isScalarType(t)){
-            keys.push(value.name);
-        }
-    }
-    return keys;
-}
-
-/**
  * Return an object containing only the document portion of this object. This includes fields for which the values are
  * scalars, enums, lists of scalars, and lists of enums.
+ *
  * @param object
+ * @param type
+ * @returns {map}
  */
 function getScalarsAndEnums(object, type){
-    let doc = {};
-    return formatFixInput(doc, object, type);
+    return formatFixInput(object, type);
 }
 
 /**
@@ -222,7 +215,6 @@ function getTypesAndInterfaces(object, type){
     }
     return doc;
 }
-
 
 /**
  * Get the names of all object type fields.
@@ -259,349 +251,146 @@ function convertToInputAppendString(doc) {
 
 // ----------------------------------------------------------
 
-async function getEdge(parent, args, info){
-    let parent_type = graphql.getNamedType(info.parentType);
-    let return_type = graphql.getNamedType(info.returnType);
+/* Mutations */
 
-    let field_name = info.fieldName;
-    if(info.fieldName.startsWith('_')){ // reverse edge
-        let pattern_string = `^_(.+?)From${return_type.name}$`; // get the non-reversed edge name
-        let re = new RegExp(pattern_string);
-        field_name = re.exec(info.fieldName)[1];
+/**
+ * Create a new edge between a source and a target. Target and source are defined as either IDs or AQL variables and
+ * are validated.
+ *
+ * @param isRoot
+ * @param ctxt
+ * @param varOrSourceID
+ * @param sourceType
+ * @param sourceField
+ * @param varOrTargetID
+ * @param targetType
+ * @param annotations
+ * @param info
+ * @param resVar
+ * @returns {null|Promise<any>}
+ */
+function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrTargetID, targetType, annotations, info, resVar=null){
+    // init transaction (if not already defined)
+    initTransaction(ctxt);
+
+    // create a new variable if resVar was not defined by the calling function
+    resVar = resVar !== null ? resVar: createVar(ctxt);
+
+    let collectionName = getEdgeCollectionName(sourceType.name, sourceField);
+    let collectionVar = getCollectionVar(collectionName, ctxt, true);
+    ctxt.trans.code.push(`\n\t/* edge ${collectionName} */`);
+
+    // define source and target as AQL vars
+    let sourceVar = isVar(varOrSourceID) ? varOrSourceID: addParameterVar(ctxt, createParamVar(ctxt), {'_id': varOrSourceID});
+    let targetVar = isVar(varOrTargetID) ? varOrTargetID: addParameterVar(ctxt, createParamVar(ctxt), {'_id': varOrTargetID});
+
+    validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info);
+
+    // prepare annotations
+    if(annotations == null){
+        annotations  = {};
+    }
+    let annotationType = info.schema.getType(`_InputToAnnotate${collectionName}`);
+    if(annotationType){
+        annotations = getScalarsAndEnums(annotations, info.schema.getType(annotationType));
     }
 
-    // Create query
-    let query = [aql`FOR x IN`];
-    if(info.fieldName.startsWith('_')) {
-        // If the type that is the origin of the edge is an interface, then we need to check all the edge collections
-        // corresponding to its implementing types. Note: This is only necessary when traversing some edges that are
-        // defined in in the API schema for interfaces. The parent type will never be an interface type at this stage.
-        if(graphql.isInterfaceType(return_type)){
-            let possible_types = info.schema.getPossibleTypes(return_type);
-            if(possible_types.length > 1) query.push(aql`UNION(`);
-            for(let i in possible_types) {
-                if(i != 0) query.push(aql`,`);
-                let collection = db.collection(getEdgeCollectionName(possible_types[i].name, field_name));
-                query.push(aql`(FOR i IN 1..1 INBOUND ${parent._id} ${collection} RETURN i)`);
-            }
-            if(possible_types.length > 1) query.push(aql`)`);
+    // defined doc
+    let doc = annotations;
+    doc['_creationDate'] = new Date().valueOf();
+    doc = formatFixInput(doc, info.returnType);
 
-        } else {
-            let collection = db.collection(getEdgeCollectionName(return_type.name, field_name));
-            query.push(aql`1..1 INBOUND ${parent._id} ${collection}`);
-        }
-    } else {
-        let collection = db.edgeCollection(getEdgeCollectionName(parent_type.name, field_name));
-        query.push(aql`1..1 OUTBOUND ${parent._id} ${collection}`);
-    }
+    let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, {'_from': ${asAQLVar(sourceVar)}._id, '_to': ${asAQLVar(targetVar)}._id}) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
-    // add filters
-    let query_filters = [];
-    if(args.filter != undefined && !isEmptyObject(args.filter)){
-        let filters = getFilters(args.filter, info);
-        for(let i in filters){
-            i == 0 ? query_filters.push(aql`FILTER`) : query_filters.push(aql`AND`);
-            query_filters = query_filters.concat(filters[i]);
-        }
-    }
-    query = query.concat(query_filters);
-    query.push(aql`RETURN x`);
+    addFinalDirectiveChecksForType(ctxt, sourceType, sourceVar, info.schema);
 
-    const cursor = await db.query(aql.join(query));
-    if (graphql.isListType(graphql.getNullableType(info.returnType))) {
-        return await cursor.all();
-    } else {
-        return await cursor.next();
+    if(isRoot) {
+        return getResult(ctxt, info, resVar);
     }
 }
 
+/**
+ * Create an object including any nested objects and edges.
+ *
+ * @param isRoot
+ * @param ctxt
+ * @param data
+ * @param returnType
+ * @param info
+ * @param resVar
+ * @returns {null|Promise<any>}
+ */
+function create(isRoot, ctxt, data, returnType, info, resVar=null) {
+    // init transaction
+    initTransaction(ctxt);
+    ctxt.trans.code.push(`\n\t/* create ${returnType.name} */`);
 
-function create(isRoot, ctxt, data, returnType, info) {
-    // define transaction object
-    if (ctxt.trans === undefined) ctxt.trans = initTransaction();
-
-    // Do not increment the var counter
-    let resVar = getVar(ctxt, false);
-    let from = asAQLVar(resVar);
-
-    // add doc
+    // get non-object fields, add creation date and add as parameter
     let doc = getScalarsAndEnums(data, returnType);
-    //Set creationDate
-    let date = new Date();
-    doc['_creationDate'] = date.valueOf();
-    let docVar = getParamVar(ctxt);
-    let aqlDocVar = asAQLVar(`params.${docVar}`);
-    let collection = asAQLVar(`db.${returnType.name}`);
-    ctxt.trans.write.add(returnType.name);
-    ctxt.trans.params[docVar] = doc;
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT ${aqlDocVar} IN ${collection} RETURN NEW\`).next();`);
+    doc['_creationDate'] = new Date().valueOf();
+    let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
-    // for edges
-    let ob = getTypesAndInterfaces(data, returnType);
-    for (let fieldName in ob) {
-        let innerFieldType = graphql.getNamedType(returnType.getFields()[fieldName].type);
-        let edge = getEdgeCollectionName(returnType.name, fieldName);
-        ctxt.trans.write.add(edge);
-        let edgeCollection = asAQLVar(`db.${edge}`);
-        let values = Array.isArray(ob[fieldName]) ? ob[fieldName] : [ob[fieldName]]; // treat as list even if only one value is present
+    // create a new resVar if not defined by the calling function
+    resVar = resVar !== null ? resVar: createVar(ctxt);
 
-        for (let i in values) {
-            let value = values[i];
+    let collectionVar = getCollectionVar(returnType.name, ctxt, true);
 
-            // Prepare annotations
+    // insert document
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+
+    // validate key
+    validateKey(ctxt, resVar, returnType, info);
+
+    // resVar is the source vertex for all field edges
+    let sourceVar = resVar;
+
+    // add edges (i.e., all object fields)
+    let edgeFields = getTypesAndInterfaces(data, returnType);
+    for (let fieldName in edgeFields) {
+        let targetType = graphql.getNamedType(returnType.getFields()[fieldName].type);
+        let edgeCollectionName = getEdgeCollectionName(returnType.name, fieldName);
+
+        // add all values for edge
+        let values = Array.isArray(edgeFields[fieldName]) ? edgeFields[fieldName] : [edgeFields[fieldName]];
+        for (let value of values) {
+            // prepare annotations
             let annotations = null;
             if (value['annotations']) {
-                annotations = getScalarsAndEnums(value['annotations'], info.schema.getType("_InputToAnnotate" + edge));
-                annotations['_creationDate'] = date.valueOf();
+                annotations = getScalarsAndEnums(value['annotations'], info.schema.getType(`_InputToAnnotate${edgeCollectionName}`));
+                annotations['_creationDate'] = new Date().valueOf();
             }
 
-            if (graphql.isInterfaceType(innerFieldType)) {
-                // interface
-                if (value['connect']) {
-                    validateType(ctxt, value['connect'], innerFieldType, info.schema);
-                    let typeToConnect = value['connect'].split('/')[0];
-                    // add edge
-                    ctxt.trans.code.push(`if(db._collection('${typeToConnect}').exists('${value['connect']}')){`);
-                    ctxt.trans.code.push(`   db._query(aql\`INSERT {_from: ${from}._id, _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
-                    ctxt.trans.code.push(`} else { `);
-                    ctxt.trans.code.push(`   throw "${value['connect']} does not exist in ${typeToConnect}";`);
-                    ctxt.trans.code.push(`}`);
-                } else {
-                    // create
-                    let key = Object.keys(value)[0];
-                    if (key == "annotations") {
-                        // In case the user actually specifies the annotations before the edge
-                        key = Object.keys(value)[1];
-                    }
-                    let typeToCreate = key.replace(/^create(.+)$/, '$1');
-                    let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
-                    create(false, ctxt, value[key], info.schema.getType(typeToCreate), info);
-                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: ${from}._id, _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
-                }
+            if(value['connect']){
+                createEdge(false, ctxt, sourceVar, returnType, fieldName, value['connect'], targetType, annotations, info);
             } else {
-                // type
-                if (value['connect']) {
-                    validateType(ctxt, value['connect'], innerFieldType, info.schema);
-                    let typeToConnect = value['connect'].split('/')[0];
-                    // add edge
-                    ctxt.trans.code.push(`if(db._collection('${typeToConnect}').exists('${value['connect']}')){`);
-                    ctxt.trans.code.push(`   db._query(aql\`INSERT {_from: ${from}._id, _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
-                    ctxt.trans.code.push(`} else { `);
-                    ctxt.trans.code.push(`   throw "${value['connect']} does not exist in ${typeToConnect}";`);
-                    ctxt.trans.code.push(`}`);
-                } else { // create
-                    let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
-                    create(false, ctxt, value['create'], innerFieldType, info);
-                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: ${from}._id, _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
+                // reference to target
+                let targetVar = createVar(ctxt);
+                if(graphql.isInterfaceType(targetType)){
+                    let typeToCreate = null;
+                    for(let possibleType of info.schema.getPossibleTypes(targetType)){
+                        let possibleField = `create${possibleType.name}`;
+                        if(value[possibleField] && typeToCreate){
+                            throw new ApolloError(`Multiple create fields defined for ${returnType}.${fieldName}`);
+                        }
+                        if(value[possibleField]){
+                            typeToCreate = possibleType;
+                            create(false, ctxt, value[possibleField], typeToCreate, info, targetVar);
+                            createEdge(false, ctxt, sourceVar, returnType, fieldName, targetVar, typeToCreate, annotations, info);
+                        }
+                    }
+                } else {
+                    create(false, ctxt, value['create'], targetType, info, targetVar);
+                    createEdge(false, ctxt, sourceVar, returnType, fieldName, targetVar, targetType, annotations, info);
                 }
             }
         }
     }
 
-    // check key
-    validateKey(ctxt, resVar, returnType, info.schema);
-
-    // directives handling
+    // add final directives check
     addFinalDirectiveChecksForType(ctxt, returnType, aql`${asAQLVar(resVar)}._id`, info.schema);
 
-    // if root then bind result to variable
-    if(isRoot) {
-        ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar};`);
-        getVar(ctxt, true);
-        // remove this field from pending response fields
-        const index = ctxt.responseFields.indexOf(info.path.key);
-        if (index > -1) {
-            ctxt.responseFields.splice(index, 1);
-        }
-    }
-
-    // when response fields are empty execute transaction
-    if(isRoot && ctxt.responseFields.length === 0 && ctxt.trans.open){
-        executeTransaction(ctxt).then(
-            () => console.debug('Executed transaction'),
-            (err) => console.error(err)
-        );
-    }
-
-    // return promises for roots and null for nested result
-    if(isRoot) {
-        return getResultPromise(ctxt, info.path.key);
-    } else {
-        return null;
-    }
-
-}
-
-function getResultPromise(ctxt, key) {
-    return new Promise(function (resolve, reject) {
-        (function waitForResult(){
-            if(ctxt.trans.error !== undefined) {
-                reject(ctxt.trans.error);
-                return null;
-            }
-            if(ctxt.trans.results !== undefined){
-                return resolve(ctxt.trans.results[key]);
-            }
-            setTimeout(waitForResult, 10);
-        })();
-    });
-}
-
-async function createEdge(isRoot, ctxt, source, sourceType, sourceField, target, targetType, annotations, info){
-    // define transaction object
-    if(ctxt.trans === undefined) ctxt.trans = initTransaction();
-
-    // is root op and mutation is already queued
-    if(isRoot && ctxt.trans.queue[info.path.key]){
-        if(ctxt.trans.open) await executeTransaction(ctxt);
-        if(ctxt.trans.error){
-            if(ctxt.trans.errorReported) return null;
-            ctxt.trans.errorReported = true;
-            throw ctxt.trans.error;
-        }
-        return ctxt.trans.results[info.path.key]; // return the result
-    }
-    let returnTypeName = info.returnType.name.substr(1);
-    ctxt.trans.write.add(returnTypeName);
-    await validateEdge(ctxt, source, sourceType, sourceField, target, targetType, info);
-
-    // variable reference to object that will be created
-    let resVar = getVar(ctxt,false); // Note: This should not increment the var counter, but use the previously allocated var name.
-
-    // add doc
-    let doc = {};
-    if(annotations !== undefined) {
-        doc = annotations;
-    }
-    doc = formatFixInput(doc, doc, info.returnType);
-    doc['_from'] = source;
-    doc['_to'] = target;
-    let date = new Date();
-    doc['_creationDate'] = date.valueOf();
-    let docVar = getParamVar(ctxt);
-    let aqlDocVar = asAQLVar(`params.${docVar}`);
-    let collection = asAQLVar(`db.${returnTypeName}`);
-    ctxt.trans.params[docVar] = doc;
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT ${aqlDocVar} IN ${collection} RETURN NEW\`).next();`);
-
-    addFinalDirectiveChecksForType(ctxt, sourceType, source, info.schema);
-
-    // overwrite the current action
-    if(isRoot) {
-        ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar};`); // add root result
-        ctxt.trans.queue[info.path.key] = true; // indicate that this mutation op has been added to the transaction
-        getVar(ctxt); // increment varCounter
-    }
-
-    // return null, check executeFieldsSerially(...) in /node_modules/graphql/execution/execute.js for details
-    return null;
-}
-
-async function validateEdge(ctxt, source, sourceType, sourceField, target, targetType, info) {
-
-    let schema = info.schema;
-    if(!isOfType(source, sourceType, schema)) {
-        ctxt.trans.code.push(`throw \`Source object ${source} is not of type ${sourceType}\``);
-        return
-    }
-    let sourceObject = await get(source, sourceType, schema);
-    if(sourceObject === undefined) {
-        ctxt.trans.code.push(`throw \`Source object ${source} does not exist in collection ${sourceType}\``);
-        return
-    }
-
-    if(!isOfType(target, targetType, schema)) {
-        ctxt.trans.code.push(`throw \`Target object ${target} is not of type ${targetType}\``);
-        return
-    }
-    let targetObject = await get(target, targetType, schema);
-    if(targetObject === undefined) {
-        ctxt.trans.code.push(`throw \`Target object ${target} does not exist in collection ${targetType}\``);
-        return
-    }
-
-    // now check for if we're inserting an edge for a field that isn't a list and is already populated
-    let fieldType = schema.getType(sourceType).getFields()[sourceField].type;
-    let collection = db.edgeCollection(getEdgeCollectionName(sourceType.name, sourceField));
-    let query = [aql`FOR x IN 1..1 OUTBOUND ${source} ${collection}`];
-    if(graphql.isListType(fieldType)){
-        query.push(aql`FILTER(x._id == ${target})`);
-    }
-    query.push(aql`RETURN x`);
-    const cursor = await db.query(aql.join(query));
-    let otherEdge = await cursor.next();
-    if(otherEdge !== undefined) {
-        ctxt.trans.code.push(`throw \`Edge already exists for ${sourceField} from ${source}.\``);
-    }
-}
-
-function asAQLVar(varName){
-    return '${' + varName + '}';
-}
-
-function initTransaction(){
-    return {
-        write: new Set(), params: {}, open: true, queue: {},
-        code: [
-            'const db = require("@arangodb").db;',
-            'const {aql} = require("@arangodb");',
-            'let result = Object.create(null);'
-        ],
-        finalConstraintChecks: []
-    };
-}
-
-async function executeTransaction(ctxt){
-    // verify that transaction is still open
-    if(!ctxt.trans.open){
-        console.warn('Warning: Attempted to execute a closed transaction.');
-        return null;
-    }
-    ctxt.trans.open = false;
-
-    // add all finalConstraintChecks to code before executing
-    for (const row of ctxt.trans.finalConstraintChecks) {
-        ctxt.trans.code.push(row);
-    }
-
-    try {
-        let action = `function(params){\n\t${ctxt.trans.code.join('\n\t')}\n\treturn result;\n}`;
-        console.debug(action);
-        console.debug(ctxt.trans.params);
-        ctxt.trans.results = await db.transaction(
-            { write: Array.from(ctxt.trans.write), read: [] },
-            action,
-            ctxt.trans.params);
-    } catch (e) {
-        ctxt.trans.error = new ApolloError(e.message);
-    }
-}
-
-function validateKey(ctxt, docVar, type, schema){
-    let collection = asAQLVar(`db.${type.name}`);
-    let keyType = schema["_typeMap"][getKeyName(type.name)];
-    if (keyType) {
-        ctxt.trans.code.push('/* check key constraint */');
-        let check = `if(db._query(aql\`FOR doc IN ${collection} `;
-        // add filters for all key fields
-        let x = asAQLVar(docVar);
-        for (let field_name in keyType._fields) {
-            check += `FILTER doc.${field_name} == ${x}.${field_name} `;
-        }
-        check += `FILTER doc._id != ${x}._id `;
-        check += `return doc\`).next()) { throw \`Duplicate key for ${type}\`; }`;
-        ctxt.trans.code.push(check);
-    }
-}
-
-function validateType(ctxt, id, type, schema){
-    if(graphql.isInterfaceType(type)) {
-        if(!isImplementingType(id.split('/')[0], type, schema)) {
-            ctxt.trans.code.push(`throw "ID ${id} is not a document of the interface ${type}";`);
-        }
-    } else if(id.split('/')[0] != type.name){
-        ctxt.trans.code.push(`throw "ID ${id} is not a document of the type ${type}";`);
-    }
+    return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
 function update(isRoot, ctxt, id, data, returnType, info) {
@@ -735,6 +524,419 @@ function update(isRoot, ctxt, id, data, returnType, info) {
     }
 }
 
+/* Queries */
+
+/**
+ * Get type or interface by ID.
+ * @param id
+ * @param returnType
+ * @param schema
+ * @returns {Promise<*>}
+ */
+async function get(id, returnType, schema){
+    let type = returnType;
+    let query = [aql`FOR i IN`];
+    if(graphql.isInterfaceType(type)){
+        let possible_types = schema.getPossibleTypes(type);
+        if(possible_types.length > 1){
+            query.push(aql`UNION(`);
+        }
+        for(let i in possible_types) {
+            if(i != 0){
+                query.push(aql`,`);
+            }
+            let collection = db.collection(possible_types[i].name);
+            query.push(aql`(FOR x IN ${collection} FILTER(x._id == ${id}) RETURN x)`);
+        }
+        if(possible_types.length > 1){
+            query.push(aql`)`);
+        }
+    } else {
+        let collection = db.collection(type.name);
+        query.push(aql`${collection} FILTER(i._id == ${id})`);
+    }
+
+    query.push(aql` RETURN i`);
+    try {
+        let q = aql.join(query);
+        console.debug(q);
+        const cursor = await db.query(q);
+        return await cursor.next();
+    } catch(err) {
+        console.error(err);
+        throw new ApolloError(err);
+    }
+}
+
+/**
+ * Get edges between a parent and target for a given field.
+ *
+ * @param parent
+ * @param args
+ * @param info
+ * @returns {Promise<*>}
+ */
+async function getEdge(parent, args, info){
+    let parent_type = graphql.getNamedType(info.parentType);
+    let return_type = graphql.getNamedType(info.returnType);
+
+    let field_name = info.fieldName;
+    if(info.fieldName.startsWith('_')){ // reverse edge
+        let pattern_string = `^_(.+?)From${return_type.name}$`; // get the non-reversed edge name
+        let re = new RegExp(pattern_string);
+        field_name = re.exec(info.fieldName)[1];
+    }
+
+    // Create query
+    let query = [aql`FOR x IN`];
+    if(info.fieldName.startsWith('_')) {
+        // If the type that is the origin of the edge is an interface, then we need to check all the edge collections
+        // corresponding to its implementing types. Note: This is only necessary when traversing some edges that are
+        // defined in in the API schema for interfaces. The parent type will never be an interface type at this stage.
+        if(graphql.isInterfaceType(return_type)){
+            let possible_types = info.schema.getPossibleTypes(return_type);
+            if(possible_types.length > 1) query.push(aql`UNION(`);
+            for(let i in possible_types) {
+                if(i != 0) query.push(aql`,`);
+                let collection = db.collection(getEdgeCollectionName(possible_types[i].name, field_name));
+                query.push(aql`(FOR i IN 1..1 INBOUND ${parent._id} ${collection} RETURN i)`);
+            }
+            if(possible_types.length > 1) query.push(aql`)`);
+
+        } else {
+            let collection = db.collection(getEdgeCollectionName(return_type.name, field_name));
+            query.push(aql`1..1 INBOUND ${parent._id} ${collection}`);
+        }
+    } else {
+        let collection = db.edgeCollection(getEdgeCollectionName(parent_type.name, field_name));
+        query.push(aql`1..1 OUTBOUND ${parent._id} ${collection}`);
+    }
+
+    // add filters
+    let query_filters = [];
+    if(args.filter && !isEmptyObject(args.filter)){
+        let filters = getFilters(args.filter, info);
+        for(let i in filters){
+            i == 0 ? query_filters.push(aql`FILTER`) : query_filters.push(aql`AND`);
+            query_filters = query_filters.concat(filters[i]);
+        }
+    }
+    query = query.concat(query_filters);
+    query.push(aql`RETURN x`);
+
+    const cursor = await db.query(aql.join(query));
+    if (graphql.isListType(graphql.getNullableType(info.returnType))) {
+        return await cursor.all();
+    } else {
+        return await cursor.next();
+    }
+}
+
+/**
+ * Get object by key.
+
+ * @param key
+ * @param returnType
+ * @returns {Promise<*>}
+ */
+async function getByKey(key, returnType){
+    let type = graphql.getNamedType(returnType);
+    let collection = db.collection(type.name);
+    let query = [aql`FOR x IN ${collection}`];
+
+    // add key filters
+    for (let fieldName in key) {
+        let value = key[fieldName];
+        query.push(aql`FILTER x.${fieldName} == ${value}`);
+    }
+    query.push(aql`RETURN x`);
+    try {
+        let q = aql.join(query);
+        console.debug(q);
+        const cursor = await db.query(q);
+        return await cursor.next();
+    } catch(err) {
+        console.error(err);
+        throw new ApolloError(err);
+    }
+}
+
+/**
+ * Get a list of object of a given type.
+ *
+ * @param args
+ * @param info
+ * @returns {Promise<{content: *, _filter: Array}>}
+ */
+async function getList(args, info){
+    let typeOrInterface = graphql.getNamedType(info.returnType.getFields()['content'].type);
+    let first = args.first;
+    let after = args.after;
+
+    let query = [aql`FOR x IN FLATTEN( FOR i IN [`];
+    if(graphql.isInterfaceType(typeOrInterface)) {
+        for (let i in info.schema.getPossibleTypes(typeOrInterface)) {
+            let possibleType = info.schema.getPossibleTypes(typeOrInterface)[i];
+            i == 0 ? null : query.push(aql`,`);
+            query.push(aql`${db.collection(possibleType.name)}`);
+        }
+    } else {
+        query.push(aql`${db.collection(typeOrInterface.name)}`);
+    }
+    query.push(aql`] RETURN i )`);
+
+    // add filters
+    let queryFilters = [];
+    if(args.filter && !isEmptyObject(args.filter)){
+        let filters = getFilters(args.filter, info);
+        for(let i in filters){
+            i == 0 ? queryFilters.push(aql`FILTER`) : queryFilters.push(aql`AND`);
+            queryFilters = queryFilters.concat(filters[i]);
+        }
+    }
+    query = query.concat(queryFilters);
+    query.push(aql`FILTER x._id > ${after} SORT x._id LIMIT ${first} RETURN x`);
+    try {
+        let q = aql.join(query);
+        console.debug(q);
+        const cursor = await db.query(q);
+        let result = await cursor.all();
+        let list = {
+            '_filter': queryFilters, // needed to resolve fields 'isEndOfList' and 'totalLength'
+            'content': result
+        };
+        return list;
+    } catch(err) {
+        console.error(err);
+        throw new ApolloError(err);
+    }
+}
+
+/**
+ * Add a new variable binding to the current transaction and return the corresponding parameter name.
+ *
+ * @param ctxt
+ * @param parameterName
+ * @param value
+ * @returns
+ */
+function addParameterVar(ctxt, varName, value){
+    if(ctxt.trans.params[varName] !== undefined){
+        throw new ApolloError(`Parameter name '${varName}' has already been allocated`);
+    }
+    ctxt.trans.params[varName] = value;
+    return `params.${varName}`;
+}
+
+/**
+ * Returns true if a string represents a variable.
+ *
+ * @param varOrID
+ * @returns {boolean}
+ */
+function isVar(varOrID){
+    return varOrID.startsWith('_');
+}
+
+/**
+ * Get a variable referencing a collection in the current transaction. Set 'writeLock' to true to add a write lock
+ * to the collection.
+ *
+ * @param collection
+ * @param ctxt
+ * @param writeLock
+ * @returns {string} AQL variable name
+ */
+function getCollectionVar(collection, ctxt=null, writeLock=false){
+    if(writeLock){
+        if(ctxt === null){
+            throw new ApolloError(`Attempted to acquire lock on collection ${collection} but context is undefined`);
+        }
+        ctxt.trans.write.add(collection);
+    }
+    return `db.${collection}`;
+}
+
+/**
+ * Return the result promise for the given field and execute the transaction if no more operations are pending.
+ *
+ * @param ctxt
+ * @param info
+ * @param resVar
+ */
+function getResult(ctxt, info, resVar){
+    ctxt.trans.code.push('\n\t/* bind result for mutation field */');
+    ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar};`);
+
+    // remove field from pending response fields
+    ctxt.responseFields.splice(ctxt.responseFields.indexOf(info.path.key), 1);
+
+    // if no more response fields are pending execute transaction
+    if(ctxt.responseFields.length === 0 && ctxt.trans.open){
+        executeTransaction(ctxt).then(
+            () => console.debug('Transaction executed successfully.'),
+            (err) => console.error(err)
+        );
+    }
+
+    // return promises for roots and null for nested result
+    return getResultPromise(ctxt, info.path.key);
+}
+
+/**
+ * Return a result promise that waits for the ongoing transaction to complete.
+ *
+ * @param ctxt
+ * @param key
+ * @returns {Promise<any>}
+ */
+function getResultPromise(ctxt, key) {
+    return new Promise(function (resolve, reject) {
+        (function waitForResult(){
+            if(ctxt.trans.error !== undefined) {
+                reject(ctxt.trans.error);
+                return null;
+            }
+            if(ctxt.trans.results !== undefined){
+                return resolve(ctxt.trans.results[key]);
+            }
+            setTimeout(waitForResult, 10);
+        })();
+    });
+}
+
+/**
+ * Validate an edge. Throws an error if the target or source are not valid objects for the edge, or if the field
+ * in question is a non-list field for which an edge has already been added.
+ *
+ * @param ctxt
+ * @param varOrSourceID
+ * @param sourceType
+ * @param sourceField
+ * @param varOrTargetID
+ * @param targetType
+ * @param info
+ */
+function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info) {
+    ctxt.trans.code.push('/* source exists? */');
+    exists(ctxt, sourceVar, sourceType, info.schema);
+    ctxt.trans.code.push('/* target exists? */');
+    exists(ctxt, targetVar, targetType, info.schema);
+
+    // if field is not list type, verify that it is not already populated
+    let fieldType = info.schema.getType(sourceType).getFields()[sourceField].type;
+    if(!graphql.isListType(fieldType)) {
+        let edgeCollection = getEdgeCollectionName(sourceType.name, sourceField);
+        let collectionVar = getCollectionVar(edgeCollection);
+        let query = `if(db._query(aql\`FOR x IN 1..1 OUTBOUND ${asAQLVar(sourceVar)} ${asAQLVar(collectionVar)} RETURN x\`).next()) { throw \`Edge already exists for ${sourceField} from '\${${sourceVar}._id}'\`}`;
+        ctxt.trans.code.push(query);
+    }
+}
+
+/**
+ * Verifies the existence of some type, interface, or edge.
+ *
+ * @param ctxt
+ * @param varOrID
+ * @param typeOrInterface
+ * @param schema
+ */
+function exists(ctxt, docVar, typeOrInterface, schema){
+    let aqlCollectionVars = [];
+    if(graphql.isInterfaceType(typeOrInterface)) {
+        for (let possibleType in Object.values(schema.getPossibleTypes(typeOrInterface))) {
+            aqlCollectionVars.push(asAQLVar(getCollectionVar(possibleType.name)));
+        }
+    } else {
+        aqlCollectionVars.push(asAQLVar(getCollectionVar(typeOrInterface.name)));
+    }
+    ctxt.trans.code.push(`if(!db._query(aql\`FOR doc IN FLATTEN(FOR i IN [${aqlCollectionVars.join(', ')}] RETURN i) FILTER doc._id == ${asAQLVar(docVar)}._id  RETURN doc\`).next()){ throw \`Object '\${${docVar}._id}' does not exist as instance of ${typeOrInterface}\`; }`);
+}
+
+/**
+ * Wraps a variable reference in ${...} (required to resolve references correctly in the AQL transaction code).
+ *
+ * @param varName
+ * @returns {string}
+ */
+function asAQLVar(varName){
+    return '${' + varName + '}';
+}
+
+/**
+ * Define a new transaction for the current context (unless already defined).
+ *
+ * @param ctxt
+ */
+function initTransaction(ctxt){
+    if (ctxt.trans === undefined) {
+        ctxt.trans = {
+            write: new Set(),
+            params: {},
+            open: true,
+            queue: {},
+            code: [
+                'const db = require("@arangodb").db;',
+                'const {aql} = require("@arangodb");',
+                'let result = Object.create(null);'
+            ],
+            finalConstraintChecks: []
+        };
+    }
+}
+
+async function executeTransaction(ctxt){
+    // verify that transaction is still open
+    if(!ctxt.trans.open){
+        console.warn('Warning: Attempted to execute a closed transaction.');
+        return null;
+    }
+    ctxt.trans.open = false;
+
+    // add all finalConstraintChecks to code before executing
+    for (const row of ctxt.trans.finalConstraintChecks) {
+        ctxt.trans.code.push(row);
+    }
+
+    try {
+        let action = `function(params){\n\t${ctxt.trans.code.join('\n\t')}\n\treturn result;\n}`;
+        console.debug(action);
+        console.debug(ctxt.trans.params);
+        ctxt.trans.results = await db.transaction(
+            { write: Array.from(ctxt.trans.write), read: [] },
+            action,
+            ctxt.trans.params);
+    } catch (e) {
+        ctxt.trans.error = new ApolloError(e.message);
+    }
+}
+
+/**
+ * Validate the key of a document based on its key constraints.
+ *
+ * @param ctxt
+ * @param varOrDoc
+ * @param type
+ * @param schema
+ */
+function validateKey(ctxt, varOrDoc, type, info){
+    let docVar = isVar(varOrDoc) ? varOrDoc : addParameterVar(ctxt, getParamVar(ctxt), varOrDoc);
+    let collectionVar = getCollectionVar(type.name);
+
+    let keyType = info.schema['_typeMap'][getKeyName(type.name)];
+    if (keyType) {
+        ctxt.trans.code.push('/* check key constraint */');
+        let check = `if(db._query(aql\`FOR doc IN ${asAQLVar(collectionVar)} `;
+        // add filters for all key fields
+        check += `FILTER doc._id != ${asAQLVar(docVar)}._id `;
+        for (let field_name in keyType._fields) {
+            check += `FILTER doc.${field_name} == ${asAQLVar(docVar)}.${field_name} `;
+        }
+        check += `return doc\`).next()) { throw \`Duplicate key for ${type}\`; }`;
+        ctxt.trans.code.push(check);
+    }
+}
+
 function asAqlArray(array){
     let q = [aql`[`];
     for(let i in array){
@@ -748,22 +950,22 @@ function asAqlArray(array){
 }
 
 /**
- * Converts all values of enum or scalar type in inputDoc to mach format used for storage in the database,
- * and return result in output map
- * @param {map} outputDoc 
- * @param {map} inputDoc
+ * Returns an object where all values of enum and scalars in the input object have been converted to match the format
+ * used in the database.
+ *
+ * @param {map} doc
  * @param type
  * @returns {map} outputDoc
  */
-function formatFixInput(outputDoc, inputDoc, type) {
-    // Adds scalar/enum values to outputDoc
-    for (let f in type.getFields()) {
-        let field = type.getFields()[f];
-        //let field = type.getFields()[i];
-        let t = graphql.getNamedType(field.type);
-        if (graphql.isEnumType(t) || graphql.isScalarType(t)) {
-            if (inputDoc[field.name] !== undefined) {
-                outputDoc[field.name] = formatFixVariable(t, inputDoc[field.name]);
+function formatFixInput(doc, type) {
+    let outputDoc = {};
+    // add formatted scalar/enum to outputDoc
+    for (let i in type.getFields()) {
+        let field = type.getFields()[i];
+        let fieldType = graphql.getNamedType(field.type); // RK: does this cover arrays?
+        if (graphql.isEnumType(fieldType) || graphql.isScalarType(fieldType)) {
+            if (doc[field.name] !== undefined) {
+                outputDoc[field.name] = formatFixVariable(fieldType, doc[field.name]);
             }
         }
     }
@@ -771,25 +973,29 @@ function formatFixInput(outputDoc, inputDoc, type) {
 }
 
 /**
- * Convert input data (value) to match format used for storage in the database
+ * Convert input data to match the format used for storage in the database. The function currently used only for
+ * custom scalars.
+ *
  * @param type (of field) 
  * @param value
- * @returns value (in database ready format)
+ * @returns
  */
-function formatFixVariable(_type, v) {
-    // DateTime has to be handled separately, which is currently the only reason for this function to exist
-    if (_type == 'DateTime')
-        // Arrays of DateTime needs special, special care.
-        if (Array.isArray(v)) {
-            let newV = []
-            for (date of v)
-                newV.push(aql`DATE_TIMESTAMP("${date}")`);
-            return newV;
+function formatFixVariable(type, value) {
+    let formattedValue = value;
+    // DateTime has to be handled separately
+    if (type.name == 'DateTime'){
+        // if array
+        if (Array.isArray(value)) {
+            formattedValue = []
+            for (let date in Object.values(value)) {
+                formattedValue.push(aql`DATE_TIMESTAMP('${date}')`);
+            }
         }
-        else
-            return aql`DATE_TIMESTAMP("${v}")`;
-    else
-        return v;
+        else {
+            formattedValue = aql`DATE_TIMESTAMP('${value}')`;
+        }
+    }
+    return formattedValue;
 }
 
 /**
@@ -808,60 +1014,54 @@ function formatFixVariableWrapper(field, info, v) {
     return formatFixVariable(_type, v);
 }
 
-function getFilters(filter_arg, info){
+/**
+ * Build a list of filters (possibly nested) and return this as an array of AQL statements. Assumes that the variable
+ * being filtered on is x.
+ *
+ * @param filterArg
+ * @param info
+ * @returns {Array}
+ */
+function getFilters(filterArg, info){
     let filters = [];
-    for(let i in filter_arg){
-        let filter = filter_arg[i];
-        /// Rewrite id field
-        if(i == 'id'){ i = '_id'; }
-
-        // AND expression
-        if(i == '_and'){
-            let f = [];
-            f.push(aql`(`);
-            for(let x in filter) {
-                if(x != 0){
-                    f.push(aql`AND`);
-                }
-                let arr = getFilters(filter[x], info);
-                for(let j in arr){
-                    f = f.concat(arr[j]);
-                }
-            }
-            f.push(aql`)`);
-            filters.push(f);
+    for(let i in filterArg){
+        // rewrite id field
+        if(i == 'id'){
+            i = '_id';
         }
 
-        // OR expression
-        if(i == '_or'){
-            let f = [];
-            f.push(aql`(`);
-            for(let x in filter) {
-                if(x != 0){
-                    f.push(aql`OR`);
-                }
-                let arr = getFilters(filter[x], info);
-                for(let j in arr){
-                    f = f.concat(arr[j]);
+        let filter = filterArg[i];
+
+        if(i == '_and'){ // AND expression
+            let filterArray = [aql`(`];
+            for(let j in filter) {
+                j == 0 ? null : filterArray.push(aql`AND`);
+                for(let f of getFilters(filter[j], info)){
+                    filterArray = filterArray.concat(f);
                 }
             }
-            f.push(aql`)`);
-            filters.push(f);
-        }
-
-        // NOT expression
-        if(i == '_not'){
-            let f = [];
-            f.push(aql`NOT (`);
-            let arr = getFilters(filter, info);
-            for(let j in arr){
-                f = f.concat(arr[j]);
+            filterArray.push(aql`)`);
+            filters.push(filterArray);
+        } else if(i == '_or'){ // OR expression
+            let filterArray = [aql`(`];
+            for(let j in filter) {
+                j == 0 ? null : filterArray.push(aql`OR`);
+                for(let f of getFilters(filter[j], info)){
+                    filterArray = filterArray.concat(f);
+                }
             }
-            f.push(aql`)`);
-            filters.push(f);
+            filterArray.push(aql`)`);
+            filters.push(filterArray);
+        } else if(i == '_not'){ // NOT expression
+            let filterArray = [aql`NOT (`];
+            for(let f of getFilters(filter, info)){
+                filterArray = filterArray.concat(f);
+            }
+            filterArray.push(aql`)`);
+            filters.push(filterArray);
         }
 
-        if(filter._eq != null){
+        if(filter._eq){
             let preparedArg = formatFixVariableWrapper(i, info, filter._eq);
             filters.push([aql`x.${i} == ${preparedArg}`]);
         }
@@ -887,15 +1087,13 @@ function getFilters(filter_arg, info){
         }
         if(filter._in != null){
             let preparedArgs = formatFixVariableWrapper(i, info, filter._in)
-            let q = [];
-            q = q.concat([aql`x.${i} IN `]);
+            let q = [aql`x.${i} IN `];
             q = q.concat(asAqlArray(preparedArgs));
             filters.push(q);
         }
         if(filter._nin != null){
             let preparedArgs = formatFixVariableWrapper(i, info, filter._nin);
-            let q = [];
-            q = q.concat([aql`x.${i} NOT IN `]);
+            let q = [aql`x.${i} NOT IN `];
             q = q.concat(asAqlArray(preparedArgs));
             filters.push(q);
         }
@@ -920,65 +1118,6 @@ function getFilters(filter_arg, info){
     }
 
     return filters;
-}
-
-async function getByKey(key, returnType){
-    let type = graphql.getNamedType(returnType);
-    let query = [aql`FOR x IN`];
-    let collection = db.collection(type.name);
-    query.push(aql`${collection}`);
-
-    // add key filters
-    for (let field_name in key) {
-        let field_value = key[field_name];
-        query.push(aql`FILTER(x.${field_name} == ${field_value})`);
-    }
-    query.push(aql`RETURN x`);
-    try {
-        const cursor = await db.query(aql.join(query));
-        return await cursor.next();
-    } catch(err) {
-        //console.error(err);
-        throw new ApolloError(err);
-    }
-}
-
-async function getList(args, info){
-    let type = graphql.getNamedType(info.returnType.getFields()['content'].type);
-    let first = args.first;
-    let after = args.after;
-    let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
-    addPossibleTypes(query, info.schema, type);
-    query.push(aql`] RETURN i)`);
-
-    // add filters
-    let query_filters = [];
-    if(args.filter != undefined && !isEmptyObject(args.filter)){
-        let filters = getFilters(args.filter, info);
-        if(filters.length > 0) {
-            query_filters.push(aql`FILTER`);
-            for (let i in filters) {
-                if (i != 0) {
-                    query_filters.push(aql`AND`);
-                }
-                query_filters = query_filters.concat(filters[i]);
-            }
-        }
-    }
-    query = query.concat(query_filters);
-    query.push(aql`FILTER(x._id > ${after}) SORT x._id LIMIT ${first} RETURN x`);
-    try {
-        const cursor = await db.query(aql.join(query));
-        let result = await cursor.all();
-        let list = {
-            '_filter': query_filters, // needed to resolve isEndOfList and totalLength
-            'content': result
-        };
-        return list;
-    } catch(err) {
-        //console.error(err);
-        throw new ApolloError(err);
-    }
 }
 
 async function isEndOfList(parent, args, info){
@@ -1029,46 +1168,6 @@ async function getTotalCount(parent, args, info){
     }
 }
 
-/**
- * Get type or interface by ID.
- * @param id
- * @param returnType
- * @param schema
- * @returns {Promise<*>}
- */
-async function get(id, returnType, schema){
-    let type = returnType;
-    let query = [aql`FOR i IN`];
-    if(graphql.isInterfaceType(type)){
-        let possible_types = schema.getPossibleTypes(type);
-        if(possible_types.length > 1){
-            query.push(aql`UNION(`);
-        }
-        for(let i in possible_types) {
-            if(i != 0){
-                query.push(aql`,`);
-            }
-            let collection = db.collection(possible_types[i].name);
-            query.push(aql`(FOR x IN ${collection} FILTER(x._id == ${id}) RETURN x)`);
-        }
-        if(possible_types.length > 1){
-            query.push(aql`)`);
-        }
-    } else {
-        let collection = db.collection(type.name);
-        query.push(aql`${collection} FILTER(i._id == ${id})`);
-    }
-
-    query.push(aql` RETURN i`);
-    try {
-        const cursor = await db.query(aql.join(query));
-        return await cursor.next();
-    } catch(err) {
-        console.error(err);
-        throw new ApolloError(err);
-    }
-}
-
 function isEmptyObject(obj) {
     return !Object.keys(obj).length;
 }
@@ -1080,8 +1179,7 @@ function isEmptyObject(obj) {
  */
 function pick(ob, props){
     let sub = {};
-    for(let i in props) {
-        let prop = props[i];
+    for(let prop of props) {
         if(ob[prop] !== undefined) {
             sub[prop] = ob[prop];
         }
@@ -1089,32 +1187,28 @@ function pick(ob, props){
     return sub;
 }
 
-function getVar(context, increment=true){
-    if(context.varCounter === undefined){
-        context.varCounter = 0;
-    }
-    if(increment) context.varCounter++;
-    return `x${context.varCounter}`;
+/**
+ * Create a new variable name to be used in a transaction. The variable is generated based on a counter bound to the
+ * context object.
+ *
+ * @param ctxt
+ * @returns {string}
+ */
+function createVar(ctxt){
+    ctxt.varCounter = ctxt.varCounter === undefined ? 0: ctxt.varCounter + 1;
+    return `_x${ctxt.varCounter}`;
 }
 
-function getParamVar(context){
-    if(context.paramCounter === undefined){
-        context.paramCounter = 0;
-    }
-    context.paramCounter++;
-    return `p${context.paramCounter}`;
-}
-
-function getTypeNameFromId(id) {
-    return id.split('/')[0];
-}
-
-function isOfType(id, type, schema) {
-    let idType = getTypeNameFromId(id);
-    if(type.name == idType || isImplementingType(idType, type, schema)){
-        return true;
-    }
-    return false;
+/**
+ * Create a new parameter variable name to be used in a transaction. The variable is generated based on a counter bound
+ * to the context object.
+ *
+ * @param ctxt
+ * @returns {string}
+ */
+function createParamVar(ctxt){
+    ctxt.paramVarCounter = ctxt.paramVarCounter === undefined ? 0: ctxt.paramVarCounter + 1;
+    return `_${ctxt.paramVarCounter}`;
 }
 
 function isImplementingType(name, type_interface, schema){
@@ -1212,7 +1306,7 @@ function addFinalDirectiveChecksForType(ctxt, type, id, schema) {
     if (!disableDirectivesChecking) {
         for (let f in type.getFields()) {
             let field = type.getFields()[f];
-            for (dir of field.astNode.directives) {
+            for (let dir of field.astNode.directives) {
                 if (dir.name.value == 'noloops') {
                     let collection = asAQLVar(`db.${getEdgeCollectionName(type.name, field.name)}`);
                     ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR v IN 1..1 OUTBOUND ${id} ${collection} FILTER ${id} == v._id RETURN v\`).next()){`);

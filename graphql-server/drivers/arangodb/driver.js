@@ -817,11 +817,11 @@ function formatFixVariable(_type, v) {
         if (Array.isArray(v)) {
             let newV = []
             for (date of v)
-                newV.push(aql`DATE_TIMESTAMP("${date}")`);
+                newV.push(aql`DATE_TIMESTAMP(${date})`);
             return newV;
         }
         else
-            return aql`DATE_TIMESTAMP("${v}")`;
+            return aql`DATE_TIMESTAMP(${v})`;
     else
         return v;
 }

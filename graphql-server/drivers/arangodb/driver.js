@@ -54,7 +54,7 @@ module.exports = {
 
 async function init(args){
     let typeDefs = args.typeDefs;
-    let db_name = args.db_name || 'dev-db';
+    let dbName = args.dbName || 'dev-db';
     let url = args.url || 'http://localhost:8529';
     let drop = args.drop || false;
     disableDirectivesChecking = args['disableDirectivesChecking'] || true;
@@ -75,8 +75,8 @@ async function init(args){
 
     // if drop is set
     if(drop) {
-        await db.dropDatabase(db_name).then(
-            () => console.info(`Database ${db_name} dropped.`),
+        await db.dropDatabase(dbName).then(
+            () => console.info(`Database ${dbName} dropped.`),
             (err) => console.error(err)
         );
     }
@@ -85,19 +85,33 @@ async function init(args){
         'resolvers': {}
     });
 
-    await createAndUseDatabase(db, db_name);
+    await createAndUseDatabase(db, dbName);
     await createTypeCollections(db, schema);
     await createEdgeCollections(db, schema);
 }
 
-async function createAndUseDatabase(db, db_name){
-    await db.createDatabase(db_name).then(
-        () => { console.info(`Database '${db_name}' created`); },
-        err => { console.warn(`Database '${db_name}' not created:`, err.response.body['errorMessage']); }
+/**
+ * Create and activate a new database.
+ *
+ * @param db
+ * @param dbName
+ * @returns {Promise<void>}
+ */
+async function createAndUseDatabase(db, dbName){
+    await db.createDatabase(dbName).then(
+        () => { console.info(`Database '${dbName}' created`); },
+        err => { console.warn(`Database '${dbName}' not created:`, err.response.body['errorMessage']); }
     );
-    db.useDatabase(db_name);
+    db.useDatabase(dbName);
 }
 
+/**
+ * Create type collections based on the given schema.
+ *
+ * @param db
+ * @param schema
+ * @returns {Promise<void>}
+ */
 async function createTypeCollections(db, schema) {
     const type_definitions = getTypeDefinitions(schema, kind='GraphQLObjectType');
     for (let collection_name in type_definitions) {
@@ -114,6 +128,13 @@ async function createTypeCollections(db, schema) {
     }
 }
 
+/**
+ * Create edge collections based on the given schema.
+ *
+ * @param db
+ * @param schema
+ * @returns {Promise<void>}
+ */
 async function createEdgeCollections(db, schema){
     let collections = [];
     const type_definitions = getTypeDefinitions(schema, kind='GraphQLObjectType');
@@ -149,6 +170,12 @@ async function createEdgeCollections(db, schema){
     }
 }
 
+/**
+ * Return the key name corresponding to a given type.
+ *
+ * @param type
+ * @returns {string}
+ */
 function getKeyName(type){
     return `_KeyFor${type}`;
 }
@@ -166,20 +193,31 @@ function getEdgeCollectionName(type, field){
     return `${f}EdgeFrom${t}`;
 }
 
+/**
+ * Convenience method for capitalizing the first letter of a string.
+ *
+ * @param string
+ * @returns {string}
+ */
 function capitalizeFirstLetter(string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
+/**
+ * Extract the type definition map from a given schema, optionally limiting the returned types to a given kind.
+ *
+ * @param schema
+ * @param kind
+ */
 function getTypeDefinitions(schema, kind=null) {
     let types = {};
     for(let i in schema.getTypeMap()){
-        let type = schema.getType(i);
-        let name = type.name;
-        if(name == 'Query' || name == 'Mutation'){
+        let type = schema.getTypeMap()[i];
+        if(type.name == 'Query' || type.name == 'Mutation'){
             continue;
         }
         if (kind == null || type.constructor.name == kind) {
-            types[name] = type;
+            types[type.name] = type;
         }
     }
     return types;
@@ -233,22 +271,6 @@ function getObjectOrInterfaceFields(type) {
     return keys;
 }
 
-/**
- * Transforms the doc (field_name, field_value) collection to JSON stringify, strip leading and ending '{' and '}' and insert leading ', '
- * This allows docs to be appanded to already existing input parameters.
- * @param doc (should already have passed through getScalarsAndEnums)
- * @returns String
- */
-function convertToInputAppendString(doc) {
-    ret = ''
-    if (doc != null && doc.size > 0) {
-        ret = JSON.stringify(doc);
-        ret[0] = ',';
-        ret = ret - slice(0, -1);
-    }
-    return ret;
-}
-
 // ----------------------------------------------------------
 
 /* Mutations */
@@ -284,8 +306,6 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     let sourceVar = isVar(varOrSourceID) ? varOrSourceID: addParameterVar(ctxt, createParamVar(ctxt), {'_id': varOrSourceID});
     let targetVar = isVar(varOrTargetID) ? varOrTargetID: addParameterVar(ctxt, createParamVar(ctxt), {'_id': varOrTargetID});
 
-    validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info);
-
     // prepare annotations
     if(annotations == null){
         annotations  = {};
@@ -303,11 +323,12 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, {'_from': ${asAQLVar(sourceVar)}._id, '_to': ${asAQLVar(targetVar)}._id}) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
+    // validate edge
+    validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info);
+    // directives handling
     addFinalDirectiveChecksForType(ctxt, sourceType, sourceVar, info.schema);
-
-    if(isRoot) {
-        return getResult(ctxt, info, resVar);
-    }
+    // return promises for roots and null for nested result
+    return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
 /**
@@ -331,19 +352,13 @@ function create(isRoot, ctxt, data, returnType, info, resVar=null) {
     doc['_creationDate'] = new Date().valueOf();
     let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
-    // create a new resVar if not defined by the calling function
+    // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
     resVar = resVar !== null ? resVar: createVar(ctxt);
 
     let collectionVar = getCollectionVar(returnType.name, ctxt, true);
 
     // insert document
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
-
-    // validate key
-    validateKey(ctxt, resVar, returnType, info);
-
-    // resVar is the source vertex for all field edges
-    let sourceVar = resVar;
 
     // add edges (i.e., all object fields)
     let edgeFields = getTypesAndInterfaces(data, returnType);
@@ -362,7 +377,14 @@ function create(isRoot, ctxt, data, returnType, info, resVar=null) {
             }
 
             if(value['connect']){
-                createEdge(false, ctxt, sourceVar, returnType, fieldName, value['connect'], targetType, annotations, info);
+                let typeToConnect = targetType;
+                if(graphql.isInterfaceType(targetType)){
+                    typeToConnect = info.schema.getType(value['connect'].split('/')[0]);
+                    if(!info.schema.getPossibleTypes(targetType).includes(typeToConnect)){
+                        throw new ApolloError(`${value['connect']} is not an instance of a type implementing the interface ${targetType}`);
+                    }
+                }
+                createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], typeToConnect, annotations, info);
             } else {
                 // reference to target
                 let targetVar = createVar(ctxt);
@@ -376,152 +398,115 @@ function create(isRoot, ctxt, data, returnType, info, resVar=null) {
                         if(value[possibleField]){
                             typeToCreate = possibleType;
                             create(false, ctxt, value[possibleField], typeToCreate, info, targetVar);
-                            createEdge(false, ctxt, sourceVar, returnType, fieldName, targetVar, typeToCreate, annotations, info);
+                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, annotations, info);
                         }
                     }
                 } else {
                     create(false, ctxt, value['create'], targetType, info, targetVar);
-                    createEdge(false, ctxt, sourceVar, returnType, fieldName, targetVar, targetType, annotations, info);
+                    createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, annotations, info);
                 }
             }
         }
     }
 
+    // validate key
+    validateKey(ctxt, resVar, returnType, info);
     // add final directives check
     addFinalDirectiveChecksForType(ctxt, returnType, aql`${asAQLVar(resVar)}._id`, info.schema);
-
+    // return promises for roots and null for nested result
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
-function update(isRoot, ctxt, id, data, returnType, info) {
-    // define transaction object
-    if (ctxt.trans === undefined) ctxt.trans = initTransaction();
+/**
+ * Update an object including, and replace existing edges.
+ *
+ * @param isRoot
+ * @param ctxt
+ * @param data
+ * @param returnType
+ * @param info
+ * @param resVar
+ * @returns {null|Promise<any>}
+ */
+function update(isRoot, ctxt, id, data, returnType, info, resVar=null) {
+    // init transaction
+    initTransaction(ctxt);
+    ctxt.trans.code.push(`\n\t/* update ${returnType.name} */`);
 
-    // Do not increment the var counter
-    let resVar = getVar(ctxt, false);
-
-    // get doc
+    // get non-object fields, add creation date and add as parameter
     let doc = getScalarsAndEnums(data, returnType);
+    doc['_lastUpdateDate'] = new Date().valueOf();
+    let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
+    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
 
-    //Update lastUpdateDate
-    let date = new Date();
-    doc['_lastUpdateDate'] = date.valueOf();
-    let docVar = getParamVar(ctxt);
-    ctxt.trans.write.add(returnType.name);
-    ctxt.trans.params[docVar] = doc;
-    ctxt.trans.code.push(`let ${resVar} = db._update("${id}", ${JSON.stringify(doc)}, {returnNew: true})['new'];`);
+    // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
+    resVar = resVar !== null ? resVar: createVar(ctxt);
+    let collectionVar = getCollectionVar(returnType.name, ctxt, true);
 
-    // TODO: Updating edges as part of an object update will be deprecated as part of #67
-    // for edges
-    let ob = pick(data, getObjectOrInterfaceFields(returnType));
-    for (let f in ob) {
-        let nestedReturn = returnType.getFields()[f].type;
-        let nestedReturnType = graphql.getNamedType(nestedReturn);
-        let edge = getEdgeCollectionName(returnType.name, f);
-        ctxt.trans.write.add(edge);
-        let edgeCollection = asAQLVar(`db.${edge}`);
+    // update document
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+
+    // update edges (i.e., all object fields)
+    // Object update will be deprecated as part of #67
+    let edgeFields = getTypesAndInterfaces(data, returnType);
+    for (let fieldName in edgeFields) {
+        let targetType = graphql.getNamedType(returnType.getFields()[fieldName].type);
+
         // remove old edges
-        ctxt.trans.code.push(`db._query(aql\`FOR v IN ${edge} FILTER(v._from == "${id}") REMOVE v IN ${edgeCollection}\`);`);
+        let edgeCollectionName = getEdgeCollectionName(returnType.name, fieldName);
+        let edgeCollectionVar = getCollectionVar(edgeCollectionName, ctxt, true);
+        ctxt.trans.code.push(`\n\t/* drop edges from ${edgeCollectionName} */`);
+        ctxt.trans.code.push(`db._query(aql\`FOR v IN ${asAQLVar(edgeCollectionVar)} FILTER(v._from == ${asAQLVar(idVar)}) REMOVE v IN ${asAQLVar(edgeCollectionVar)}\`);`);
 
-        let values = Array.isArray(ob[f]) ? ob[f] : [ob[f]];
-        for (let i in values) {
-            let value = values[i];
-
-            // Prepare annotations
+        // add all values for edge
+        let values = Array.isArray(edgeFields[fieldName]) ? edgeFields[fieldName] : [edgeFields[fieldName]];
+        for (let value of values) {
+            // prepare annotations
             let annotations = null;
             if (value['annotations']) {
-                annotations = getScalarsAndEnums(value['annotations'], info.schema.getType("_InputToAnnotate" + edge));
-                annotations['_creationDate'] = date.valueOf();
+                annotations = getScalarsAndEnums(value['annotations'], info.schema.getType(`_InputToAnnotate${edgeCollectionName}`));
+                annotations['_creationDate'] = new Date().valueOf();
             }
 
-            if (graphql.isInterfaceType(nestedReturnType)) {
-                // interface
-                if (value['connect']) {
-                    // connect
-                    let typeToConnect = value['connect'].split('/')[0];
-                    if (!isImplementingType(typeToConnect, nestedReturnType, info.schema)) {
-                        conditionalThrow(`ID ${value.connect} is not a document in the interface ${nestedReturnType}`);
+            if(value['connect']){
+                let typeToConnect = targetType;
+                if(graphql.isInterfaceType(targetType)){
+                    typeToConnect = info.schema.getType(value['connect'].split('/')[0]);
+                    if(!info.schema.getPossibleTypes(targetType).includes(typeToConnect)){
+                        throw new ApolloError(`${value['connect']} is not an instance of a type implementing the interface ${targetType}`);
                     }
-                    // add edge
-                    if (!disableEdgeValidation) { // check the database
-                        ctxt.trans.code.push(`if(db._collection('${typeToConnect}').exists('${value['connect']}')){`);
-                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
-                        ctxt.trans.code.push(`} else { throw "${value['connect']} does not exist in ${typeToConnect}"; }`);
-                    } else {
-                        console.warn(`Adding connection to ${value['connect']} in ${edge} without validating ID`);
-                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
-                    }
-                } else {
-                    // create
-                    let key = Object.keys(value)[0];
-                    let typeToCreate = key.replace(/^create(.+)$/, '$1');
-                    if (!isImplementingType(typeToCreate, nestedReturnType, info.schema)) {
-                        conditionalThrow(`${key} is not a valid field`); // will never be thrown!
-                    }
-                    let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
-                    create(false, ctxt, value[key], info.schema.getType(typeToCreate), info);
-                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
                 }
+                createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], typeToConnect, annotations, info);
             } else {
-                // type
-                if (value['connect']) {
-                    // connect
-                    let typeToConnect = value['connect'].split('/')[0];
-                    if (typeToConnect != nestedReturnType.name) {
-                        conditionalThrow(`ID ${value.connect} is not a document in the type ${nestedReturnType}`);
-                    }
-                    // add edge
-                    if (!disableEdgeValidation) { // check the database
-                        ctxt.trans.code.push(`if(db._collection('${typeToConnect}').exists('${value['connect']}')){`);
-                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
-                        ctxt.trans.code.push(`} else { throw "${value['connect']} does not exist in ${typeToConnect}"; }`);
-                    } else {
-                        console.warn(`Adding connection to ${value['connect']} in ${edge} without validating ID`);
-                        ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: "${value['connect']}" ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
+                // reference to target
+                let targetVar = createVar(ctxt);
+                if(graphql.isInterfaceType(targetType)){
+                    let typeToCreate = null;
+                    for(let possibleType of info.schema.getPossibleTypes(targetType)){
+                        let possibleField = `create${possibleType.name}`;
+                        if(value[possibleField] && typeToCreate){
+                            throw new ApolloError(`Multiple create fields defined for ${returnType}.${fieldName}`);
+                        }
+                        if(value[possibleField]){
+                            typeToCreate = possibleType;
+                            create(false, ctxt, value[possibleField], typeToCreate, info, targetVar);
+                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, annotations, info);
+                        }
                     }
                 } else {
-                    // create
-                    let to = asAQLVar(getVar(ctxt)); // reference to the object to be added
-                    create(false, ctxt, value['create'], nestedReturnType, info);
-                    ctxt.trans.code.push(`db._query(aql\`INSERT {_from: "${id}", _to: ${to}._id ${convertToInputAppendString(annotations)}} IN ${edgeCollection} RETURN NEW\`);`);
+                    create(false, ctxt, value['create'], targetType, info, targetVar);
+                    createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, annotations, info);
                 }
             }
         }
     }
 
     // check key
-    validateKey(ctxt, resVar, returnType, info.schema);
-
+    validateKey(ctxt, resVar, returnType, info);
     // directives handling
     addFinalDirectiveChecksForType(ctxt, returnType, aql`${asAQLVar(resVar)}._id`, info.schema);
-
-    // if root then bind result to variable
-    if(isRoot) {
-        // grab the 'new' value
-        ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar};`);
-        getVar(ctxt, true);
-        // remove this field from pending response fields
-        const index = ctxt.responseFields.indexOf(info.path.key);
-        if (index > -1) {
-            ctxt.responseFields.splice(index, 1);
-        }
-    }
-
-    // when response fields are empty execute transaction
-    if(isRoot && ctxt.responseFields.length === 0 && ctxt.trans.open){
-        executeTransaction(ctxt).then(
-            () => console.debug("Executed transaction"),
-            (err) => console.error(err)
-        );
-    }
-
     // return promises for roots and null for nested result
-    if(isRoot) {
-        return getResultPromise(ctxt, info.path.key);
-    } else {
-        console.debug("Returning null for", info.path.key, returnType);
-        return null;
-    }
+    return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
 /* Queries */
@@ -774,7 +759,7 @@ function getResult(ctxt, info, resVar){
     // if no more response fields are pending execute transaction
     if(ctxt.responseFields.length === 0 && ctxt.trans.open){
         executeTransaction(ctxt).then(
-            () => console.debug('Transaction executed successfully.'),
+            () => console.debug('Transaction executed'),
             (err) => console.error(err)
         );
     }
@@ -821,6 +806,7 @@ function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targe
     ctxt.trans.code.push('/* source exists? */');
     exists(ctxt, sourceVar, sourceType, info.schema);
     ctxt.trans.code.push('/* target exists? */');
+    console.log(targetVar, targetType);
     exists(ctxt, targetVar, targetType, info.schema);
 
     // if field is not list type, verify that it is not already populated
@@ -885,6 +871,12 @@ function initTransaction(ctxt){
     }
 }
 
+/**
+ * Execute the active transaction. Store the results in the context variable.
+ *
+ * @param ctxt
+ * @returns {Promise<null>}
+ */
 async function executeTransaction(ctxt){
     // verify that transaction is still open
     if(!ctxt.trans.open){
@@ -937,12 +929,16 @@ function validateKey(ctxt, varOrDoc, type, info){
     }
 }
 
+/**
+ * Convenience method for converting a javascript array into an AQL array.
+ *
+ * @param array
+ * @returns {GeneratedAqlQuery[]}
+ */
 function asAqlArray(array){
     let q = [aql`[`];
     for(let i in array){
-        if(i != 0){
-            q.push(aql`,`);
-        }
+        i == 0 ? null :  q.push(aql`,`);
         q.push(aql`${array[i]}`);
     }
     q.push(aql`]`);
@@ -1120,6 +1116,14 @@ function getFilters(filterArg, info){
     return filters;
 }
 
+/**
+ * Return true if the list of results cover the end of the list.
+ *
+ * @param parent
+ * @param args
+ * @param info
+ * @returns {Promise<boolean>}
+ */
 async function isEndOfList(parent, args, info){
     let type = graphql.getNamedType(info.parentType.getFields()['content'].type);
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
@@ -1147,6 +1151,14 @@ async function isEndOfList(parent, args, info){
     }
 }
 
+/**
+ * Get the total number of items available for a given type or interface.
+ *
+ * @param parent
+ * @param args
+ * @param info
+ * @returns {Promise<*>}
+ */
 async function getTotalCount(parent, args, info){
     let type = graphql.getNamedType(info.parentType.getFields()['content'].type);
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
@@ -1168,23 +1180,16 @@ async function getTotalCount(parent, args, info){
     }
 }
 
-function isEmptyObject(obj) {
-    return !Object.keys(obj).length;
-}
-
 /**
- * Copy a subset of an objects fields into a new object. The function ignores fields that are undefined.
- * @param ob
- * @param props
+ * Return true if an object is empty.
+ * @param object
+ * @returns {boolean}
  */
-function pick(ob, props){
-    let sub = {};
-    for(let prop of props) {
-        if(ob[prop] !== undefined) {
-            sub[prop] = ob[prop];
-        }
+function isEmptyObject(object) {
+    for(let i in object){
+        return false;
     }
-    return sub;
+    return true;
 }
 
 /**
@@ -1209,23 +1214,6 @@ function createVar(ctxt){
 function createParamVar(ctxt){
     ctxt.paramVarCounter = ctxt.paramVarCounter === undefined ? 0: ctxt.paramVarCounter + 1;
     return `_${ctxt.paramVarCounter}`;
-}
-
-function isImplementingType(name, type_interface, schema){
-    let possible_types = schema.getPossibleTypes(type_interface);
-    for (let i in possible_types) {
-        if (possible_types[i].name == name) {
-            return true;
-        }
-    }
-    return false;
-}
-
-function conditionalThrow(msg){
-    //console.warn(msg);
-    if(!disableEdgeValidation){
-        throw msg;
-    }
 }
 
 /**

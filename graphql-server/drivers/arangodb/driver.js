@@ -321,6 +321,12 @@ async function getEdge(parent, args, info) {
 
     // Create query
     let query = [];
+
+    // Saddly can't be lazy and just use 'ANY' for the directioning, as loops of length 1 would then give us duplicated resaults
+    let direction_string = 'INBOUND';
+    if (return_type.name.startsWith("_outgoing"))
+        direction_string = 'OUTBOUND';
+
     // If the type that is the origin of the edge is an interface, then we need to check all the edge collections
     // corresponding to its implementing types. Note: This is only necessary when traversing some edges that are
     // defined in in the API schema for interfaces. The parent type will never be an interface type at this stage.
@@ -331,19 +337,19 @@ async function getEdge(parent, args, info) {
         for (let i in possible_types) {
             if (i != 0) query.push(aql`,`);
             let collection = db.collection(possible_types[i].name.substr(1));
-            query.push(aql`(FOR v, inner_e IN 1..1 ANY ${parent._id} ${collection} RETURN inner_e)`);
+            query.push(aql`(FOR v, inner_e IN 1..1 ${direction_string} ${parent._id} ${collection} RETURN inner_e)`);
         }
         if (possible_types.length > 1) query.push(aql`)`);
 
     } else {
         let collection = db.edgeCollection(return_type.name.substr(1));
-        query.push(aql`FOR v, e IN 1..1 ANY ${parent._id} ${collection}`);
+        query.push(aql`FOR v, e IN 1..1 ${direction_string} ${parent._id} ${collection}`);
     }
 
     // add filters
     let query_filters = [];
     if (args.filter != undefined && !isEmptyObject(args.filter)) {
-        let filters = getFilters(args.filter, info);
+        let filters = getFilters(args.filter, return_type);
         for (let i in filters) {
             i == 0 ? query_filters.push(aql`FILTER`) : query_filters.push(aql`AND`);
             query_filters = query_filters.concat(filters[i]);

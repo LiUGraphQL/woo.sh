@@ -615,7 +615,7 @@ def add_object_type_filters(schema: GraphQLSchema):
                 continue
 
             named_type = get_named_type(field.type)
-            if is_enum_or_scalar(named_type) or is_interface_type(named_type):
+            if is_enum_or_scalar(named_type):
                 continue
 
             if field_name.startswith('_incoming') or field_name.startswith('_outgoing'):

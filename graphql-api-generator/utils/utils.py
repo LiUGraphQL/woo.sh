@@ -253,10 +253,11 @@ def add_input_to_create(schema: GraphQLSchema):
         if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
         make += f'\nextend input _InputToCreate{_type.name} {{\n'
+        num_fields = 0
         for field_name, field in _type.fields.items():
             if field_name == 'id' or field_name[0] == '_':
                 continue
-
+            num_fields += 1
             inner_field_type = get_named_type(field.type)
 
             if is_enum_or_scalar(inner_field_type):
@@ -266,6 +267,8 @@ def add_input_to_create(schema: GraphQLSchema):
                 connect_name = f'_InputToConnect{capitalize(field_name)}Of{_type.name}'
                 connect = copy_wrapper_structure(schema.type_map[connect_name], field.type)
                 make += f'   {field_name}: {connect} \n'
+        if num_fields == 0:
+            make += f'   _dummy: String \n'
         make += '}\n'
     schema = add_to_schema(schema, make)
     return schema
@@ -397,11 +400,12 @@ def add_input_update(schema: GraphQLSchema):
     for _type in schema.type_map.values():
         if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
+        num_fields = 0
+        update_name = f'_InputToUpdate{_type.name}'
         for field_name, field in _type.fields.items():
             if field_name == 'id' or field_name[0] == '_':
                 continue
-
-            update_name = f'_InputToUpdate{_type.name}'
+            num_fields += 1
             f_type = get_nullable_type(field.type)
             inner_field_type = get_named_type(f_type)
 
@@ -412,6 +416,8 @@ def add_input_update(schema: GraphQLSchema):
                 connect_name = f'_InputToConnect{capitalize(field_name)}Of{_type.name}'
                 connect = copy_wrapper_structure(schema.get_type(connect_name), f_type)
                 make += f'extend input {update_name} {{ {field_name}: {connect} }} \n'
+        if num_fields == 0:
+            make += f'extend input {update_name} {{ _dummy: String }} \n'
     schema = add_to_schema(schema, make)
     return schema
 
@@ -992,6 +998,9 @@ def get_field_directives(field_name, _type, schema):
     :return string:
     """
 
+    if field_name == '_dummy':
+        return ''
+
     output = ''
 
     # Used to make sure we don't add the same directive multiple times to the same field
@@ -1077,7 +1086,13 @@ def get_argument_as_string(arg_name, arg):
 
     ret = f'{arg_name}: {arg.type}'
 
-    if arg.default_value != INVALID:
+    # TODO: Correct this when we properly require graphql-core 3.1.1 or higher
+    try:
+        invalid_or_undefined = INVALID
+    except:
+        invalid_or_undefined = Undefined
+
+    if arg.default_value != invalid_or_undefined:
         if isinstance(arg.default_value, str):
             ret += f'="{arg.default_value}"'
         else:

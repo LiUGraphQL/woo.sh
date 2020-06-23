@@ -917,7 +917,7 @@ async function executeTransaction(ctxt){
  * @param schema
  */
 function validateKey(ctxt, varOrDoc, type, info){
-    let docVar = isVar(varOrDoc) ? varOrDoc : addParameterVar(ctxt, getParamVar(ctxt), varOrDoc);
+    let docVar = isVar(varOrDoc) ? varOrDoc : addParameterVar(ctxt, createParamVar(ctxt), varOrDoc);
     let collectionVar = getCollectionVar(type.name);
 
     let keyType = info.schema['_typeMap'][getKeyName(type.name)];

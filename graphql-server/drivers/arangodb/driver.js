@@ -315,16 +315,17 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
         annotations = getScalarsAndEnums(annotations, info.schema.getType(annotationType));
     }
 
-    // defined doc
+    // define doc
     let doc = annotations;
     doc['_creationDate'] = new Date().valueOf();
     doc = formatFixInput(doc, info.returnType);
 
+    // validate edge
+    validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info);
+
     let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, {'_from': ${asAQLVar(sourceVar)}._id, '_to': ${asAQLVar(targetVar)}._id}) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
-    // validate edge
-    validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info);
     // directives handling
     addFinalDirectiveChecksForType(ctxt, sourceType, sourceVar, info.schema);
     // return promises for roots and null for nested result

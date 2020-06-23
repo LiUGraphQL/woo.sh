@@ -1026,12 +1026,12 @@ function formatFixVariableWrapper(field, info, v) {
 function getFilters(filterArg, info){
     let filters = [];
     for(let i in filterArg){
+        let filter = filterArg[i];
+
         // rewrite id field
         if(i == 'id'){
             i = '_id';
         }
-
-        let filter = filterArg[i];
 
         if(i == '_and'){ // AND expression
             let filterArray = [aql`(`];

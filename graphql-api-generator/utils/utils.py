@@ -980,7 +980,13 @@ def get_argument_as_string(arg_name, arg):
 
     ret = f'{arg_name}: {arg.type}'
 
-    if arg.default_value != INVALID:
+    # TODO: Correct this when we properly require graphql-core 3.1.1 or higher
+    try:
+        invalid_or_undefined = INVALID
+    except:
+        invalid_or_undefined = Undefined
+
+    if arg.default_value != invalid_or_undefined:
         if isinstance(arg.default_value, str):
             ret += f'="{arg.default_value}"'
         else:

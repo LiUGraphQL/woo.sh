@@ -44,6 +44,7 @@ async function run() {
     // connect client to server
     let uri = 'http://localhost:4000';
     let {client, schema} = await connect(uri);
+    tools.setSeed(new Date().valueOf());
 
     // iterate type schema
     for(let i in schema._typeMap){
@@ -61,6 +62,7 @@ async function run() {
            }
         `;
         console.log(`Mutations:\tcreate${t.name}`);
+
         const m1 = await client.mutate({ mutation: gql`${create}` });
         if(m1.errors){
             console.error(m1.errors);
@@ -110,9 +112,10 @@ async function run() {
               }
            }
         `;
+
+        console.log(`Query:\t\tlistOf${t.name}s`);
         const q2 = await client.query({ query: gql`${getList}` });
         let totalCount = q2.data[`listOf${t.name}s`].totalCount;
-        console.log(`Query:\t\tlistOf${t.name}s ${totalCount}`);
         if(q2.errors){
             console.error(q2.errors);
         }

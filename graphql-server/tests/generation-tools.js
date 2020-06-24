@@ -8,11 +8,10 @@ module.exports = {
     makeInputToCreate: (type, schema, limit, includeOptional=true) => makeInputToCreate(type, schema, limit, includeOptional),
     jsonToGraphQL: (ob) => jsonToGraphQL(ob),
     inputObjectToObjectType: (ob) => inputObjectToObject(ob),
-    getSubFields: (ob, limit) => getSubFields(ob, 0, limit)
+    getSubFields: (ob, limit) => getSubFields(ob, 0, limit),
+    setSeed: (seed) => faker.seed(seed)
 }
 
-let seed = 100;
-faker.seed(seed);
 
 let scalarF = {
     'String' : faker.lorem.words,
@@ -43,7 +42,7 @@ function generateInput(type, depth=0, limit=3, include_optional){
         let field_type = field.type;
 
         // skip optional
-        if(!include_optional || depth >= limit || depth >= 3){
+        if(!include_optional || depth >= limit){
             if(graphql.isNullableType(field_type)){
                 continue;
             }

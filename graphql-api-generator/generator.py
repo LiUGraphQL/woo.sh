@@ -80,7 +80,7 @@ def run(schema: GraphQLSchema, config: dict):
         # add edge types
         if config.get('generation').get('edge_types') or config.get('generation').get('create_edge_objects'):
             schema = add_edge_objects(schema)
-        if config.get('generation').get('fields_for_edge_types') or True :
+        if config.get('generation').get('fields_for_edge_types'):
             schema = add_fields_for_edge_types(schema, config.get('generation').get('reverse_edges'))
 
         # add creation date

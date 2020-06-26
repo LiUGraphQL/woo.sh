@@ -460,7 +460,7 @@ cp ${custom_resolvers} ${output_dir}/custom-resolvers.js
 
 # generate GraphQL API schema (for now, assume that arg_i is a relative path/file)
 cd ${__dir}/graphql-api-generator
-py generator.py \
+python3 generator.py \
     --input ${input} \
     --output ${output_dir}/api-schema/api-schema.graphql \
     --config ${config_file}
@@ -468,7 +468,7 @@ cd ..
 
 # generate resolvers
 cd ./graphql-resolver-generator
-py generator.py \
+python3 generator.py \
     --input ${output_dir}/api-schema/api-schema.graphql \
     --output ${output_dir}
 cd ..

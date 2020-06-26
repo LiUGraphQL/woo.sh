@@ -453,10 +453,8 @@ echo "Custom resolvers: ${custom_resolvers}"
 # copy server files
 cp ${__dir}/graphql-server/server.js ${output_dir}
 cp ${driver_dir}/* ${output_dir}
+rm -rf ${output_dir}/node_modules
 (cd ${output_dir}; npm install)
-# Hack: Modify executeFieldsSerially(...) in /node_modules/graphql/execution/execute.js
-# The mod is required to support nested transactions.
-cp ${__dir}/graphql-server/graphql/execution/execution.js ${output_dir}/node_modules/graphql/execution/execute.js
 cp ${custom_schema} ${output_dir}/api-schema/custom-api-schema.graphql
 cp ${custom_resolvers} ${output_dir}/custom-resolvers.js
 

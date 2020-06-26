@@ -19,10 +19,10 @@ async function run(){
     // Use environment variables to customize settings when starting the server
     let args = {
         'typeDefs': gql`${baseSchema}`,
-        'db_name': process.env.DB_NAME || 'spirit-db',
+        'dbName': process.env.DB_NAME || 'dev-db',
         'url': process.env.URL || 'http://localhost:8529',
         'drop': process.env.DROP === 'true',
-        //'disableDirectivesChecking': process.env.DISABLE_DIRECTIVES_CHECKING === 'false',
+        'disableDirectivesChecking': process.env.DISABLE_DIRECTIVES_CHECKING === 'true',
         'disableEdgeValidation': process.env.DISABLE_EDGE_VALIDATION === 'true'
     };
     await driver.init(args);

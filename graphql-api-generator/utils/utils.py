@@ -703,6 +703,27 @@ def add_mutation_create_edge_objects(schema: GraphQLSchema):
     return schema
 
 
+def add_mutation_delete_edge_objects(schema: GraphQLSchema):
+    make = ''
+
+    for _type in schema.type_map.values():
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
+            continue
+        connected_types = schema.get_possible_types(_type) if is_interface_type(_type) else [_type]
+        for field_name, field in _type.fields.items():
+            inner_field_type = get_named_type(field.type)
+            if field_name.startswith('_') or is_enum_or_scalar(inner_field_type):
+                continue
+            for t in connected_types:
+                edge_from = f'{capitalize(field_name)}EdgeFrom{t.name}'
+                
+                delete = f'delete{edge_from}'
+                make += f'extend type Mutation {{ {delete}(id: ID!): _{edge_from} }} '
+
+    schema = add_to_schema(schema, make)
+    return schema
+
+
 def remove_field_arguments_for_types(schema: GraphQLSchema):
     keep_args = ['filter']
     for _type in schema.type_map.values():

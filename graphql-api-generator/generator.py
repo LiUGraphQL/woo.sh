@@ -81,7 +81,7 @@ def run(schema: GraphQLSchema, config: dict):
         if config.get('generation').get('edge_types') or config.get('generation').get('create_edge_objects'):
             schema = add_edge_objects(schema)
         if config.get('generation').get('fields_for_edge_types'):
-            raise UnsupportedOperation('{0} is currently not supported'.format('fields_for_edge_types'))
+            schema = add_fields_for_edge_types(schema, config.get('generation').get('reverse_edges'))
 
         # add creation date
         if config.get('generation').get('field_for_creation_date'):
@@ -98,6 +98,9 @@ def run(schema: GraphQLSchema, config: dict):
             schema = add_enum_filters(schema)
             schema = add_scalar_filters(schema, config)
             schema = add_type_filters(schema)
+            
+        if config.get('generation').get('fields_for_edge_types') and config.get('generation').get('query_type_filter'):
+            schema = add_filters_for_edge_types(schema)
 
         if config.get('generation').get('query_type_filter'):
             schema = add_object_type_filters(schema)

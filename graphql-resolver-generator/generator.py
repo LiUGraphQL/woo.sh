@@ -4,6 +4,10 @@ import yaml
 from graphql import build_schema, is_object_type, get_named_type, is_interface_type, assert_valid_schema
 from mako.template import Template
 
+import sys
+sys.path.insert(1, '../graphql-api-generator')
+from utils.utils import get_field_annotations
+
 
 def is_schema_defined_object_type(_type):
     return is_object_type(_type) and _type.name[0] != '_' and _type.name not in ['Mutation', 'Query']
@@ -27,7 +31,7 @@ def generate(input_file, output_dir, config: dict):
         schema_string = f.read()
     schema = build_schema(schema_string)
 
-    data = {'types': [], 'types_by_key': [], 'interfaces': [], 'edge_types_to_delete': []}
+    data = {'types': [], 'types_by_key': [], 'interfaces': [], 'edge_types_to_delete': [], 'edge_types_to_update': []}
 
     # get list of types
     for type_name, _type in schema.type_map.items():
@@ -59,6 +63,11 @@ def generate(input_file, output_dir, config: dict):
                     if config.get('generation').get('delete_edge_objects'):
                         data['edge_types_to_delete'].append((f'{pascalCase(field_name)}EdgeFrom{type_name}', type_name))
 
+                    if config.get('generation').get('update_edge_objects'):
+                        annotations = get_field_annotations(field_type)
+                        if len(annotations) > 0:
+                            data['edge_types_to_update'].append((f'{pascalCase(field_name)}EdgeFrom{type_name}', type_name))
+
             sort_before_rendering(t)
             data['types'].append(t)
 
@@ -66,6 +75,7 @@ def generate(input_file, output_dir, config: dict):
     data['types'].sort(key=lambda x: x['name'])
     data['interfaces'].sort()
     data['edge_types_to_delete'].sort()
+    data['edge_types_to_update'].sort()
 
     # apply template
     template = Template(filename=f'resources/resolver.template')

@@ -29,6 +29,9 @@ module.exports = {
     update: function(isRoot, ctxt, id, data, returnType, info){
         return update(isRoot, ctxt, id, data, returnType, info);
     },
+    updateEdge: function (isRoot, ctxt, id, data, edgeName, inputToUpdateType, info) {
+        return updateEdge(isRoot, ctxt, id, data, edgeName, inputToUpdateType, info);
+    },
     deleteEdge: function (isRoot, ctxt, id, edgeName, sourceType, info) {
         return deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info);
     },
@@ -421,6 +424,45 @@ function create(isRoot, ctxt, data, returnType, info, resVar=null) {
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
+
+/**
+ * Update an edge.
+ *
+ * @param isRoot
+ * @param ctxt
+ * @param id
+ * @param data
+ * @param edgeName
+ * @param inputToUpdateType
+ * @param info
+ * @param resVar
+ * @returns {null|Promise<any>}
+ */
+function updateEdge(isRoot, ctxt, id, data, edgeName, inputToUpdateType, info, resVar = null) {
+    // init transaction (if not already defined)
+    initTransaction(ctxt);
+
+    // create a new variable if resVar was not defined by the calling function
+    resVar = resVar !== null ? resVar : createVar(ctxt);
+    
+    let collectionVar = getCollectionVar(edgeName, ctxt, true);
+    ctxt.trans.code.push(`\n\t/* update edge ${edgeName} */`);
+    
+    // define doc
+    let doc = getScalarsAndEnums(data, info.schema.getType(inputToUpdateType));;
+    doc['_lastUpdateDate'] = new Date().valueOf();
+    let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
+    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
+
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+
+    //directives handling is not needed for edge updates as they can not have directives as of current
+
+    // return promises for roots and null for nested result
+    return isRoot ? getResult(ctxt, info, resVar) : null;
+}
+
+
 /**
  * Update an object including, and replace existing edges.
  *
@@ -515,13 +557,14 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar=null) {
 }
 
 
-    /**
- * Update an object including, and replace existing edges.
+/**
+ * Delete an edge.
  *
  * @param isRoot
  * @param ctxt
  * @param id
- * @param type
+ * @param edgeName
+ * @param sourceType
  * @param info
  * @param resVar
  * @returns {null|Promise<any>}

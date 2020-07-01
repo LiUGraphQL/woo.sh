@@ -625,6 +625,11 @@ def add_object_type_filters(schema: GraphQLSchema):
 
 
 def get_field_annotations(field: GraphQLField):
+    """
+    Get the annotations of a given field and return them as string
+    :param field:
+    :return string:
+    """
     annotation_fields = []
     for arg, arg_type in field.args.items():
         if arg == 'filter':
@@ -671,13 +676,35 @@ def add_input_to_create_edge_objects(schema: GraphQLSchema):
                 annotations = get_field_annotations(field)
 
                 if len(annotations) > 0:
-                    make += f'input {edge_input} {{sourceID: ID! targetID: ID! annotations: {annotate_input} }}\n'
-                    
                     # Make sure the annotation type actually exists first, and prevent us from defining it multiple times
                     if annotate_input not in schema.type_map:
                         make += f'input {annotate_input}{{{annotations}}}\n'
+
+                    make += f'input {edge_input} {{sourceID: ID! targetID: ID! annotations: {annotate_input} }}\n'
+                    
                 else:
                     make += f'input {edge_input} {{sourceID: ID! targetID: ID!}}\n'
+
+    schema = add_to_schema(schema, make)
+    return schema
+
+
+def add_input_to_update_edge_objects(schema: GraphQLSchema):
+    make = ''
+    for _type in schema.type_map.values():
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
+            continue
+        connected_types = schema.get_possible_types(_type) if is_interface_type(_type) else [_type]
+        for field_name, field in _type.fields.items():
+            inner_field_type = get_named_type(field.type)
+            if field_name.startswith('_') or is_enum_or_scalar(inner_field_type):
+                continue
+            for t in connected_types:
+                annotations = get_field_annotations(field)
+                if len(annotations) > 0:
+                    edge_from = f'{capitalize(field_name)}EdgeFrom{t.name}'
+                    edge_input = f'_InputToUpdate{edge_from}'
+                    make += f'input {edge_input} {{{annotations}}}\n'
 
     schema = add_to_schema(schema, make)
     return schema
@@ -698,6 +725,29 @@ def add_mutation_create_edge_objects(schema: GraphQLSchema):
                 edge_create = f'create{edge_from}'
                 edge_input = f'_InputToCreate{edge_from}'
                 make += f'extend type Mutation{{{edge_create}(data: {edge_input}):_{edge_from}}}\n'
+
+    schema = add_to_schema(schema, make)
+    return schema
+
+
+def add_mutation_update_edge_objects(schema: GraphQLSchema):
+    make = ''
+
+    for _type in schema.type_map.values():
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
+            continue
+        connected_types = schema.get_possible_types(_type) if is_interface_type(_type) else [_type]
+        for field_name, field in _type.fields.items():
+            inner_field_type = get_named_type(field.type)
+            if field_name.startswith('_') or is_enum_or_scalar(inner_field_type):
+                continue
+            for t in connected_types:
+                annotations = get_field_annotations(field)
+                if len(annotations) > 0:
+                    edge_from = f'{capitalize(field_name)}EdgeFrom{t.name}'
+                    update = f'update{edge_from}'
+
+                    make += f'extend type Mutation {{{update}(id: ID!, data: _InputToUpdate{edge_from}!): _{edge_from} }} '
 
     schema = add_to_schema(schema, make)
     return schema

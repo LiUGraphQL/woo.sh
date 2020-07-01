@@ -64,6 +64,18 @@ const resolvers = {
     % endfor
 
     % for edgeName, sourceType in data['edge_types_to_delete']:
+        update${edgeName}: async (parent, args, context, info) =>
+            await driver.updateEdge(
+                true,
+                context,
+                args.id,
+                args.data,
+                '${edgeName}',
+                info.schema.getType('_InputToUpdate${edgeName}'),
+                info),
+    % endfor
+
+    % for edgeName, sourceType in data['edge_types_to_delete']:
         delete${edgeName}: async (parent, args, context, info) =>
             await driver.deleteEdge(
                 true,

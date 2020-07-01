@@ -71,7 +71,7 @@ const resolvers = {
         % endif
     % endfor
 
-    % for edgeName, sourceType in data['edge_types_to_delete']:
+    % for edgeName, sourceType in data['edge_types_to_update']:
         update${edgeName}: async (parent, args, context, info) =>
             await driver.updateEdge(
                 true,

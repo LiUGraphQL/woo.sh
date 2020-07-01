@@ -1,12 +1,14 @@
 import argparse
 
+import os
 import yaml
-from graphql import build_schema, is_object_type, get_named_type, is_interface_type, assert_valid_schema
+#from graphql import build_schema, is_object_type, get_named_type, is_interface_type, assert_valid_schema
+from graphql import *
 from mako.template import Template
 
 import sys
 sys.path.insert(1, '../graphql-api-generator')
-from utils.utils import get_field_annotations
+from utils.utils import is_enum_or_scalar
 
 
 def is_schema_defined_object_type(_type):
@@ -67,8 +69,7 @@ def generate(input_file, output_dir, config: dict):
                         data['edge_types_to_delete'].append((f'{pascalCase(field_name)}EdgeFrom{type_name}', type_name))
 
                     if config.get('generation').get('update_edge_objects'):
-                        annotations = get_field_annotations(field_type)
-                        if len(annotations) > 0:
+                        if is_there_field_annotations(schema.type_map[f'_{pascalCase(field_name)}EdgeFrom{type_name}']):
                             data['edge_types_to_update'].append((f'{pascalCase(field_name)}EdgeFrom{type_name}', type_name))
 
             sort_before_rendering(t)
@@ -90,6 +91,21 @@ def generate(input_file, output_dir, config: dict):
             api_schema = build_schema(schema_string)
             assert_valid_schema(api_schema)
             f.write(updated_schema_string)
+
+
+def is_there_field_annotations(_type):
+    """
+    Check if a given type contains fields that does not start with '_' and are of enum or scalar type
+    These fields should be annotations
+    :param type:
+    :return boolean:
+    """
+    for field_name, field_type in _type.fields.items():
+        if field_name.startswith('_') or field_name == 'id':
+            continue
+        if is_enum_or_scalar(get_named_type(field_type.type)):
+            return True
+    return False
 
 
 def sort_before_rendering(d: dict):

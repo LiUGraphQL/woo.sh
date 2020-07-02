@@ -727,9 +727,9 @@ async function getEdge(parent, args, info) {
     let query = [];
 
     // Saddly can't be lazy and just use 'ANY' for the directioning, as loops of length 1 would then give us duplicated resaults
-    let direction_string = aql`OUTBOUND`;
-    if (return_type.name.startsWith("_outgoing"))
-        direction_string = aql`INBOUND`;
+    let direction_string = aql`INBOUND`;
+    if (info.fieldName.startsWith("_outgoing"))
+        direction_string = aql`OUTBOUND`;
 
     // If the type that is the origin of the edge is an interface, then we need to check all the edge collections
     // corresponding to its implementing types. Note: This is only necessary when traversing some edges that are

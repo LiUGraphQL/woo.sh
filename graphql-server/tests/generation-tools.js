@@ -64,14 +64,9 @@ function generateInput(type, depth=0, limit=3, include_optional){
                 value = {'connect' : `Dummy/${faker.random.number()}` }
             } else {
                 let keys = [];
-                value = {}
-                for (let k in named_type._fields) {
-                    if (k == 'connect') {
-                        continue; // don't use connect 
-                    }
-                    if (k == 'annotations') {
-                        value['annotations'] = generateInput(named_type._fields['annotations'].type, depth + 1, limit, include_optional);
-                        continue; // don't use anntations as key 
+                for(let k in named_type._fields){
+                    if(k == 'connect'){
+                        continue; // don't use connect
                     }
                     keys.push(k); // add a create or createX field
                 }
@@ -79,6 +74,7 @@ function generateInput(type, depth=0, limit=3, include_optional){
                 let key = faker.random.arrayElement(keys);
                 let t = named_type._fields[key].type;
 
+                value = {}
                 value[key] = generateInput(t, depth + 1, limit, include_optional);
             }
         }

@@ -208,14 +208,9 @@ def add_reverse_edges(schema: GraphQLSchema):
 
             if hasattr(field_type, 'ast_node') and field_type.ast_node is not None:
                 directives = {directive.name.value: directive for directive in field_type.ast_node.directives}
-                
+
             if 'requiredForTarget' in directives:
                 directive_to_add = '@required'
-
-            if hasattr(_type, 'interfaces'):
-                for interface in _type.interfaces:
-                    if field_name in interface.fields.keys():
-                        directives = {**directives, **{directive.name.value: directive for directive in interface.fields[field_name].ast_node.directives}}
 
             if 'uniqueForTarget' in directives:
                 edge_to = _type
@@ -621,7 +616,7 @@ def add_object_type_filters(schema: GraphQLSchema):
                 continue
 
             named_type = get_named_type(field.type)
-            if is_enum_or_scalar(named_type) or is_interface_type(named_type) or field_name.startswith('_incoming') or field_name.startswith('_outgoing'):
+            if is_enum_or_scalar(named_type) or is_interface_type(named_type):
                 continue
             filter_name = f'_FilterFor{capitalize(named_type.name)}'
             _filter = schema.type_map[filter_name]
@@ -643,72 +638,17 @@ def get_field_annotations(field: GraphQLField):
 def add_edge_objects(schema: GraphQLSchema):
     make = ''
     for _type in schema.type_map.values():
-        if not is_db_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
             continue
+        connected_types = schema.get_possible_types(_type) if is_interface_type(_type) else [_type]
         for field_name, field in _type.fields.items():
             inner_field_type = get_named_type(field.type)
             if field_name.startswith('_') or is_enum_or_scalar(inner_field_type):
                 continue
-            edge_from = f'{capitalize(field_name)}EdgeFrom{_type.name}'
-            annotations = get_field_annotations(field)
-            type_type_str = 'type'
-            implements_str = ''
-            if is_interface_type(_type):
-                type_type_str = 'interface'
-            elif hasattr(_type, 'interfaces') and _type.interfaces:
-                valid_interfaces = []
-                for interface in _type.interfaces:
-                    if field_name in interface.fields.keys():
-                        valid_interfaces.append(interface.name)
-                if valid_interfaces:
-                    implements_str = f'implements '
-                    implements_str += ' & '.join([f'_{capitalize(field_name)}EdgeFrom{interface}' for interface in valid_interfaces])
-            make += f'{type_type_str} _{edge_from} {implements_str}{{id:ID! source: {_type.name}! target: {inner_field_type}! {annotations}}}\n'
-
-
-    schema = add_to_schema(schema, make)
-    return schema
-
-
-def add_fields_for_edge_types(schema: GraphQLSchema, reverse):
-    make = ''
-    for _type in schema.type_map.values():
-        if not is_db_schema_defined_type(_type):
-            continue
-        for field_name, field in _type.fields.items():
-            inner_field_type = get_named_type(field.type)
-            if field_name.startswith('_') or is_enum_or_scalar(inner_field_type):
-                continue
-
-            edge_from = f'{capitalize(field_name)}EdgeFrom{_type.name}'
-            edge_type = schema.get_type('_'+edge_from)
-            full_type = copy_wrapper_structure(edge_type, field.type)
-            type_type_str = 'type'
-            if is_interface_type(_type):
-                type_type_str = 'interface'
-            make += f'extend {type_type_str} {_type.name} {{ _outgoing{capitalize(field_name)}Edges: {full_type} }}\n'
-
-            if reverse:
-                directives = {}
-                if hasattr(field, 'ast_node') and field.ast_node is not None:
-                    directives = {directive.name.value: directive for directive in field.ast_node.directives}
-                    
-                if hasattr(_type, 'interfaces'):
-                    for interface in _type.interfaces:
-                        if field_name in interface.fields.keys():
-                            directives = {**directives, **{directive.name.value: directive for directive in interface.fields[field_name].ast_node.directives}}
-
-                if 'uniqueForTarget' in directives:
-                    edge_to = edge_type
-                else:
-                    edge_to = GraphQLList(edge_type)
-
-                inner_connected_types = schema.get_possible_types(inner_field_type) if is_interface_type(inner_field_type) else [inner_field_type]
-                for inner_t in inner_connected_types:
-                    type_type_str = 'type'
-                    if is_interface_type(inner_t):
-                        type_type_str = 'interface'
-                    make += f'extend {type_type_str} {inner_t.name} {{ _incoming{edge_from}: {edge_to} }}\n'
+            for t in connected_types:
+                edge_from = f'{capitalize(field_name)}EdgeFrom{t.name}'
+                annotations = get_field_annotations(field)
+                make += f'type _{edge_from} {{id:ID! source: {t.name}! target: {inner_field_type}! {annotations}}}\n'
 
     schema = add_to_schema(schema, make)
     return schema

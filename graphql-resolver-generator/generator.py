@@ -31,14 +31,15 @@ def generate(input_file, output_dir, config: dict):
         schema_string = f.read()
     schema = build_schema(schema_string)
 
-    data = {'types': [], 'types_by_key': [], 'interfaces': [], 'edge_types_to_delete': [], 'edge_types_to_update': []}
+    data = {'types': [], 'types_by_key': [], 'interfaces': [], 'edge_types_to_delete': [], 'edge_types_to_update': [], 'edge_objects': []}
 
     # get list of types
     for type_name, _type in schema.type_map.items():
         if is_interface_type(_type):
             data['interfaces'].append(type_name)
         if is_edge_type(_type):
-            continue
+            if config.get('generation').get('query_by_id'):
+                data['edge_objects'].append(type_name)
         if is_schema_defined_object_type(_type):
             t = {
                 'Name': type_name,
@@ -70,6 +71,7 @@ def generate(input_file, output_dir, config: dict):
                         if is_there_field_annotations(schema.type_map[f'_{pascalCase(field_name)}EdgeFrom{type_name}']):
                             data['edge_types_to_update'].append((f'{pascalCase(field_name)}EdgeFrom{type_name}', type_name))
 
+
             sort_before_rendering(t)
             data['types'].append(t)
 
@@ -78,6 +80,7 @@ def generate(input_file, output_dir, config: dict):
     data['interfaces'].sort()
     data['edge_types_to_delete'].sort()
     data['edge_types_to_update'].sort()
+    data['edge_objects'].sort()
 
     # apply template
     template = Template(filename=f'resources/resolver.template')

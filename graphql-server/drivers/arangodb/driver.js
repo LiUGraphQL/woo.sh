@@ -65,6 +65,9 @@ module.exports = {
     getEdge: async function(parent, args, info){
         return await getEdge(parent, args, info)
     },
+    getEdgeEndpoint: async function (parent, args, info) {
+        return await getEdgeEndpoint(parent, args, info)
+    },
     getList: async function(args, info){
         return await getList(args, info);
     },
@@ -248,17 +251,16 @@ function getObjectOrInterfaceFields(type) {
  */
 function convertToInputAppendString(doc) {
     ret = ''
-    if (doc != null && doc.size > 0) {
+    if (doc != null && Object.keys(doc).length > 0) {
         ret = JSON.stringify(doc);
-        ret[0] = ',';
-        ret = ret - slice(0, -1);
+        ret = ', ' + ret.slice(1, -1);
     }
     return ret;
 }
 
 // ----------------------------------------------------------
 
-async function getEdge(parent, args, info){
+async function getEdgeEndpoint(parent, args, info){
     let parent_type = graphql.getNamedType(info.parentType);
     let return_type = graphql.getNamedType(info.returnType);
 
@@ -305,6 +307,50 @@ async function getEdge(parent, args, info){
     }
     query = query.concat(query_filters);
     query.push(aql`RETURN x`);
+
+    const cursor = await db.query(aql.join(query));
+    if (graphql.isListType(graphql.getNullableType(info.returnType))) {
+        return await cursor.all();
+    } else {
+        return await cursor.next();
+    }
+}
+
+async function getEdge(parent, args, info) {
+    let return_type = graphql.getNamedType(info.returnType);
+
+    // Create query
+    let query = [];
+    // If the type that is the origin of the edge is an interface, then we need to check all the edge collections
+    // corresponding to its implementing types. Note: This is only necessary when traversing some edges that are
+    // defined in in the API schema for interfaces. The parent type will never be an interface type at this stage.
+    if (graphql.isInterfaceType(return_type)) {
+        query.push(aql`FOR e IN`)
+        let possible_types = info.schema.getPossibleTypes(return_type);
+        if (possible_types.length > 1) query.push(aql`UNION(`);
+        for (let i in possible_types) {
+            if (i != 0) query.push(aql`,`);
+            let collection = db.collection(possible_types[i].name.substr(1));
+            query.push(aql`(FOR v, inner_e IN 1..1 ANY ${parent._id} ${collection} RETURN inner_e)`);
+        }
+        if (possible_types.length > 1) query.push(aql`)`);
+
+    } else {
+        let collection = db.edgeCollection(return_type.name.substr(1));
+        query.push(aql`FOR v, e IN 1..1 ANY ${parent._id} ${collection}`);
+    }
+
+    // add filters
+    let query_filters = [];
+    if (args.filter != undefined && !isEmptyObject(args.filter)) {
+        let filters = getFilters(args.filter, info);
+        for (let i in filters) {
+            i == 0 ? query_filters.push(aql`FILTER`) : query_filters.push(aql`AND`);
+            query_filters = query_filters.concat(filters[i]);
+        }
+    }
+    query = query.concat(query_filters);
+    query.push(aql`RETURN e`);
 
     const cursor = await db.query(aql.join(query));
     if (graphql.isListType(graphql.getNullableType(info.returnType))) {
@@ -366,11 +412,11 @@ async function create(isRoot, ctxt, data, returnType, info) {
             console.log(value);
 
             // Prepare annotations
-            let annotations = null;
+            let annotations = {};
             if (value['annotations']) {
                 annotations = getScalarsAndEnums(value['annotations'], info.schema.getType("_InputToAnnotate" + edge));
-                annotations['_creationDate'] = date.valueOf();
             }
+            annotations['_creationDate'] = date.valueOf();
 
             if (graphql.isInterfaceType(innerFieldType)) { // interface
                 if (value['connect']) {
@@ -648,11 +694,11 @@ async function update(isRoot, ctxt, id, data, returnType, info) {
             let value = values[i];
 
             // Prepare annotations
-            let annotations = null;
+            let annotations = {};
             if (value['annotations']) {
                 annotations = getScalarsAndEnums(value['annotations'], info.schema.getType("_InputToAnnotate" + edge));
-                annotations['_creationDate'] = date.valueOf();
             }
+            annotations['_creationDate'] = date.valueOf();
 
             if (graphql.isInterfaceType(nestedReturnType)) {
                 // interface field

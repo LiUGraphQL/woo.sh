@@ -21,29 +21,23 @@ const resolvers = {
     % endfor
 
     % for type in data['types']:
-        % if type['Name'][0] != '_':
         listOf${type['Name']}s: async (parent, args, context, info) =>
             await driver.getList(args, info),
-        % endif
     % endfor
 
     % for interface_name in data['interfaces']:
-        % if interface_name[0] != '_':
         listOf${interface_name}s: async (parent, args, context, info) => await driver.getList(args, info),
-        % endif
     % endfor
     },
 
     Mutation: {
     % for type in data['types']:
-        % if type['Name'][0] != '_':
         create${type['Name']}: (parent, args, context, info) =>
             driver.create(true, context, args.data, info.schema.getType('${type['Name']}'), info),
-        % endif
     % endfor
 
     % for type in data['types']:
-        % for field, field_type in type['edgeFieldEndpoints']:
+        % for field, field_type in type['edgeFields']:
         create${field}EdgeFrom${type['Name']}: async (parent, args, context, info) =>
             await driver.createEdge(
                 true,
@@ -59,7 +53,6 @@ const resolvers = {
     % endfor
 
     % for type in data['types']:
-        % if type['Name'][0] != '_':
         update${type['Name']}: async (parent, args, context, info) =>
             driver.update(
                 true,
@@ -68,7 +61,6 @@ const resolvers = {
                 args.data,
                 info.schema.getType('${type['Name']}'),
                 info),
-        % endif
     % endfor
     },
 
@@ -77,31 +69,25 @@ const resolvers = {
         id: (parent, args, context, info) => parent._id,
         % for field in type['fields']:
         ${field}: async (parent, args, context, info) =>
-            await driver.getEdgeEndpoint(parent, args, info),
+            await driver.getEdge(parent, args, info),
         % endfor
         % for field in type['DateTime']:
         ${field}: async (parent, args, context, info) => new Date(parent.${field}),
-        % endfor
-        % for field in type['edgeFields']:
-        ${field}: async (parent, args, context, info) =>
-            await driver.getEdge(parent, args, info),
         % endfor
     },
 % endfor
 
 % for type in data['types']:
-    % if type['Name'][0] != '_':
     _ListOf${type['Name']}s: {
         totalCount: async (parent, args, context, info) =>
             await driver.getTotalCount(parent, args, info),
         isEndOfWholeList: async (parent, args, context, info) =>
             await driver.isEndOfList(parent, args, info),
     },
-    % endif
 % endfor
 
 % for type in data['types']:
-    % for field, field_type in type['edgeFieldEndpoints']:
+    % for field, field_type in type['edgeFields']:
     _${field}EdgeFrom${type['Name']}: {
         id: (parent, args, context, info) => parent._id,
         source: async (parent, args, context, info) =>
@@ -113,16 +99,9 @@ const resolvers = {
 % endfor
 
 % for interface_name in data['interfaces']:
-    % if interface_name.startswith('_'):
-    ${interface_name}: {
-        __resolveType: (parent, args, context, info) =>
-            '_' + parent._id.split('/')[0]
-    },
-    % else:
     ${interface_name}: {
         __resolveType: (parent, args, context, info) =>
             parent._id.split('/')[0]
     },
-    % endif
 % endfor
 }

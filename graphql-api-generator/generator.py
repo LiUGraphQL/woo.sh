@@ -81,7 +81,7 @@ def run(schema: GraphQLSchema, config: dict):
         if config.get('generation').get('edge_types') or config.get('generation').get('create_edge_objects'):
             schema = add_edge_objects(schema)
         if config.get('generation').get('fields_for_edge_types'):
-            schema = add_fields_for_edge_types(schema, config.get('generation').get('reverse_edges'))
+            raise UnsupportedOperation('{0} is currently not supported'.format('fields_for_edge_types'))
 
         # add creation date
         if config.get('generation').get('field_for_creation_date'):

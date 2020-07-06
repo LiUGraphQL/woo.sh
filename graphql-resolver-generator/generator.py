@@ -1,7 +1,7 @@
 import argparse
 
 import yaml
-from graphql import build_schema, is_object_type, get_named_type, is_interface_type, assert_valid_schema
+from graphql import build_schema, is_object_type, get_named_type, is_interface_type, assert_valid_schema, is_input_type
 from mako.template import Template
 
 import sys
@@ -14,7 +14,7 @@ def is_schema_defined_object_type(_type):
 
 
 def is_edge_type(_type):
-    return 'EdgeFrom' in _type.name
+    return not is_input_type(_type) and 'EdgeFrom' in _type.name
 
 
 def camelCase(s):
@@ -38,7 +38,7 @@ def generate(input_file, output_dir, config: dict):
         if is_interface_type(_type):
             data['interfaces'].append(type_name)
         if is_edge_type(_type):
-            if config.get('generation').get('query_by_id'):
+            if config.get('generation').get('query_edge_by_id'):
                 data['edge_objects'].append(type_name)
         if is_schema_defined_object_type(_type):
             t = {

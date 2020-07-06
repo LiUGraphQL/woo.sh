@@ -438,6 +438,24 @@ def add_get_queries(schema: GraphQLSchema):
     return schema
 
 
+def add_get_edge_queries(schema: GraphQLSchema):
+    """
+    Add query to get edge based on ID.
+    :param schema:
+    :return:
+    """
+    # Create queries for object types
+    make = ''
+    for _type in schema.type_map.values():
+        if is_db_schema_defined_type(_type) or is_input_type(_type):
+            continue
+        if not _type.name.startswith('_') or not 'EdgeFrom' in _type.name:
+            continue
+        make += f'extend type Query {{ {decapitalize(_type.name)}(id:ID!): {_type.name} }} '
+    schema = add_to_schema(schema, make)
+    return schema
+
+
 def add_list_of_types(schema: GraphQLSchema):
     """
     Add list type to represent lists of all types and support paging.

@@ -29,8 +29,8 @@ const resolvers = {
     % endfor
 
     % for edge_name in data['edge_objects']:
-        ${edge_name in}: async (parent, args, context, info) =>
-            await driver.getEdge(parent, args, info),
+        ${edge_name}: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
     % endfor
 
     % for interface_name in data['interfaces']:

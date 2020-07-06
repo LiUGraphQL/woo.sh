@@ -759,11 +759,6 @@ async function getEdge(parent, args, info) {
             query_filters = query_filters.concat(filters[i]);
         }
     }
-    // add specific 'get-by-id'
-    if (args.id != undefined && !isEmptyObject(args.id){
-        query_filter.length == 0 ? query_filters.push(aql`FILTER`) : query_filters.push(aql`AND`);
-        query_filters.push('ID: ${args.id}');
-    }
 
     query = query.concat(query_filters);
     query.push(aql`RETURN e`);

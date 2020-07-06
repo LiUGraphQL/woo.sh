@@ -113,6 +113,9 @@ def run(schema: GraphQLSchema, config: dict):
             schema = add_key_input_types(schema)
             schema = add_key_queries(schema)
 
+        if config.get('generation').get('query_edge_by_id'):
+            schema = add_get_edge_queries(schema)
+
         # add input types
         if config.get('generation').get('input_to_create_objects'):
             schema = add_input_to_create(schema)

@@ -62,6 +62,11 @@ const resolvers = {
                 info.schema.getType('${type['Name']}'),
                 info),
     % endfor
+
+    % for type_name in data['typeDelete']:
+        delete${type_name}: (parent, args, context, info) =>
+            driver.delete(true, context, args.id, info.schema.getType('${type_name}'), info),
+    % endfor
     },
 
 % for type in data['types']:

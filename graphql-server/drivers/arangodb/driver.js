@@ -29,6 +29,9 @@ module.exports = {
     update: function(isRoot, ctxt, id, data, returnType, info){
         return update(isRoot, ctxt, id, data, returnType, info);
     },
+    delete: function (isRoot, context, id, typeToDelete, info) {
+        return delete (isRoot, context, id, typeToDelete, info);
+    },
     getEdge: async function(parent, args, info){
         return await getEdge(parent, args, info)
     },
@@ -506,6 +509,38 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar=null) {
     validateKey(ctxt, resVar, returnType, info);
     // directives handling
     addFinalDirectiveChecksForType(ctxt, returnType, aql`${asAQLVar(resVar)}._id`, info.schema);
+    // return promises for roots and null for nested result
+    return isRoot ? getResult(ctxt, info, resVar) : null;
+}
+
+/**
+ * Delete an object with the given id.
+ *
+ * @param isRoot
+ * @param ctxt
+ * @param id
+ * @param type
+ * @param info
+ * @param resVar
+ * @returns { null | Promise<any>}
+ */
+function delete(isRoot, context, id, typeToDelete, info) {
+    // init transaction
+    initTransaction(ctxt);
+    ctxt.trans.code.push(`\n\t/* delete ${typeToDelete} */`);
+
+    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
+
+    // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
+    resVar = resVar !== null ? resVar : createVar(ctxt);
+    let collectionVar = getCollectionVar(edgeName, ctxt, true);
+
+    // update document
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} RETURN OLD\`).next();`);
+    // note that we dont throw errors if the key does not exists in the collection
+
+    // directives handling
+    addFinalDirectiveChecksForType(ctxt, typeToDelete, aql`${asAQLVar(resVar)}._id`, info.schema);
     // return promises for roots and null for nested result
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }

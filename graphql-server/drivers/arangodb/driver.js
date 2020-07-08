@@ -29,8 +29,8 @@ module.exports = {
     update: function(isRoot, ctxt, id, data, returnType, info){
         return update(isRoot, ctxt, id, data, returnType, info);
     },
-    delete: function (isRoot, context, id, typeToDelete, info) {
-        return delete (isRoot, context, id, typeToDelete, info);
+    deleteObject: function (isRoot, context, id, typeToDelete, info) {
+        return deleteObject (isRoot, context, id, typeToDelete, info);
     },
     getEdge: async function(parent, args, info){
         return await getEdge(parent, args, info)
@@ -524,7 +524,7 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar=null) {
  * @param resVar
  * @returns { null | Promise<any>}
  */
-function delete(isRoot, context, id, typeToDelete, info) {
+function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
     // init transaction
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* delete ${typeToDelete} */`);
@@ -533,11 +533,29 @@ function delete(isRoot, context, id, typeToDelete, info) {
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
     resVar = resVar !== null ? resVar : createVar(ctxt);
-    let collectionVar = getCollectionVar(edgeName, ctxt, true);
-
-    // update document
+    let collectionVar = getCollectionVar(typeToDelete, ctxt, true);
+    
+    // delete document
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} RETURN OLD\`).next();`);
     // note that we dont throw errors if the key does not exists in the collection
+
+    // delete every edge either targeting, or originating from id
+    for (let i in typeToDelete.getFields()) {
+        let field = typeToDelete.getFields()[i];
+        let t = graphql.getNamedType(field.type);
+        if (graphql.isObjectType(t) || graphql.isInterfaceType(t)) {
+            if (graphql.isInterfaceType(t)) {
+                let possible_types = schema.getPossibleTypes(t);
+                for (let j in possible_types) {
+                    let collectionVar = getCollectionVar(possible_types[j], ctxt, true);
+                    ctxt.trans.code.push(`db._query(aql\`FOR x IN ${asAQLVar(collectionVar)} FILTER x.source == ${asAQLVar(idVar)} OR x.target == ${asAQLVar(idVar)} REMOVE x IN ${asAQLVar(collectionVar)}\`);`);
+                }
+            } else {
+                let collectionVar = getCollectionVar(t, ctxt, true);
+                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${asAQLVar(collectionVar)} FILTER x.source == ${asAQLVar(idVar)} OR x.target == ${asAQLVar(idVar)} REMOVE x IN ${asAQLVar(collectionVar)}\`);`);
+            }
+        }
+    }
 
     // directives handling
     addFinalDirectiveChecksForType(ctxt, typeToDelete, aql`${asAQLVar(resVar)}._id`, info.schema);

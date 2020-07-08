@@ -110,4 +110,6 @@ if __name__ == '__main__':
                         help='GraphQL API schema file')
     parser.add_argument('--output', type=str,
                         help='Output directory for resolver.js file')
+    parser.add_argument('--config', type=str,
+                        help='Path to configuration file')
     cmd(parser.parse_args())

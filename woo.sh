@@ -470,5 +470,6 @@ cd ..
 cd ./graphql-resolver-generator
 python3 generator.py \
     --input ${output_dir}/api-schema/api-schema.graphql \
-    --output ${output_dir}
+    --output ${output_dir}\
+    --config ${config_file}
 cd ..

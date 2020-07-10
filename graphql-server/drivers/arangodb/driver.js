@@ -616,23 +616,29 @@ function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null)
 async function get(id, returnType, schema){
     let type = returnType;
     let query = [aql`FOR i IN`];
-    if(graphql.isInterfaceType(type)){
+    if (graphql.isInterfaceType(type)) {
         let possible_types = schema.getPossibleTypes(type);
-        if(possible_types.length > 1){
+        if (possible_types.length > 1) {
             query.push(aql`UNION(`);
         }
-        for(let i in possible_types) {
-            if(i != 0){
+        for (let i in possible_types) {
+            if (i != 0) {
                 query.push(aql`,`);
             }
-            let collection = db.collection(possible_types[i].name);
+            let typeName = possible_types[i].name;
+            if (typeName.startsWith('_'))
+                typeName = typeName.substr(1)
+            let collection = db.collection(typeName);
             query.push(aql`(FOR x IN ${collection} FILTER(x._id == ${id}) RETURN x)`);
         }
-        if(possible_types.length > 1){
+        if (possible_types.length > 1) {
             query.push(aql`)`);
         }
     } else {
-        let collection = db.collection(type.name);
+        let typeName = type.name;
+        if (typeName.startsWith('_'))
+            typeName = typeName.substr(1)
+        let collection = db.collection(typeName);
         query.push(aql`${collection} FILTER(i._id == ${id})`);
     }
 

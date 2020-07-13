@@ -32,6 +32,9 @@ module.exports = {
     getEdge: async function(parent, args, info){
         return await getEdge(parent, args, info)
     },
+    getEdgeEndpoint: async function (parent, args, info) {
+        return await getEdgeEndpoint(parent, args, info)
+    },
     getList: async function(args, info){
         return await getList(args, info);
     },
@@ -231,8 +234,19 @@ function getTypeDefinitions(schema, kind=null) {
  * @param type
  * @returns {map}
  */
-function getScalarsAndEnums(object, type){
-    return formatFixInput(object, type);
+function getScalarsAndEnums(object, type) {
+    let outputObject = {};
+    // add formatted scalar/enum to outputObject
+    for (let i in type.getFields()) {
+        let field = type.getFields()[i];
+        let fieldType = graphql.getNamedType(field.type);
+        if (graphql.isEnumType(fieldType) || graphql.isScalarType(fieldType)) {
+            if (object[field.name] !== undefined) {
+                outputObject[field.name] = formatFixVariable(fieldType, object[field.name]);
+            }
+        }
+    }
+    return outputObject;
 }
 
 /**
@@ -310,6 +324,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     if(annotations == null){
         annotations  = {};
     }
+
     let annotationType = info.schema.getType(`_InputToAnnotate${collectionName}`);
     if(annotationType){
         annotations = getScalarsAndEnums(annotations, info.schema.getType(annotationType));
@@ -318,7 +333,6 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     // define doc
     let doc = annotations;
     doc['_creationDate'] = new Date().valueOf();
-    doc = formatFixInput(doc, info.returnType);
 
     // validate edge
     validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info);
@@ -555,14 +569,14 @@ async function get(id, returnType, schema){
 }
 
 /**
- * Get edges between a parent and target for a given field.
+ * Get the source/target an given edge field connected to parent.
  *
  * @param parent
  * @param args
  * @param info
  * @returns {Promise<*>}
  */
-async function getEdge(parent, args, info){
+async function getEdgeEndpoint(parent, args, info) {
     let parent_type = graphql.getNamedType(info.parentType);
     let return_type = graphql.getNamedType(info.returnType);
 
@@ -619,8 +633,61 @@ async function getEdge(parent, args, info){
 }
 
 /**
- * Get object by key.
+ * Get edges between a parent and target for a given field.
+ *
+ * @param parent
+ * @param args
+ * @param info
+ * @returns {Promise<*>}
+ */
+async function getEdge(parent, args, info) {
+    let return_type = graphql.getNamedType(info.returnType);
 
+    // Create query
+    let query = [];
+    // If the type that is the origin of the edge is an interface, then we need to check all the edge collections
+    // corresponding to its implementing types. Note: This is only necessary when traversing some edges that are
+    // defined in in the API schema for interfaces. The parent type will never be an interface type at this stage.
+    if (graphql.isInterfaceType(return_type)) {
+        query.push(aql`FOR e IN`)
+        let possible_types = info.schema.getPossibleTypes(return_type);
+        if (possible_types.length > 1) query.push(aql`UNION(`);
+        for (let i in possible_types) {
+            if (i != 0) query.push(aql`,`);
+            let collection = db.collection(possible_types[i].name.substr(1));
+            query.push(aql`(FOR v, inner_e IN 1..1 ANY ${parent._id} ${collection} RETURN inner_e)`);
+        }
+        if (possible_types.length > 1) query.push(aql`)`);
+
+    } else {
+        let collection = db.edgeCollection(return_type.name.substr(1));
+        query.push(aql`FOR v, e IN 1..1 ANY ${parent._id} ${collection}`);
+    }
+
+    // add filters
+    // Not yet implemented
+    //let query_filters = [];
+    //if (args.filter != undefined && !isEmptyObject(args.filter)) {
+    //    let filters = getFilters(args.filter, info);
+    //    for (let i in filters) {
+    //        i == 0 ? query_filters.push(aql`FILTER`) : query_filters.push(aql`AND`);
+    //        query_filters = query_filters.concat(filters[i]);
+    //    }
+    //}
+    //query = query.concat(query_filters);
+    query.push(aql`RETURN e`);
+
+    const cursor = await db.query(aql.join(query));
+    if (graphql.isListType(graphql.getNullableType(info.returnType))) {
+        return await cursor.all();
+    } else {
+        return await cursor.next();
+    }
+}
+
+/**
+ * Get object by key.
+ * 
  * @param key
  * @param returnType
  * @returns {Promise<*>}
@@ -934,6 +1001,7 @@ function validateKey(ctxt, varOrDoc, type, info){
     }
 }
 
+
 /**
  * Convenience method for converting a javascript array into an AQL array.
  *
@@ -950,28 +1018,6 @@ function asAqlArray(array){
     return q;
 }
 
-/**
- * Returns an object where all values of enum and scalars in the input object have been converted to match the format
- * used in the database.
- *
- * @param {map} doc
- * @param type
- * @returns {map} outputDoc
- */
-function formatFixInput(doc, type) {
-    let outputDoc = {};
-    // add formatted scalar/enum to outputDoc
-    for (let i in type.getFields()) {
-        let field = type.getFields()[i];
-        let fieldType = graphql.getNamedType(field.type); // RK: does this cover arrays?
-        if (graphql.isEnumType(fieldType) || graphql.isScalarType(fieldType)) {
-            if (doc[field.name] !== undefined) {
-                outputDoc[field.name] = formatFixVariable(fieldType, doc[field.name]);
-            }
-        }
-    }
-    return outputDoc;
-}
 
 /**
  * Convert input data to match the format used for storage in the database. The function currently used only for

@@ -8,11 +8,10 @@ module.exports = {
     makeInputToCreate: (type, schema, limit, includeOptional=true) => makeInputToCreate(type, schema, limit, includeOptional),
     jsonToGraphQL: (ob) => jsonToGraphQL(ob),
     inputObjectToObjectType: (ob) => inputObjectToObject(ob),
-    getSubFields: (ob, limit) => getSubFields(ob, 0, limit)
+    getSubFields: (ob, limit) => getSubFields(ob, 0, limit),
+    setSeed: (seed) => faker.seed(seed)
 }
 
-let seed = 100;
-faker.seed(seed);
 
 let scalarF = {
     'String' : faker.lorem.words,
@@ -43,7 +42,7 @@ function generateInput(type, depth=0, limit=3, include_optional){
         let field_type = field.type;
 
         // skip optional
-        if(!include_optional || depth >= limit || depth >= 3){
+        if(!include_optional || depth >= limit){
             if(graphql.isNullableType(field_type)){
                 continue;
             }
@@ -64,9 +63,14 @@ function generateInput(type, depth=0, limit=3, include_optional){
                 value = {'connect' : `Dummy/${faker.random.number()}` }
             } else {
                 let keys = [];
-                for(let k in named_type._fields){
-                    if(k == 'connect'){
-                        continue; // don't use connect
+                value = {}
+                for (let k in named_type._fields) {
+                    if (k == 'connect') {
+                        continue; // don't use connect 
+                    }
+                    if (k == 'annotations') {
+                        value['annotations'] = generateInput(named_type._fields['annotations'].type, depth + 1, limit, include_optional);
+                        continue; // don't use anntations as key 
                     }
                     keys.push(k); // add a create or createX field
                 }
@@ -74,7 +78,6 @@ function generateInput(type, depth=0, limit=3, include_optional){
                 let key = faker.random.arrayElement(keys);
                 let t = named_type._fields[key].type;
 
-                value = {}
                 value[key] = generateInput(t, depth + 1, limit, include_optional);
             }
         }

@@ -40,20 +40,23 @@ def generate(input_file, output_dir):
                 'name': camelCase(type_name),
                 'fields': [],
                 'edgeFields': [],
+                'edgeFieldEndpoints': [],
                 'DateTime': [],
                 'hasKeyDirective': f'_KeyFor{type_name}' in schema.type_map.keys()
             }
             # add object fields
             for field_name, field_type in _type.fields.items():
                 inner_field_type = get_named_type(field_type.type)
-                if is_schema_defined_object_type(inner_field_type) or is_interface_type(inner_field_type):
+                if field_name.startswith('_incoming') or field_name.startswith('_outgoing'):
+                    t['edgeFields'].append(field_name)
+                elif is_schema_defined_object_type(inner_field_type) or is_interface_type(inner_field_type):
                     t['fields'].append(field_name)
                 if inner_field_type.name == 'DateTime':
                     t['DateTime'].append(field_name)
                 if field_name[0] == '_':
                     continue
                 if is_schema_defined_object_type(inner_field_type) or is_interface_type(inner_field_type):
-                    t['edgeFields'].append((pascalCase(field_name), inner_field_type))
+                    t['edgeFieldEndpoints'].append((pascalCase(field_name), inner_field_type))
 
             sort_before_rendering(t)
             data['types'].append(t)

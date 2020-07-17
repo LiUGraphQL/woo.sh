@@ -1035,11 +1035,11 @@ function formatFixVariable(type, value) {
         if (Array.isArray(value)) {
             formattedValue = []
             for (let date in Object.values(value)) {
-                formattedValue.push(aql`DATE_TIMESTAMP('${date}')`);
+                formattedValue.push(new Date(date).valueOf());
             }
         }
         else {
-            formattedValue = aql`DATE_TIMESTAMP('${value}')`;
+            formattedValue = new Date(value).valueOf();
         }
     }
     return formattedValue;

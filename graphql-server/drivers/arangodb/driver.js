@@ -77,7 +77,8 @@ async function init(args){
     console.info(`ArangoDB is now available at ${url}`);
 
     // if drop is set
-    if(drop) {
+	dblist = await db.listDatabases();
+    if(drop && dblist.includes(dbName)) {
         await db.dropDatabase(dbName).then(
             () => console.info(`Database ${dbName} dropped.`),
             (err) => console.error(err)

@@ -884,6 +884,7 @@ function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targe
 
     // if field is not list type, verify that it is not already populated
     let fieldType = info.schema.getType(sourceType).getFields()[sourceField].type;
+    if (graphql.isNonNullType(fieldType)) fieldType = fieldType.ofType; // Strip non Null if non Null
     if(!graphql.isListType(fieldType)) {
         let edgeCollection = getEdgeCollectionName(sourceType.name, sourceField);
         let collectionVar = getCollectionVar(edgeCollection);

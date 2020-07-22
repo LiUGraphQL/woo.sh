@@ -1,4 +1,5 @@
 import argparse
+import yaml
 
 from graphql import build_schema, is_object_type, get_named_type, is_interface_type, assert_valid_schema
 from mako.template import Template
@@ -20,13 +21,13 @@ def pascalCase(s):
     return s[0].upper() + s[1:]
 
 
-def generate(input_file, output_dir):
+def generate(input_file, output_dir, config: dict):
     # load schema
     with open(input_file, 'r') as f:
         schema_string = f.read()
     schema = build_schema(schema_string)
 
-    data = {'types': [], 'types_by_key': [], 'interfaces': []}
+    data = {'types': [], 'types_by_key': [], 'interfaces': [], 'typeDelete': []}
 
     # get list of types
     for type_name, _type in schema.type_map.items():
@@ -61,9 +62,13 @@ def generate(input_file, output_dir):
             sort_before_rendering(t)
             data['types'].append(t)
 
+            if config.get('generation').get('delete_objects'):
+                data['typeDelete'].append(type_name)
+
     # sort
     data['types'].sort(key=lambda x: x['name'])
     data['interfaces'].sort()
+    data['typeDelete'].sort()
 
     # apply template
     template = Template(filename=f'resources/resolver.template')
@@ -93,7 +98,13 @@ def sort_before_rendering(d: dict):
 
 
 def cmd(args):
-    generate(args.input, args.output)
+    # load config
+    config = {}
+    if args.config:
+        with open(args.config) as f:
+            config = yaml.safe_load(f)
+
+    generate(args.input, args.output, config)
 
 
 if __name__ == '__main__':
@@ -102,4 +113,6 @@ if __name__ == '__main__':
                         help='GraphQL API schema file')
     parser.add_argument('--output', type=str,
                         help='Output directory for resolver.js file')
+    parser.add_argument('--config', type=str,
+                        help='Path to configuration file')
     cmd(parser.parse_args())

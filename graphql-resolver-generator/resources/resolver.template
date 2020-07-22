@@ -13,6 +13,7 @@ const resolvers = {
         ${type['name']}: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
     % endfor
+
     % for type in data['types']:
         % if type['hasKeyDirective']:
         ${type['name']}ByKey: async (parent, args, context, info) =>
@@ -25,6 +26,11 @@ const resolvers = {
         listOf${type['Name']}s: async (parent, args, context, info) =>
             await driver.getList(args, info),
         % endif
+    % endfor
+
+    % for edge_name in data['edge_objects']:
+        ${edge_name}: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
     % endfor
 
     % for interface_name in data['interfaces']:
@@ -71,6 +77,18 @@ const resolvers = {
         % endif
     % endfor
 
+    % for edgeName, sourceType in data['edge_types_to_update']:
+        update${edgeName}: async (parent, args, context, info) =>
+            await driver.updateEdge(
+                true,
+                context,
+                args.id,
+                args.data,
+                '${edgeName}',
+                info.schema.getType('_InputToUpdate${edgeName}'),
+                info),
+    % endfor
+    
     % for type_name in data['typeDelete']:
         delete${type_name}: (parent, args, context, info) =>
             driver.deleteObject(true, context, args.id, info.schema.getType('${type_name}'), info),

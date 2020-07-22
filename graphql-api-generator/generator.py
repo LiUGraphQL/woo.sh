@@ -98,6 +98,9 @@ def run(schema: GraphQLSchema, config: dict):
             schema = add_enum_filters(schema)
             schema = add_scalar_filters(schema, config)
             schema = add_type_filters(schema)
+            
+        if config.get('generation').get('fields_for_edge_types') and config.get('generation').get('query_type_filter'):
+            schema = add_filters_for_edge_types(schema)
 
         if config.get('generation').get('query_type_filter'):
             schema = add_object_type_filters(schema)

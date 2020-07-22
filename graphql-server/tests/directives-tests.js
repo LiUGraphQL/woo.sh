@@ -205,7 +205,10 @@ async function testNoloops(client) {
 }
 
 async function testRequiredForTargetTest(client) {
-    // 
+    // Create a Target (should fail), then a Target together with a Source
+    // Queries the id of the edge, and tries to delete the edge followed by the object.
+    // Both deletions should fail.
+    // Lastly delete both objects in valid order
 
     // Create RequiredForTargetTarget 1
     let createRequiredForTargetTarget1 = `
@@ -240,7 +243,81 @@ async function testRequiredForTargetTest(client) {
         console.error(mutationCreate.errors);
         return false;
     }
+    let noRequiredSourceId = mutationCreate.data[`createRequiredForTargetTest`].id;
 
+    // Get edge id
+    let getIds = `
+        query {
+            requiredForTargetTest(id: "${noRequiredSourceId}") {
+                target
+                _outgoingTargetEdges { id }
+            }
+        }`;
+    
+    const queryIds = await client.query({ query: gql`${getIds }` });
+
+    if (queryIds.errors) {
+        console.error(queryIds.errors);
+    }
+    let targetId = queryIds.requiredForTargetTest.target.id
+    let edgeId = queryIds.requiredForTargetTest._outgoingTargetEdges.id;;
+
+    // Delete Edge
+    let deleteEdge = `
+        mutation {
+            deleteTargetEdgeFromRequiredForTargetTest(id: "${edgeId}"){
+                id
+            }
+        }`;
+    const mutationDeleteEdge = await client.mutate({ mutation: gql`${deleteEdge}` });
+    if (mutationDeleteEdge.errors) {
+        // empty, should actually give errors.
+    } else {
+        console.error("Breaking a @requiredForTarget directive did not yield an error!");
+        return false;
+    }
+
+    // Delete Object
+    let deleteObject = `
+        mutation {
+            deleteRequiredForTargetTest(id: "${noRequiredSourceId}"){
+                id
+            }
+        }`;
+    const mutationDeleteObject = await client.mutate({ mutation: gql`${deleteObject}` });
+    if (mutationDeleteObject.errors) {
+        // empty, should actually give errors.
+    } else {
+        console.error("Breaking a @requiredForTarget directive did not yield an error!");
+        return false;
+    }
+
+    // Delete Target
+    let deleteTarget = `
+        mutation {
+            deleteRequiredForTargetTarget(id: "${targetId}"){
+                id
+            }
+        }`;
+    const mutationDeleteTarget = await client.mutate({ mutation: gql`${deleteTarget}` });
+    if (mutationDeleteTarget.errors) {
+        console.error(mutationDeleteTarget.errors);
+        return false;
+    }
+
+    // Delete Target
+    let deleteSource = `
+        mutation {
+            deleteRequiredForTargetTest(id: "${noRequiredSourceId}"){
+                id
+            }
+        }`;
+    const mutationDeleteSource = await client.mutate({ mutation: gql`${deleteSource}` });
+    if (mutationDeleteSource.errors) {
+        console.error(mutationDeleteSource.errors);
+        return false;
+    }
+    
     return true;
 }
 
@@ -274,9 +351,9 @@ async function testUniqueForTargetTest(client) {
             }
         }
     `;
-    const mutationcreateUniqueForTargetTest1 = await client.mutate({ mutation: gql`${createUniqueForTargetTest1}` });
-    if (mutationcreateUniqueForTargetTest1.errors) {
-        console.error(mutationcreateUniqueForTargetTest1.errors);
+    const mutationCreateUniqueForTargetTest1 = await client.mutate({ mutation: gql`${createUniqueForTargetTest1}` });
+    if (mutationCreateUniqueForTargetTest1.errors) {
+        console.error(mutationCreateUniqueForTargetTest1.errors);
         return false;
     }
 
@@ -290,8 +367,8 @@ async function testUniqueForTargetTest(client) {
             }
         }
     `;
-    const mutationcreateUniqueForTargetTest2 = await client.mutate({ mutation: gql`${createUniqueForTargetTest2}` });
-    if (mutationCreateUniqueForTargetTarget2.errors) {
+    const mutationCreateUniqueForTargetTest2 = await client.mutate({ mutation: gql`${createUniqueForTargetTest2}` });
+    if (mutationCreateUniqueForTargetTest2.errors) {
         // empty, should actually give errors.
     } else {
         console.error("Breaking a @uniqueForTarget directive did not yield an error!");

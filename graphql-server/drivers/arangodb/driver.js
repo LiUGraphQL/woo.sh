@@ -515,13 +515,14 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar=null) {
 }
 
 
-    /**
- * Update an object including, and replace existing edges.
+/**
+ * Delete an edge with the given id
  *
  * @param isRoot
  * @param ctxt
  * @param id
- * @param type
+ * @param edgeName
+ * @param sourceType
  * @param info
  * @param resVar
  * @returns {null|Promise<any>}

@@ -65,7 +65,7 @@ async function init(args) {
     let typeDefs = args.typeDefs;
     let dbName = args.dbName || 'dev-db';
     let url = args.url || 'http://localhost:8529';
-    let drop = args.drop || true;
+    let drop = args.drop || false;
     disableDirectivesChecking = args['disableDirectivesChecking'] || false;
     disableEdgeValidation = args['disableEdgeValidation'] || false;
     db = new arangojs.Database({ url: url });

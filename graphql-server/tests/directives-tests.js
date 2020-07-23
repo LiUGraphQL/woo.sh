@@ -7,6 +7,7 @@
 const { InMemoryCache } = require('apollo-cache-inmemory')
 const { ApolloClient } = require('apollo-client');
 const { HttpLink } = require('apollo-link-http');
+const { introspectSchema } = require('graphql-tools');
 const gql = require('graphql-tag');
 const fetch = require('node-fetch');
 

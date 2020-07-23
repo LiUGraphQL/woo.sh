@@ -544,15 +544,26 @@ function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
         let field = typeToDelete.getFields()[i];
         let t = graphql.getNamedType(field.type);
         if (graphql.isObjectType(t) || graphql.isInterfaceType(t)) {
-            if (graphql.isInterfaceType(t)) {
-                let possible_types = schema.getPossibleTypes(t);
-                for (let j in possible_types) {
-                    let collectionVar = getCollectionVar(possible_types[j], ctxt, true);
-                    ctxt.trans.code.push(`db._query(aql\`FOR x IN ${asAQLVar(collectionVar)} FILTER x.source == ${asAQLVar(idVar)} OR x.target == ${asAQLVar(idVar)} REMOVE x IN ${asAQLVar(collectionVar)}\`);`);
-                }
+            if (field.name.startsWith('_incoming') || field.name.startsWith('_outgoing')) {
+                // Pass
+            }
+            else if (field.name[0] == '_') {
+                // Return edge
+                let type_name = graphql.getNamedType(field.type).name
+                let pattern_string = `^_(.+?)From${type_name}$`; // get the non-reversed edge name
+                let re = new RegExp(pattern_string);
+                let field_name = re.exec(field.name)[1];
+
+                let collectionName = getEdgeCollectionName(type_name, field_name);
+                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
+                
+                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x.source == ${asAQLVar(idVar)}._id OR x.target == ${asAQLVar(idVar)}._id REMOVE x IN ${collectionVar}\`);`);
+                
             } else {
-                let collectionVar = getCollectionVar(t, ctxt, true);
-                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${asAQLVar(collectionVar)} FILTER x.source == ${asAQLVar(idVar)} OR x.target == ${asAQLVar(idVar)} REMOVE x IN ${asAQLVar(collectionVar)}\`);`);
+                // Normal edge
+                let collectionName = getEdgeCollectionName(typeToDelete.name, field.name);
+                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
+                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x.source == ${asAQLVar(idVar)}._id OR x.target == ${asAQLVar(idVar)}._id REMOVE x IN ${collectionVar}\`);`);
             }
         }
     }

@@ -65,7 +65,7 @@ async function init(args) {
     let typeDefs = args.typeDefs;
     let dbName = args.dbName || 'dev-db';
     let url = args.url || 'http://localhost:8529';
-    let drop = args.drop || true;
+    let drop = args.drop || false;
     disableDirectivesChecking = args['disableDirectivesChecking'] || false;
     disableEdgeValidation = args['disableEdgeValidation'] || false;
     db = new arangojs.Database({ url: url });
@@ -629,7 +629,7 @@ function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
 
     // directives handling
     let resVarId = isVar(resVar) ? resVar : addParameterVar(ctxt, createParamVar(ctxt), { '_id': resVar });
-    addFinalDirectiveChecksForType(ctxt, typeToDelete, asAQLVar(resVarId), info.schema, 'delete');
+    addFinalDirectiveChecksForType(ctxt, typeToDelete, asAQLVar(resVarId), info.schema);
     // return promises for roots and null for nested result
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
@@ -1034,7 +1034,6 @@ function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targe
     ctxt.trans.code.push('/* source exists? */');
     exists(ctxt, sourceVar, sourceType, info.schema);
     ctxt.trans.code.push('/* target exists? */');
-    console.log(targetVar, targetType);
     exists(ctxt, targetVar, targetType, info.schema);
 
     // if field is not list type, verify that it is not already populated
@@ -1501,7 +1500,7 @@ function addPossibleEdgeTypes(query, ctxt, schema, type_name, field_name) {
  * @param schema
  * @param operation = null (optional)
  */
-function addFinalDirectiveChecksForType(ctxt, type, id, schema, operation = null) {
+function addFinalDirectiveChecksForType(ctxt, type, id, schema) {
     if (disableDirectivesChecking) {
         console.log('Directives checking disabled');
         return;
@@ -1588,20 +1587,23 @@ function addFinalDirectiveChecksForType(ctxt, type, id, schema, operation = null
                 ctxt.trans.finalConstraintChecks.push(`   throw "There are object(s) breaking the inherited @_requiredForTarget_AccordingToInterface directive of Field ${f} in ${type.name}!";`);
                 ctxt.trans.finalConstraintChecks.push(`}`);
             }
-            else if (dir.name.value == 'required' && field.name[0] == '_' && operation != 'delete') {
+            else if (dir.name.value == 'required' && field.name[0] == '_') {
                 // This is actually the reverse edge of a @requiredForTarget directive
-                // If the operation was a delete operation, there is not need to check this 
-                // (as the object with the requierment is the deleted object)
 
                 let type_name = graphql.getNamedType(field.type).name
                 let pattern_string = `^_(.+?)From${type_name}$`; // get the non-reversed edge name
                 let re = new RegExp(pattern_string);
                 let field_name = re.exec(field.name)[1];
 
+                // First make sure the documment actually still exists in the collection
+                let collectionVar = asAQLVar(getCollectionVar(type.name, ctxt, true));
+                ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR x IN ${collectionVar} FILTER x._id == ${id}._id RETURN x\`).next()){`);
+                // If it does exists, make sure there is at least one edge to it
                 ctxt.trans.finalConstraintChecks.push(`if(!db._query(aql\`FOR x IN 1..1 INBOUND ${id}`);
                 addPossibleEdgeTypes(ctxt.trans.finalConstraintChecks, ctxt, schema, graphql.getNamedType(field.type), field_name);
                 ctxt.trans.finalConstraintChecks.push(`RETURN x\`).next()){`);
-                ctxt.trans.finalConstraintChecks.push(`   throw "Field ${f} in ${type.name} is breaking a @requiredForTarget directive (in reverse)!";`);
+                ctxt.trans.finalConstraintChecks.push(`throw "Field ${f} in ${type.name} is breaking a @requiredForTarget directive (in reverse)!";`);
+                ctxt.trans.finalConstraintChecks.push(`}`);
                 ctxt.trans.finalConstraintChecks.push(`}`);
             }
         }

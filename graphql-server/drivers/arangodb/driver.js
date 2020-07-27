@@ -560,7 +560,7 @@ function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
         let t = graphql.getNamedType(field.type);
 
         // deleted by default behavior, ignore
-        if (field.name.startsWith('_incoming') || field.name.startsWith('_outgoing') || graphql.isInterfaceType(t)) {
+        if (field.name.startsWith('_incoming') || field.name.startsWith('_outgoing') || (field.name.startsWith('_') && graphql.isInterfaceType(t))) {
             continue;
         }
         // delete edges

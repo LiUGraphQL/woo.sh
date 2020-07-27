@@ -549,33 +549,33 @@ function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
     resVar = resVar !== null ? resVar : createVar(ctxt);
     let collectionVar = getCollectionVar(typeToDelete, ctxt, true);
-    
+
     // delete document
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} RETURN OLD\`).next();`);
-    // note that we dont throw errors if the key does not exists in the collection
+    // return null if the key does not exists in the collection (i.e., don't throw error)
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD \`).next();`);
 
     // delete every edge either targeting, or originating from id
     for (let i in typeToDelete.getFields()) {
         let field = typeToDelete.getFields()[i];
         let t = graphql.getNamedType(field.type);
-        if (graphql.isObjectType(t) || graphql.isInterfaceType(t)) {
-            if (field.name.startsWith('_incoming') || field.name.startsWith('_outgoing')) {
-                // Pass
-            }
-            else if (field.name[0] == '_') {
-                // Return edge
+
+        // deleted by default behavior, ignore
+        if (field.name.startsWith('_incoming') || field.name.startsWith('_outgoing') || graphql.isInterfaceType(t)) {
+            continue;
+        }
+        // delete edges
+        if (graphql.isObjectType(t)) {
+            if (field.name[0] == '_') {
+                // delete return edge
                 let type_name = graphql.getNamedType(field.type).name
                 let pattern_string = `^_(.+?)From${type_name}$`; // get the non-reversed edge name
                 let re = new RegExp(pattern_string);
                 let field_name = re.exec(field.name)[1];
-
                 let collectionName = getEdgeCollectionName(type_name, field_name);
                 let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-                
                 ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x.source == ${asAQLVar(idVar)}._id OR x.target == ${asAQLVar(idVar)}._id REMOVE x IN ${collectionVar}\`);`);
-                
             } else {
-                // Normal edge
+                // delete normal edge
                 let collectionName = getEdgeCollectionName(typeToDelete.name, field.name);
                 let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
                 ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x.source == ${asAQLVar(idVar)}._id OR x.target == ${asAQLVar(idVar)}._id REMOVE x IN ${collectionVar}\`);`);
@@ -943,7 +943,6 @@ function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targe
     ctxt.trans.code.push('/* source exists? */');
     exists(ctxt, sourceVar, sourceType, info.schema);
     ctxt.trans.code.push('/* target exists? */');
-    console.log(targetVar, targetType);
     exists(ctxt, targetVar, targetType, info.schema);
 
     // if field is not list type, verify that it is not already populated

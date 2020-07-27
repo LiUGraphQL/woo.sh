@@ -1,6 +1,7 @@
 import argparse
 import yaml
 
+import yaml
 from graphql import build_schema, is_object_type, get_named_type, is_interface_type, assert_valid_schema
 from mako.template import Template
 
@@ -27,7 +28,7 @@ def generate(input_file, output_dir, config: dict):
         schema_string = f.read()
     schema = build_schema(schema_string)
 
-    data = {'types': [], 'types_by_key': [], 'interfaces': [], 'typeDelete': []}
+    data = {'types': [], 'types_by_key': [], 'interfaces': [], 'typeDelete': [], 'edge_types_to_delete': []}
 
     # get list of types
     for type_name, _type in schema.type_map.items():
@@ -59,6 +60,9 @@ def generate(input_file, output_dir, config: dict):
                 if is_schema_defined_object_type(inner_field_type) or is_interface_type(inner_field_type):
                     t['edgeFieldEndpoints'].append((pascalCase(field_name), inner_field_type))
 
+                    if config.get('generation').get('delete_edge_objects'):
+                        data['edge_types_to_delete'].append((f'{pascalCase(field_name)}EdgeFrom{type_name}', type_name))
+
             sort_before_rendering(t)
             data['types'].append(t)
 
@@ -69,6 +73,7 @@ def generate(input_file, output_dir, config: dict):
     data['types'].sort(key=lambda x: x['name'])
     data['interfaces'].sort()
     data['typeDelete'].sort()
+    data['edge_types_to_delete'].sort()
 
     # apply template
     template = Template(filename=f'resources/resolver.template')

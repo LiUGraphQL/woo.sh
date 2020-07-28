@@ -113,6 +113,9 @@ def run(schema: GraphQLSchema, config: dict):
             schema = add_key_input_types(schema)
             schema = add_key_queries(schema)
 
+        if config.get('generation').get('query_edge_by_id'):
+            schema = add_get_edge_queries(schema)
+
         # add input types
         if config.get('generation').get('input_to_create_objects'):
             schema = add_input_to_create(schema)
@@ -123,7 +126,7 @@ def run(schema: GraphQLSchema, config: dict):
         if config.get('generation').get('input_to_create_edge_objects'):
             schema = add_input_to_create_edge_objects(schema)
         if config.get('generation').get('input_to_update_edge_objects'):
-            raise UnsupportedOperation('{0} is currently not supported'.format('input_to_update_edge_objects'))
+            schema = add_input_to_update_edge_objects(schema)
 
         # add mutations
         if config.get('generation').get('create_objects'):
@@ -137,7 +140,7 @@ def run(schema: GraphQLSchema, config: dict):
         if config.get('generation').get('create_edge_objects'):
             schema = add_mutation_create_edge_objects(schema)
         if config.get('generation').get('update_edge_objects'):
-            raise UnsupportedOperation('{0} is currently not supported'.format('update_edge_objects'))
+            schema = add_mutation_update_edge_objects(schema)
         if config.get('generation').get('delete_edge_objects'):
             schema = add_mutation_delete_edge_objects(schema)
 

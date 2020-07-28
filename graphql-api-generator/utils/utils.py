@@ -714,7 +714,11 @@ def add_fields_for_edge_types(schema: GraphQLSchema, reverse):
             type_type_str = 'type'
             if is_interface_type(_type):
                 type_type_str = 'interface'
-            make += f'extend {type_type_str} {_type.name} {{ _outgoing{capitalize(field_name)}Edges: {full_type} }}\n'
+                implementing_types = schema.get_possible_types(_type)
+                for imp_type in implementing_types:
+                    make += f'extend type {imp_type.name} {{ _outgoing{capitalize(field_name)}EdgesFrom{_type.name}: {full_type} }}\n'
+
+            make += f'extend {type_type_str} {_type.name} {{ _outgoing{capitalize(field_name)}EdgesFrom{_type.name}: {full_type} }}\n'
 
             if reverse:
                 directives = {}

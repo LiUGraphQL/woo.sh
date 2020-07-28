@@ -621,9 +621,14 @@ def add_object_type_filters(schema: GraphQLSchema):
                 continue
 
             named_type = get_named_type(field.type)
-            if is_enum_or_scalar(named_type) or is_interface_type(named_type) or field_name.startswith('_incoming') or field_name.startswith('_outgoing'):
+            if is_enum_or_scalar(named_type):
                 continue
-            filter_name = f'_FilterFor{capitalize(named_type.name)}'
+
+            if field_name.startswith('_incoming') or field_name.startswith('_outgoing'):
+                filter_name = f'_FilterFor{capitalize(named_type.name[1:])}'
+            else:
+                filter_name = f'_FilterFor{capitalize(named_type.name)}'
+
             _filter = schema.type_map[filter_name]
             field.args['filter'] = GraphQLArgument(_filter)
     return schema
@@ -686,7 +691,11 @@ def add_fields_for_edge_types(schema: GraphQLSchema, reverse):
             type_type_str = 'type'
             if is_interface_type(_type):
                 type_type_str = 'interface'
-            make += f'extend {type_type_str} {_type.name} {{ _outgoing{capitalize(field_name)}Edges: {full_type} }}\n'
+                implementing_types = schema.get_possible_types(_type)
+                for imp_type in implementing_types:
+                    make += f'extend type {imp_type.name} {{ _outgoing{capitalize(field_name)}EdgesFrom{_type.name}: {full_type} }}\n'
+
+            make += f'extend {type_type_str} {_type.name} {{ _outgoing{capitalize(field_name)}EdgesFrom{_type.name}: {full_type} }}\n'
 
             if reverse:
                 directives = {}
@@ -709,6 +718,47 @@ def add_fields_for_edge_types(schema: GraphQLSchema, reverse):
                     if is_interface_type(inner_t):
                         type_type_str = 'interface'
                     make += f'extend {type_type_str} {inner_t.name} {{ _incoming{edge_from}: {edge_to} }}\n'
+
+    schema = add_to_schema(schema, make)
+    return schema
+
+
+def add_filters_for_edge_types(schema: GraphQLSchema):
+    """
+    Add filters for edges (Hasura-style filters).
+    :param schema: schema
+    :return: Updated schema
+    """
+    make = ''
+    for _type in schema.type_map.values():
+        if not _type.name.startswith('_') or not 'EdgeFrom' in _type.name:
+            continue
+        
+        type_short_name = _type.name[1:]
+
+        make += f'input _FilterFor{type_short_name} {{ ' \
+            f'   _and: [_FilterFor{type_short_name}] ' \
+            f'   _or: [_FilterFor{type_short_name}] ' \
+            f'   _not: _FilterFor{type_short_name} '
+
+        for field_name, field in _type.fields.items():
+            if field_name[0] == '_' and not is_meta_field(field_name):
+                continue
+
+            # remove outer required
+            f_type = field.type
+            if is_non_null_type(f_type):
+                f_type = field.type.of_type
+
+            # filters are not supported for lists
+            if is_list_type(field.type):
+                continue
+
+            named_type = get_named_type(f_type)
+            if is_enum_or_scalar(f_type):
+                make += f'{field_name}: _{named_type.name}Filter '
+
+        make += '} '
 
     schema = add_to_schema(schema, make)
     return schema

@@ -719,7 +719,7 @@ async function getEdgeEndpoint(parent, args, info) {
     // add filters
     let query_filters = [];
     if (args.filter && !isEmptyObject(args.filter)) {
-        let filters = getFilters(args.filter, info);
+        let filters = getFilters(args.filter, return_type);
         for (let i in filters) {
             i == 0 ? query_filters.push(aql`FILTER`) : query_filters.push(aql`AND`);
             query_filters = query_filters.concat(filters[i]);
@@ -749,6 +749,12 @@ async function getEdge(parent, args, info) {
 
     // Create query
     let query = [];
+
+    // Saddly can't be lazy and just use 'ANY' for the directioning, as loops of length 1 would then give us duplicated resaults
+    let direction_string = aql`INBOUND`;
+    if (info.fieldName.startsWith("_outgoing"))
+        direction_string = aql`OUTBOUND`;
+
     // If the type that is the origin of the edge is an interface, then we need to check all the edge collections
     // corresponding to its implementing types. Note: This is only necessary when traversing some edges that are
     // defined in in the API schema for interfaces. The parent type will never be an interface type at this stage.
@@ -759,26 +765,25 @@ async function getEdge(parent, args, info) {
         for (let i in possible_types) {
             if (i != 0) query.push(aql`,`);
             let collection = db.collection(possible_types[i].name.substr(1));
-            query.push(aql`(FOR v, inner_e IN 1..1 ANY ${parent._id} ${collection} RETURN inner_e)`);
+            query.push(aql`(FOR v, inner_e IN 1..1 ${direction_string} ${parent._id} ${collection} RETURN inner_e)`);
         }
         if (possible_types.length > 1) query.push(aql`)`);
 
     } else {
         let collection = db.edgeCollection(return_type.name.substr(1));
-        query.push(aql`FOR v, e IN 1..1 ANY ${parent._id} ${collection}`);
+        query.push(aql`FOR v, e IN 1..1 ${direction_string} ${parent._id} ${collection}`);
     }
 
     // add filters
-    // Not yet implemented
-    //let query_filters = [];
-    //if (args.filter != undefined && !isEmptyObject(args.filter)) {
-    //    let filters = getFilters(args.filter, info);
-    //    for (let i in filters) {
-    //        i == 0 ? query_filters.push(aql`FILTER`) : query_filters.push(aql`AND`);
-    //        query_filters = query_filters.concat(filters[i]);
-    //    }
-    //}
-    //query = query.concat(query_filters);
+    let query_filters = [];
+    if (args.filter != undefined && !isEmptyObject(args.filter)) {
+        let filters = getFilters(args.filter, return_type, 'e');
+        for (let i in filters) {
+            i == 0 ? query_filters.push(aql`FILTER`) : query_filters.push(aql`AND`);
+            query_filters = query_filters.concat(filters[i]);
+        }
+    }
+    query = query.concat(query_filters);
     query.push(aql`RETURN e`);
 
     const cursor = await db.query(aql.join(query));
@@ -845,7 +850,7 @@ async function getList(args, info) {
     // add filters
     let queryFilters = [];
     if (args.filter && !isEmptyObject(args.filter)) {
-        let filters = getFilters(args.filter, info);
+        let filters = getFilters(args.filter, typeOrInterface);
         for (let i in filters) {
             i == 0 ? queryFilters.push(aql`FILTER`) : queryFilters.push(aql`AND`);
             queryFilters = queryFilters.concat(filters[i]);
@@ -1151,29 +1156,31 @@ function formatFixVariable(type, value) {
 
 /**
  * A small wrapper used by getFilters to call formatFixVariable.
- * @param field, info, value
+ * @param field
+ * @param type_to_filter
+ * @param value
  * @returns value (in database ready format)
  */
-function formatFixVariableWrapper(field, info, v) {
+function formatFixVariableWrapper(field, type_to_filter, v) {
     // no need to even try when we have _id as field
     if (field == '_id')
         return v;
 
-    let namedReturnType = graphql.getNamedType(info.returnType.getFields()['content'].type)
-    let _type = graphql.getNamedType(namedReturnType.getFields()[field].type);
+    let _type = graphql.getNamedType(type_to_filter.getFields()[field].type);
 
     return formatFixVariable(_type, v);
 }
 
 /**
  * Build a list of filters (possibly nested) and return this as an array of AQL statements. Assumes that the variable
- * being filtered on is x.
+ * being filtered on is x unless otherwise statet.
  *
  * @param filterArg
- * @param info
+ * @param type_to_filter
+ * @param alias (optional)
  * @returns {Array}
  */
-function getFilters(filterArg, info) {
+function getFilters(filterArg, type_to_filter, alias='x') {
     let filters = [];
     for (let i in filterArg) {
         let filter = filterArg[i];
@@ -1187,7 +1194,7 @@ function getFilters(filterArg, info) {
             let filterArray = [aql`(`];
             for (let j in filter) {
                 j == 0 ? null : filterArray.push(aql`AND`);
-                for (let f of getFilters(filter[j], info)) {
+                for (let f of getFilters(filter[j], type_to_filter)) {
                     filterArray = filterArray.concat(f);
                 }
             }
@@ -1197,7 +1204,7 @@ function getFilters(filterArg, info) {
             let filterArray = [aql`(`];
             for (let j in filter) {
                 j == 0 ? null : filterArray.push(aql`OR`);
-                for (let f of getFilters(filter[j], info)) {
+                for (let f of getFilters(filter[j], type_to_filter)) {
                     filterArray = filterArray.concat(f);
                 }
             }
@@ -1205,67 +1212,68 @@ function getFilters(filterArg, info) {
             filters.push(filterArray);
         } else if (i == '_not') { // NOT expression
             let filterArray = [aql`NOT (`];
-            for (let f of getFilters(filter, info)) {
+            for (let f of getFilters(filter, type_to_filter)) {
                 filterArray = filterArray.concat(f);
             }
             filterArray.push(aql`)`);
             filters.push(filterArray);
         }
 
-        if (filter._eq) {
-            let preparedArg = formatFixVariableWrapper(i, info, filter._eq);
-            filters.push([aql`x.${i} == ${preparedArg}`]);
+        // prepared AQL literal referencing the alias field
+        const v = aql.literal(`${alias}.${i}`);
+
+        if(filter._eq) {
+            let preparedArg = formatFixVariableWrapper(i, type_to_filter, filter._eq);
+            filters.push([aql`${v} == ${preparedArg}`]);
         }
-        if (filter._neq != null) {
-            let preparedArgs = formatFixVariableWrapper(i, info, filter._neq);
-            filters.push([aql`x.${i} != ${preparedArgs}`]);
+        if(filter._neq != null) {
+            let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._neq);
+            filters.push([aql`${v} != ${preparedArgs}`]);
         }
-        if (filter._gt != null) {
-            let preparedArgs = formatFixVariableWrapper(i, info, filter._gt);
-            filters.push([aql`x.${i} > ${preparedArgs}`]);
+        if(filter._gt != null) {
+            let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._gt);
+            filters.push([aql`${v} > ${preparedArgs}`]);
         }
-        if (filter._egt != null) {
-            let preparedArgs = formatFixVariableWrapper(i, info, filter._egt);
-            filters.push([aql`x.${i} >= ${preparedArgs}`]);
+        if(filter._egt != null) {
+            let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._egt);
+            filters.push([aql`${v} >= ${preparedArgs}`]);
         }
-        if (filter._lt != null) {
-            let preparedArgs = formatFixVariableWrapper(i, info, filter._lt);
-            filters.push([aql`x.${i} < ${preparedArgs}`]);
+        if(filter._lt != null) {
+            let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._lt);
+            filters.push([aql`${v} < ${preparedArgs}`]);
         }
-        if (filter._elt != null) {
-            let preparedArgs = formatFixVariableWrapper(i, info, filter._elt);
-            filters.push([aql`x.${i} <= ${preparedArgs}`]);
+        if(filter._elt != null) {
+            let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._elt);
+            filters.push([aql`${v} <= ${preparedArgs}`]);
         }
-        if (filter._in != null) {
-            let preparedArgs = formatFixVariableWrapper(i, info, filter._in)
-            let q = [aql`x.${i} IN `];
+        if(filter._in != null) {
+            let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._in)
+            let q = [aql`${v} IN `];
             q = q.concat(asAqlArray(preparedArgs));
             filters.push(q);
         }
-        if (filter._nin != null) {
-            let preparedArgs = formatFixVariableWrapper(i, info, filter._nin);
-            let q = [aql`x.${i} NOT IN `];
+        if(filter._nin != null) {
+            let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._nin);
+            let q = [aql`${v} NOT IN `];
             q = q.concat(asAqlArray(preparedArgs));
             filters.push(q);
         }
-
-        if (filter._like != null) {
-            let preparedArgs = formatFixVariableWrapper(i, info, filter._like);
-            filters.push([aql`LIKE(x.${i}, ${preparedArgs}, false)`]);
+        if(filter._like != null) {
+            let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._like);
+            filters.push([aql`LIKE(${v}, ${preparedArgs}, false)`]);
         }
-        if (filter._ilike != null) {
-            let preparedArgs = formatFixVariableWrapper(i, info, filter._ilike);
-            filters.push([aql`LIKE(x.${i}, ${preparedArgs}, true)`]);
+        if(filter._ilike != null) {
+            let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._ilike);
+            filters.push([aql`LIKE(${v}, ${preparedArgs}, true)`]);
         }
-        if (filter._nlike != null) {
-            let preparedArgs = formatFixVariableWrapper(i, info, filter._nlike);
-            filters.push([aql`NOT LIKE(x.${i}, ${preparedArgs}, false)`]);
+        if(filter._nlike != null) {
+            let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._nlike);
+            filters.push([aql`NOT LIKE(${v}, ${preparedArgs}, false)`]);
         }
-        if (filter._nilike != null) {
-            let preparedArgs = formatFixVariableWrapper(i, info, filter._nilike);
-            filters.push([aql`NOT LIKE(x.${i}, ${preparedArgs}, true)`]);
+        if(filter._nilike != null) {
+            let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._nilike);
+            filters.push([aql`NOT LIKE(${v}, ${preparedArgs}, true)`]);
         }
-
     }
 
     return filters;

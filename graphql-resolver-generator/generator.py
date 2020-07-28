@@ -1,4 +1,5 @@
 import argparse
+import yaml
 
 import yaml
 from graphql import build_schema, is_object_type, get_named_type, is_interface_type, assert_valid_schema
@@ -27,7 +28,7 @@ def generate(input_file, output_dir, config: dict):
         schema_string = f.read()
     schema = build_schema(schema_string)
 
-    data = {'types': [], 'types_by_key': [], 'interfaces': [], 'edge_types_to_delete': []}
+    data = {'types': [], 'types_by_key': [], 'interfaces': [], 'typeDelete': [], 'edge_types_to_delete': []}
 
     # get list of types
     for type_name, _type in schema.type_map.items():
@@ -65,9 +66,13 @@ def generate(input_file, output_dir, config: dict):
             sort_before_rendering(t)
             data['types'].append(t)
 
+            if config.get('generation').get('delete_objects'):
+                data['typeDelete'].append(type_name)
+
     # sort
     data['types'].sort(key=lambda x: x['name'])
     data['interfaces'].sort()
+    data['typeDelete'].sort()
     data['edge_types_to_delete'].sort()
 
     # apply template

@@ -71,6 +71,11 @@ const resolvers = {
         % endif
     % endfor
 
+    % for type_name in data['typeDelete']:
+        delete${type_name}: (parent, args, context, info) =>
+            driver.deleteObject(true, context, args.id, info.schema.getType('${type_name}'), info),
+    % endfor
+    
     % for edgeName, sourceType in data['edge_types_to_delete']:
         delete${edgeName}: async (parent, args, context, info) =>
             await driver.deleteEdge(

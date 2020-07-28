@@ -29,6 +29,9 @@ module.exports = {
     update: function (isRoot, ctxt, id, data, returnType, info) {
         return update(isRoot, ctxt, id, data, returnType, info);
     },
+    deleteObject: function (isRoot, context, id, typeToDelete, info) {
+        return deleteObject (isRoot, context, id, typeToDelete, info);
+    },
     deleteEdge: function (isRoot, ctxt, id, edgeName, sourceType, info) {
         return deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info);
     },
@@ -562,6 +565,69 @@ function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null)
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
+
+/**
+ * Delete an object with the given id.
+ *
+ * @param isRoot
+ * @param ctxt
+ * @param id
+ * @param type
+ * @param info
+ * @param resVar
+ * @returns { null | Promise<any>}
+ */
+function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
+    // init transaction
+    initTransaction(ctxt);
+    ctxt.trans.code.push(`\n\t/* delete ${typeToDelete} */`);
+
+    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
+
+    // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
+    resVar = resVar !== null ? resVar : createVar(ctxt);
+    let collectionVar = getCollectionVar(typeToDelete, ctxt, true);
+
+    // delete document
+    // return null if the key does not exists in the collection (i.e., don't throw error)
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next();`);
+
+    // delete every edge either targeting, or originating from id
+    for (let i in typeToDelete.getFields()) {
+        let field = typeToDelete.getFields()[i];
+        let t = graphql.getNamedType(field.type);
+
+        // deleted by default behavior, ignore
+        if (field.name.startsWith('_incoming') || field.name.startsWith('_outgoing') || (field.name.startsWith('_') && graphql.isInterfaceType(t))) {
+            continue;
+        }
+
+        // delete edges
+        if (graphql.isObjectType(t)) {
+            if (field.name[0] == '_') {
+                // delete return edge
+                let type_name = graphql.getNamedType(field.type).name
+                let pattern_string = `^_(.+?)From${type_name}$`; // get the non-reversed edge name
+                let re = new RegExp(pattern_string);
+                let field_name = re.exec(field.name)[1];
+                let collectionName = getEdgeCollectionName(type_name, field_name);
+                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
+                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x._from == ${asAQLVar(resVar)}._id OR x._to == ${asAQLVar(resVar)}._id REMOVE x IN ${collectionVar}\`);`);
+            } else {
+                // delete normal edge
+                let collectionName = getEdgeCollectionName(typeToDelete.name, field.name);
+                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
+                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x._from == ${asAQLVar(resVar)}._id OR x._to == ${asAQLVar(resVar)}._id REMOVE x IN ${collectionVar}\`);`);
+            }
+        }
+    }
+
+    // directives handling
+    addFinalDirectiveChecksForType(ctxt, typeToDelete, aql`${asAQLVar(resVar)}._id`, info.schema);
+    // return promises for roots and null for nested result
+    return isRoot ? getResult(ctxt, info, resVar) : null;
+}
+
 /* Queries */
 
 /**
@@ -916,7 +982,6 @@ function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targe
     ctxt.trans.code.push('/* source exists? */');
     exists(ctxt, sourceVar, sourceType, info.schema);
     ctxt.trans.code.push('/* target exists? */');
-    console.log(targetVar, targetType);
     exists(ctxt, targetVar, targetType, info.schema);
 
     // if field is not list type, verify that it is not already populated

@@ -366,14 +366,14 @@ def extend_connect(schema: GraphQLSchema, _type: GraphQLType, field_type: GraphQ
     # Get annotations
     edge_from = f'{capitalize(field_name)}EdgeFrom{_type.name}'
     annotate_input = f'_InputToAnnotate{edge_from}'
-    annotations = get_field_annotations(_type.fields[field_name])
+    annotations, is_non_null_string = get_field_annotations(_type.fields[field_name])
 
     if len(annotations) > 0:
         # Make sure the annotation type actually exists first, and prevent us from defining it multiple times
         if annotate_input not in schema.type_map:
             schema = add_to_schema(schema, f'input {annotate_input}{{{annotations}}}')
 
-        make += f'annotations: {annotate_input}'
+        make += f'annotations: {annotate_input}{is_non_null_string}'
 
     make += '}'
     schema = add_to_schema(schema, make)
@@ -659,13 +659,16 @@ def get_field_annotations(field: GraphQLField):
     :return string:
     """
     annotation_fields = []
+    is_non_null_string = ''
     for arg, arg_type in field.args.items():
         if arg == 'filter':
             continue
         if not is_enum_or_scalar(get_named_type(arg_type.type)):
             raise Exception("Input object fields are not supported.")
         annotation_fields.append(f'{arg}: {arg_type.type}')
-    return " ".join(annotation_fields)
+        if is_non_null_type(arg_type.type):
+            is_non_null_string = '!'
+    return " ".join(annotation_fields), is_non_null_string
 
 
 def add_edge_objects(schema: GraphQLSchema):
@@ -678,7 +681,7 @@ def add_edge_objects(schema: GraphQLSchema):
             if field_name.startswith('_') or is_enum_or_scalar(inner_field_type):
                 continue
             edge_from = f'{capitalize(field_name)}EdgeFrom{_type.name}'
-            annotations = get_field_annotations(field)
+            annotations, _ = get_field_annotations(field)
             type_type_str = 'type'
             implements_str = ''
             if is_interface_type(_type):
@@ -801,14 +804,14 @@ def add_input_to_create_edge_objects(schema: GraphQLSchema):
                 edge_from = f'{capitalize(field_name)}EdgeFrom{t.name}'
                 edge_input = f'_InputToCreate{edge_from}'
                 annotate_input = f'_InputToAnnotate{edge_from}'
-                annotations = get_field_annotations(field)
+                annotations, is_non_null_string = get_field_annotations(field)
 
                 if len(annotations) > 0:
                     # Make sure the annotation type actually exists first, and prevent us from defining it multiple times
                     if annotate_input not in schema.type_map:
                         make += f'input {annotate_input}{{{annotations}}}\n'
 
-                    make += f'input {edge_input} {{sourceID: ID! targetID: ID! annotations: {annotate_input} }}\n'
+                    make += f'input {edge_input} {{sourceID: ID! targetID: ID! annotations: {annotate_input}{is_non_null_string} }}\n'
                     
                 else:
                     make += f'input {edge_input} {{sourceID: ID! targetID: ID!}}\n'
@@ -828,7 +831,7 @@ def add_input_to_update_edge_objects(schema: GraphQLSchema):
             if field_name.startswith('_') or is_enum_or_scalar(inner_field_type):
                 continue
             for t in connected_types:
-                annotations = get_field_annotations(field)
+                annotations, _ = get_field_annotations(field)
                 if len(annotations) > 0:
                     edge_from = f'{capitalize(field_name)}EdgeFrom{t.name}'
                     edge_input = f'_InputToUpdate{edge_from}'

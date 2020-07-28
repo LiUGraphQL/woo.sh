@@ -729,7 +729,6 @@ def add_filters_for_edge_types(schema: GraphQLSchema):
     :param schema: schema
     :return: Updated schema
     """
-    print("in")
     make = ''
     for _type in schema.type_map.values():
         if not _type.name.startswith('_') or not 'EdgeFrom' in _type.name:

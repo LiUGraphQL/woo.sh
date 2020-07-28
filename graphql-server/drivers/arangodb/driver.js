@@ -83,7 +83,8 @@ async function init(args) {
     console.info(`ArangoDB is now available at ${url}`);
 
     // if drop is set
-    if (drop) {
+    dblist = await db.listDatabases();
+    if (drop && dblist.includes(dbName)) {
         await db.dropDatabase(dbName).then(
             () => console.info(`Database ${dbName} dropped.`),
             (err) => console.error(err)
@@ -479,6 +480,44 @@ function updateEdge(isRoot, ctxt, id, data, edgeName, inputToUpdateType, info, r
 
 
 /**
+ * Update an edge.
+ *
+ * @param isRoot
+ * @param ctxt
+ * @param id
+ * @param data
+ * @param edgeName
+ * @param inputToUpdateType
+ * @param info
+ * @param resVar
+ * @returns {null|Promise<any>}
+ */
+function updateEdge(isRoot, ctxt, id, data, edgeName, inputToUpdateType, info, resVar = null) {
+    // init transaction (if not already defined)
+    initTransaction(ctxt);
+
+    // create a new variable if resVar was not defined by the calling function
+    resVar = resVar !== null ? resVar : createVar(ctxt);
+    
+    let collectionVar = getCollectionVar(edgeName, ctxt, true);
+    ctxt.trans.code.push(`\n\t/* update edge ${edgeName} */`);
+    
+    // define doc
+    let doc = getScalarsAndEnums(data, info.schema.getType(inputToUpdateType));;
+    doc['_lastUpdateDate'] = new Date().valueOf();
+    let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
+    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
+
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+
+    //directives handling is not needed for edge updates as they can not have directives as of current
+
+    // return promises for roots and null for nested result
+    return isRoot ? getResult(ctxt, info, resVar) : null;
+}
+
+
+/**
  * Update an object including, and replace existing edges.
  *
  * @param isRoot
@@ -668,6 +707,102 @@ function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null)
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
+
+/**
+ * Delete an edge with the given id
+ *
+ * @param isRoot
+ * @param ctxt
+ * @param id
+ * @param edgeName
+ * @param sourceType
+ * @param info
+ * @param resVar
+ * @returns {null|Promise<any>}
+ */
+function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null) {
+    // init transaction
+    initTransaction(ctxt);
+    ctxt.trans.code.push(`\n\t/* delete edge ${edgeName} */`);
+    
+    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
+
+    // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
+    resVar = resVar !== null ? resVar : createVar(ctxt);
+    let collectionVar = getCollectionVar(edgeName, ctxt, true);
+
+    // return null if the key does not exists in the collection (i.e., don't throw error)
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next();`);
+
+    // directives handling
+    addFinalDirectiveChecksForType(ctxt, sourceType, aql`${asAQLVar(resVar)}._source`, info.schema);
+    // return promises for roots and null for nested result
+    return isRoot ? getResult(ctxt, info, resVar) : null;
+}
+
+
+/**
+ * Delete an object with the given id.
+ *
+ * @param isRoot
+ * @param ctxt
+ * @param id
+ * @param type
+ * @param info
+ * @param resVar
+ * @returns { null | Promise<any>}
+ */
+function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
+    // init transaction
+    initTransaction(ctxt);
+    ctxt.trans.code.push(`\n\t/* delete ${typeToDelete} */`);
+
+    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
+
+    // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
+    resVar = resVar !== null ? resVar : createVar(ctxt);
+    let collectionVar = getCollectionVar(typeToDelete, ctxt, true);
+
+    // delete document
+    // return null if the key does not exists in the collection (i.e., don't throw error)
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next();`);
+
+    // delete every edge either targeting, or originating from id
+    for (let i in typeToDelete.getFields()) {
+        let field = typeToDelete.getFields()[i];
+        let t = graphql.getNamedType(field.type);
+
+        // deleted by default behavior, ignore
+        if (field.name.startsWith('_incoming') || field.name.startsWith('_outgoing') || (field.name.startsWith('_') && graphql.isInterfaceType(t))) {
+            continue;
+        }
+
+        // delete edges
+        if (graphql.isObjectType(t)) {
+            if (field.name[0] == '_') {
+                // delete return edge
+                let type_name = graphql.getNamedType(field.type).name
+                let pattern_string = `^_(.+?)From${type_name}$`; // get the non-reversed edge name
+                let re = new RegExp(pattern_string);
+                let field_name = re.exec(field.name)[1];
+                let collectionName = getEdgeCollectionName(type_name, field_name);
+                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
+                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x._from == ${asAQLVar(resVar)}._id OR x._to == ${asAQLVar(resVar)}._id REMOVE x IN ${collectionVar}\`);`);
+            } else {
+                // delete normal edge
+                let collectionName = getEdgeCollectionName(typeToDelete.name, field.name);
+                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
+                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x._from == ${asAQLVar(resVar)}._id OR x._to == ${asAQLVar(resVar)}._id REMOVE x IN ${collectionVar}\`);`);
+            }
+        }
+    }
+
+    // directives handling
+    addFinalDirectiveChecksForType(ctxt, typeToDelete, aql`${asAQLVar(resVar)}._id`, info.schema);
+    // return promises for roots and null for nested result
+    return isRoot ? getResult(ctxt, info, resVar) : null;
+}
+
 /* Queries */
 
 /**
@@ -829,7 +964,7 @@ async function getEdge(parent, args, info) {
             query_filters = query_filters.concat(filters[i]);
         }
     }
-
+    
     query = query.concat(query_filters);
     query.push(aql`RETURN e`);
 
@@ -1038,6 +1173,8 @@ function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targe
 
     // if field is not list type, verify that it is not already populated
     let fieldType = info.schema.getType(sourceType).getFields()[sourceField].type;
+  
+    if (graphql.isNonNullType(fieldType)) fieldType = fieldType.ofType; // Strip non Null if non Null
     if (!graphql.isListType(fieldType)) {
         let edgeCollection = getEdgeCollectionName(sourceType.name, sourceField);
         let collectionVar = getCollectionVar(edgeCollection);
@@ -1190,11 +1327,11 @@ function formatFixVariable(type, value) {
         if (Array.isArray(value)) {
             formattedValue = []
             for (let date in Object.values(value)) {
-                formattedValue.push(aql`DATE_TIMESTAMP('${date}')`);
+                formattedValue.push(new Date(date).valueOf());
             }
         }
         else {
-            formattedValue = aql`DATE_TIMESTAMP('${value}')`;
+            formattedValue = new Date(value).valueOf();
         }
     }
     return formattedValue;
@@ -1265,60 +1402,61 @@ function getFilters(filterArg, type_to_filter, alias = 'x') {
             filters.push(filterArray);
         }
 
-        if (filter._eq) {
+        // prepared AQL literal referencing the alias field
+        const v = aql.literal(`${alias}.${i}`);
+
+        if(filter._eq) {
             let preparedArg = formatFixVariableWrapper(i, type_to_filter, filter._eq);
-            filters.push([aql`${alias}.${i} == ${preparedArg}`]);
+            filters.push([aql`${v} == ${preparedArg}`]);
         }
-        if (filter._neq != null) {
+        if(filter._neq != null) {
             let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._neq);
-            filters.push([aql`${alias}.${i} != ${preparedArgs}`]);
+            filters.push([aql`${v} != ${preparedArgs}`]);
         }
-        if (filter._gt != null) {
+        if(filter._gt != null) {
             let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._gt);
-            filters.push([aql`${alias}.${i} > ${preparedArgs}`]);
+            filters.push([aql`${v} > ${preparedArgs}`]);
         }
-        if (filter._egt != null) {
+        if(filter._egt != null) {
             let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._egt);
-            filters.push([aql`${alias}.${i} >= ${preparedArgs}`]);
+            filters.push([aql`${v} >= ${preparedArgs}`]);
         }
-        if (filter._lt != null) {
+        if(filter._lt != null) {
             let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._lt);
-            filters.push([aql`${alias}.${i} < ${preparedArgs}`]);
+            filters.push([aql`${v} < ${preparedArgs}`]);
         }
-        if (filter._elt != null) {
+        if(filter._elt != null) {
             let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._elt);
-            filters.push([aql`${alias}.${i} <= ${preparedArgs}`]);
+            filters.push([aql`${v} <= ${preparedArgs}`]);
         }
-        if (filter._in != null) {
+        if(filter._in != null) {
             let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._in)
-            let q = [aql`${alias}.${i} IN `];
+            let q = [aql`${v} IN `];
             q = q.concat(asAqlArray(preparedArgs));
             filters.push(q);
         }
-        if (filter._nin != null) {
+        if(filter._nin != null) {
             let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._nin);
-            let q = [aql`${alias}.${i} NOT IN `];
+            let q = [aql`${v} NOT IN `];
             q = q.concat(asAqlArray(preparedArgs));
             filters.push(q);
         }
-
-        if (filter._like != null) {
+        if(filter._like != null) {
             let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._like);
-            filters.push([aql`LIKE(${alias}.${i}, ${preparedArgs}, false)`]);
+            filters.push([aql`LIKE(${v}, ${preparedArgs}, false)`]);
         }
-        if (filter._ilike != null) {
+        if(filter._ilike != null) {
             let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._ilike);
-            filters.push([aql`LIKE(${alias}.${i}, ${preparedArgs}, true)`]);
+            filters.push([aql`LIKE(${v}, ${preparedArgs}, true)`]);
         }
-        if (filter._nlike != null) {
+        if(filter._nlike != null) {
             let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._nlike);
-            filters.push([aql`NOT LIKE(${alias}.${i}, ${preparedArgs}, false)`]);
+            filters.push([aql`NOT LIKE(${v}, ${preparedArgs}, false)`]);
         }
-        if (filter._nilike != null) {
+        if(filter._nilike != null) {
             let preparedArgs = formatFixVariableWrapper(i, type_to_filter, filter._nilike);
-            filters.push([aql`NOT LIKE(${alias}.${i}, ${preparedArgs}, true)`]);
+            filters.push([aql`NOT LIKE(${v}, ${preparedArgs}, true)`]);
         }
-
     }
 
     return filters;

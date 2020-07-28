@@ -590,7 +590,7 @@ function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
 
     // delete document
     // return null if the key does not exists in the collection (i.e., don't throw error)
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD \`).next();`);
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next();`);
 
     // delete every edge either targeting, or originating from id
     for (let i in typeToDelete.getFields()) {
@@ -601,6 +601,7 @@ function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
         if (field.name.startsWith('_incoming') || field.name.startsWith('_outgoing') || (field.name.startsWith('_') && graphql.isInterfaceType(t))) {
             continue;
         }
+
         // delete edges
         if (graphql.isObjectType(t)) {
             if (field.name[0] == '_') {
@@ -611,12 +612,12 @@ function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
                 let field_name = re.exec(field.name)[1];
                 let collectionName = getEdgeCollectionName(type_name, field_name);
                 let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x.source == ${asAQLVar(idVar)}._id OR x.target == ${asAQLVar(idVar)}._id REMOVE x IN ${collectionVar}\`);`);
+                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x._from == ${asAQLVar(resVar)}._id OR x._to == ${asAQLVar(resVar)}._id REMOVE x IN ${collectionVar}\`);`);
             } else {
                 // delete normal edge
                 let collectionName = getEdgeCollectionName(typeToDelete.name, field.name);
                 let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x.source == ${asAQLVar(idVar)}._id OR x.target == ${asAQLVar(idVar)}._id REMOVE x IN ${collectionVar}\`);`);
+                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x._from == ${asAQLVar(resVar)}._id OR x._to == ${asAQLVar(resVar)}._id REMOVE x IN ${collectionVar}\`);`);
             }
         }
     }

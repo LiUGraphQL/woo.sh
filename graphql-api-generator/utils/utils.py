@@ -192,7 +192,7 @@ def add_reverse_edges(schema: GraphQLSchema):
     """
     make = ''
     for _type in schema.type_map.values():
-        if not is_db_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type) or is_union_type(_type):
             continue
 
         for field_name, field_type in _type.fields.items():
@@ -250,7 +250,7 @@ def add_input_to_create(schema: GraphQLSchema):
     # add fields to create types
     make = ''
     for _type in schema.type_map.values():
-        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type) or is_union_type(_type):
             continue
         make += f'\nextend input _InputToCreate{_type.name} {{\n'
         num_fields = 0
@@ -398,7 +398,7 @@ def add_input_update(schema: GraphQLSchema):
     # Add fields to update type
     make = ''
     for _type in schema.type_map.values():
-        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type) or is_union_type(_type):
             continue
         num_fields = 0
         update_name = f'_InputToUpdate{_type.name}'
@@ -576,7 +576,7 @@ def add_type_filters(schema: GraphQLSchema):
     """
     make = ''
     for _type in schema.type_map.values():
-        if not is_db_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type) or is_union_type(_type):
             continue
 
         make += f'input _FilterFor{_type.name} {{ ' \
@@ -612,7 +612,7 @@ def add_object_type_filters(schema: GraphQLSchema):
     :return:
     """
     for _type in schema.type_map.values():
-        if not is_db_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type) or is_union_type(_type):
             continue
 
         for field_name, field in _type.fields.items():
@@ -651,7 +651,7 @@ def get_field_annotations(field: GraphQLField):
 def add_edge_objects(schema: GraphQLSchema):
     make = ''
     for _type in schema.type_map.values():
-        if not is_db_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type) or is_union_type(_type):
             continue
         for field_name, field in _type.fields.items():
             inner_field_type = get_named_type(field.type)
@@ -681,7 +681,7 @@ def add_edge_objects(schema: GraphQLSchema):
 def add_fields_for_edge_types(schema: GraphQLSchema, reverse):
     make = ''
     for _type in schema.type_map.values():
-        if not is_db_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type) or is_union_type(_type):
             continue
         for field_name, field in _type.fields.items():
             inner_field_type = get_named_type(field.type)
@@ -770,7 +770,7 @@ def add_filters_for_edge_types(schema: GraphQLSchema):
 def add_input_to_create_edge_objects(schema: GraphQLSchema):
     make = ''
     for _type in schema.type_map.values():
-        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type) or is_union_type(_type):
             continue
         connected_types = schema.get_possible_types(_type) if is_interface_type(_type) else [_type]
         for field_name, field in _type.fields.items():
@@ -799,7 +799,7 @@ def add_input_to_create_edge_objects(schema: GraphQLSchema):
 def add_mutation_create_edge_objects(schema: GraphQLSchema):
     make = ''
     for _type in schema.type_map.values():
-        if not is_db_schema_defined_type(_type) or is_interface_type(_type):
+        if not is_db_schema_defined_type(_type) or is_interface_type(_type) or is_union_type(_type):
             continue
         connected_types = schema.get_possible_types(_type) if is_interface_type(_type) else [_type]
         for field_name, field in _type.fields.items():
@@ -840,7 +840,7 @@ def add_mutation_delete_edge_objects(schema: GraphQLSchema):
 def remove_field_arguments_for_types(schema: GraphQLSchema):
     keep_args = ['filter']
     for _type in schema.type_map.values():
-        if not is_db_schema_defined_type(_type):
+        if not is_db_schema_defined_type(_type) or is_union_type(_type):
             continue
         for field_name, field in _type.fields.items():
             args = {}
@@ -1181,6 +1181,8 @@ def print_schema_with_directives(schema):
                 output += 'scalar ' + _type.name
         elif is_input_type(_type):
             output += 'input ' + _type.name
+        elif is_union_type(_type):
+            output += 'union ' + _type.name
         else:
             output += 'type ' + _type.name
             if hasattr(_type, 'interfaces') and _type.interfaces:
@@ -1193,6 +1195,11 @@ def print_schema_with_directives(schema):
             for value in _type.values: 
                 output += '  ' + value + '\n'
             output += '}'
+
+        elif is_union_type(_type):
+            # For enums we can get the invloved types directly and add them
+            output += ' = '
+            output += ' | '.join([inner_type.name for inner_type in _type.types])
 
         elif not is_enum_or_scalar(_type):
             # This should be a type, or an interface

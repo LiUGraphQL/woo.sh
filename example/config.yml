@@ -19,8 +19,8 @@ generation:
     # add reverse edges for traversal
     reverse_edges: true
     # add edge types
-    edge_types: false
-    fields_for_edge_types: false
+    edge_types: true
+    fields_for_edge_types: true
     # add queries
     query_by_id: true
     query_type_filter: true
@@ -31,12 +31,12 @@ generation:
     input_to_update_objects: true
     # add edge input types (update not supported)
     input_to_create_edge_objects: true
-    input_to_update_edge_objects: false
+    input_to_update_edge_objects: true
     # add mutations
     create_objects: true
     update_objects: true
-    delete_objects: false
+    delete_objects: true
     # add edge mutations (update and delete not supported)
     create_edge_objects: true
-    update_edge_objects: false
-    delete_edge_objects: false
+    update_edge_objects: true
+    delete_edge_objects: true

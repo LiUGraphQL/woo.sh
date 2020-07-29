@@ -8,6 +8,7 @@ const waitOn = require('wait-on');
 let db;
 let disableEdgeValidation;
 let disableDirectivesChecking;
+let VAR_PLACEHOLDER = new Object();
 
 module.exports = {
     init: async function (args) {
@@ -365,6 +366,9 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
  * @returns {null|Promise<any>}
  */
 function create(isRoot, ctxt, data, returnType, info, resVar = null) {
+    // extract imported fields
+    let importedFields = extractImportedFields(data, ctxt);
+
     // init transaction
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* create ${returnType.name} */`);
@@ -379,8 +383,8 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
 
     let collectionVar = getCollectionVar(returnType.name, ctxt, true);
 
-    // insert document
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+    // insert document and merge with imported fields
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, ${stringifyImportedFields(importedFields)}) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
     // add edges (i.e., all object fields)
     let edgeFields = getTypesAndInterfaces(data, returnType);
@@ -431,12 +435,84 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
         }
     }
 
+    // add exported variables from selection fields
+    addExportedVariables(resVar, info, ctxt);
+
     // validate key
     validateKey(ctxt, resVar, returnType, info);
     // add final directives check
     addFinalDirectiveChecksForType(ctxt, returnType, aql`${asAQLVar(resVar)}._id`, info.schema);
     // return promises for roots and null for nested result
     return isRoot ? getResult(ctxt, info, resVar) : null;
+}
+
+/**
+ * Stringify an imported fields object for use in an AQL query.
+ *
+ * @param importedFields
+ * @returns {string}
+ */
+function stringifyImportedFields(importedFields){
+    let s = '{';
+    let first = true;
+    for(let i in importedFields){
+        if(!first) s += ',';
+        s += `"${i}": ${asAQLVar(importedFields[i])}`;
+        first = false;
+    }
+    s += '}';
+    return s;
+}
+
+/**
+ * Function binds all exported selection fields AQL variables in a transaction.
+
+ * @param resVar
+ * @param info
+ * @param ctxt
+ */
+function addExportedVariables(resVar, info, ctxt){
+    // find all exported variables and the corresponding selection fields
+    for(let fieldNode of info.fieldNodes){
+        for(let selection of fieldNode.selectionSet.selections){
+            // selected field to be exported
+            let fieldName = selection.name.value;
+            for(let directive of selection.directives){
+                if(directive.name.value !== "export") continue;
+                for(let argument of directive.arguments) {
+                    if(argument.name.value !== "as") continue;
+                    // exported variable name
+                    let varName = argument.value.value;
+                    ctxt.trans.exportedVariables[varName] = `${resVar}.${fieldName}`;
+                    ctxt.trans.code.push(`let ${varName} = ${resVar}.${fieldName};`);
+                    info.variableValues[varName] = [VAR_PLACEHOLDER, varName];
+
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Takes an input object, removes all fields defined by exported variables, and returns an object containing only the
+ * exported fields. Note that the values of this returned object represent variable references in AQL (i.e., they are
+ * not query parameters and need special treatment).
+ *
+ * @param data
+ * @param ctxt
+ */
+function extractImportedFields(data, ctxt){
+    let imported = {};
+    Object.entries(data).forEach((entry) => {
+        let fieldName = entry[0];
+        let value = entry[1];
+        if(Array.isArray(value) && value[0] === VAR_PLACEHOLDER){
+            let varName = value[1];
+            delete data[fieldName];
+            imported[fieldName] = ctxt.trans.exportedVariables[varName];
+        }
+    });
+    return imported;
 }
 
 /**
@@ -1047,7 +1123,8 @@ function initTransaction(ctxt) {
                 'const {aql} = require("@arangodb");',
                 'let result = Object.create(null);'
             ],
-            finalConstraintChecks: []
+            finalConstraintChecks: [],
+            exportedVariables: {}
         };
     }
 }

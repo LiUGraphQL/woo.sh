@@ -366,6 +366,9 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
  * @returns {null|Promise<any>}
  */
 function create(isRoot, ctxt, data, returnType, info, resVar = null) {
+    // explicitly set null value for all undefined variables.
+    checkVariables(info, ctxt);
+
     // extract imported fields
     let importedFields = extractImportedFields(data, ctxt);
 
@@ -447,6 +450,28 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
 }
 
 /**
+ * Explicitly set null values to all undefined variables. This allows us to detect optional variables that are exported
+ * at a later part of the transaction.
+ *
+ * @param info
+ */
+function checkVariables(info){
+    for(let fieldNode of info.fieldNodes){
+        for(let argument of fieldNode.arguments) {
+            for(let field of argument.value.fields) {
+                if(field.value.kind === 'Variable'){
+                    let varName = field.value.name.value;
+                    if(info.variableValues[varName] === undefined){
+                        info.variableValues[varName] = null;
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+/**
  * Stringify an imported fields object for use in an AQL query.
  *
  * @param importedFields
@@ -483,6 +508,10 @@ function addExportedVariables(resVar, info, ctxt){
                     if(argument.name.value !== "as") continue;
                     // exported variable name
                     let varName = argument.value.value;
+                    if(info.variableValues[varName] !== undefined){
+                        ctxt.trans.code.push(`throw "Failed to export variable '${varName}'"`);
+                    }
+
                     ctxt.trans.exportedVariables[varName] = `${resVar}.${fieldName}`;
                     ctxt.trans.code.push(`let ${varName} = ${resVar}.${fieldName};`);
                     info.variableValues[varName] = [VAR_PLACEHOLDER, varName];
@@ -625,7 +654,7 @@ function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null)
     // init transaction
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* delete edge ${edgeName} */`);
-    
+
     let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
@@ -872,7 +901,7 @@ async function getEdge(parent, args, info) {
 
 /**
  * Get object by key.
- * 
+ *
  * @param key
  * @param returnType
  * @returns {Promise<*>}
@@ -1209,7 +1238,7 @@ function asAqlArray(array) {
  * Convert input data to match the format used for storage in the database. The function currently used only for
  * custom scalars.
  *
- * @param type (of field) 
+ * @param type (of field)
  * @param value
  * @returns
  */
@@ -1532,7 +1561,7 @@ function addPossibleEdgeTypes(query, schema, type_name, field_name, use_aql = tr
  */
 function addFinalDirectiveChecksForType(ctxt, type, id, schema) {
     if (disableDirectivesChecking) {
-        console.log('Directives checking disabled');
+        console.debug('Directives checking disabled');
         return;
     }
 

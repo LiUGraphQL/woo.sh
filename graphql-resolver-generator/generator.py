@@ -2,8 +2,12 @@ import argparse
 import yaml
 
 import yaml
-from graphql import build_schema, is_object_type, get_named_type, is_interface_type, assert_valid_schema
+from graphql import build_schema, is_object_type, get_named_type, is_interface_type, assert_valid_schema, is_input_type
 from mako.template import Template
+
+import sys
+sys.path.insert(1, '../graphql-api-generator')
+from utils.utils import is_enum_or_scalar
 
 
 def is_schema_defined_object_type(_type):
@@ -11,7 +15,7 @@ def is_schema_defined_object_type(_type):
 
 
 def is_edge_type(_type):
-    return 'EdgeFrom' in _type.name
+    return not is_input_type(_type) and 'EdgeFrom' in _type.name
 
 
 def camelCase(s):
@@ -28,14 +32,16 @@ def generate(input_file, output_dir, config: dict):
         schema_string = f.read()
     schema = build_schema(schema_string)
 
-    data = {'types': [], 'types_by_key': [], 'interfaces': [], 'typeDelete': [], 'edge_types_to_delete': []}
+    data = {'types': [], 'types_by_key': [], 'interfaces': [], 'typeDelete': [], 'edge_types_to_delete': [], 'edge_types_to_update': [], 'edge_objects': []}
+
 
     # get list of types
     for type_name, _type in schema.type_map.items():
         if is_interface_type(_type):
             data['interfaces'].append(type_name)
         if is_edge_type(_type):
-            continue
+            if config.get('generation').get('query_edge_by_id'):
+                data['edge_objects'].append(type_name)
         if is_schema_defined_object_type(_type):
             t = {
                 'Name': type_name,
@@ -63,6 +69,11 @@ def generate(input_file, output_dir, config: dict):
                     if config.get('generation').get('delete_edge_objects'):
                         data['edge_types_to_delete'].append((f'{pascalCase(field_name)}EdgeFrom{type_name}', type_name))
 
+                    if config.get('generation').get('update_edge_objects'):
+                        if is_there_field_annotations(schema.type_map[f'_{pascalCase(field_name)}EdgeFrom{type_name}']):
+                            data['edge_types_to_update'].append((f'{pascalCase(field_name)}EdgeFrom{type_name}', type_name))
+
+
             sort_before_rendering(t)
             data['types'].append(t)
 
@@ -74,6 +85,8 @@ def generate(input_file, output_dir, config: dict):
     data['interfaces'].sort()
     data['typeDelete'].sort()
     data['edge_types_to_delete'].sort()
+    data['edge_types_to_update'].sort()
+    data['edge_objects'].sort()
 
     # apply template
     template = Template(filename=f'resources/resolver.template')
@@ -85,6 +98,21 @@ def generate(input_file, output_dir, config: dict):
             api_schema = build_schema(schema_string)
             assert_valid_schema(api_schema)
             f.write(updated_schema_string)
+
+
+def is_there_field_annotations(_type):
+    """
+    Check if a given type contains fields that does not start with '_' and are of enum or scalar type
+    These fields should be annotations
+    :param type:
+    :return boolean:
+    """
+    for field_name, field_type in _type.fields.items():
+        if field_name.startswith('_') or field_name == 'id':
+            continue
+        if is_enum_or_scalar(get_named_type(field_type.type)):
+            return True
+    return False
 
 
 def sort_before_rendering(d: dict):

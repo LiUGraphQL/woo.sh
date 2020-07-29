@@ -511,11 +511,14 @@ function addExportedVariables(resVar, info, ctxt){
                     if(info.variableValues[varName] !== undefined){
                         ctxt.trans.code.push(`throw "Failed to export variable '${varName}'"`);
                     }
-
-                    ctxt.trans.exportedVariables[varName] = `${resVar}.${fieldName}`;
-                    ctxt.trans.code.push(`let ${varName} = ${resVar}.${fieldName};`);
+                    // Variable values  will be injected instead of variable references, therefore we need the varName
+                    // as part of the value.
                     info.variableValues[varName] = [VAR_PLACEHOLDER, varName];
 
+                    // rename id field
+                    if(fieldName === 'id') fieldName = '_id';
+                    ctxt.trans.exportedVariables[varName] = `${resVar}.${fieldName}`;
+                    ctxt.trans.code.push(`let ${varName} = ${resVar}.${fieldName};`);
                 }
             }
         }

@@ -316,41 +316,57 @@ function getObjectOrInterfaceFields(type) {
 function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrTargetID, targetType, annotations, info, resVar = null) {
     // init transaction (if not already defined)
     initTransaction(ctxt);
-
-    // create a new variable if resVar was not defined by the calling function
-    resVar = resVar !== null ? resVar : createVar(ctxt);
-
     let collectionName = getEdgeCollectionName(sourceType.name, sourceField);
     let collectionVar = getCollectionVar(collectionName, ctxt, true);
-    ctxt.trans.code.push(`\n\t/* edge ${collectionName} */`);
+    ctxt.trans.code.push(`\n\t/* createEdge ${collectionName} */`);
 
-    // define source and target as AQL vars
-    let sourceVar = isVar(varOrSourceID) ? varOrSourceID : addParameterVar(ctxt, createParamVar(ctxt), { '_id': varOrSourceID });
-    let targetVar = isVar(varOrTargetID) ? varOrTargetID : addParameterVar(ctxt, createParamVar(ctxt), { '_id': varOrTargetID });
+    // explicitly set null value for all undefined variables
+    checkVariables(info, ctxt);
 
     // prepare annotations
-    if (annotations == null) {
-        annotations = {};
-    }
-
+    if (annotations === null) annotations = {};
+    annotations = extractImportedFields(annotations, ctxt);
     let annotationType = info.schema.getType(`_InputToAnnotate${collectionName}`);
     if (annotationType) {
         annotations = getScalarsAndEnums(annotations, info.schema.getType(annotationType));
     }
 
+    // create a new variable if resVar was not defined by the calling function
+    resVar = resVar !== null ? resVar : createVar(ctxt);
+
+    // inject variable values
+    if (Array.isArray(varOrSourceID) && varOrSourceID[0] === VAR_PLACEHOLDER) {
+        let varName = varOrTargetID[1];
+        varOrSourceID = ctxt.trans.exportedVariables[varName];
+    }
+    if (Array.isArray(varOrTargetID) && varOrTargetID[0] === VAR_PLACEHOLDER) {
+        let varName = varOrTargetID[1];
+        varOrTargetID = ctxt.trans.exportedVariables[varName];
+    }
+
+    // define source and target as AQL vars
+    let sourceVar = isVar(varOrSourceID) ? varOrSourceID : addParameterVar(ctxt, createParamVar(ctxt), varOrSourceID);
+    let targetVar = isVar(varOrTargetID) ? varOrTargetID : addParameterVar(ctxt, createParamVar(ctxt), varOrTargetID);
+
+    // add reference to source and target ID fields if needed
+    let source = sourceVar.indexOf('.') !== -1 ? asAQLVar(sourceVar) : asAQLVar(sourceVar + '._id');
+    let target = targetVar.indexOf('.') !== -1 ? asAQLVar(targetVar) : asAQLVar(targetVar + '._id');
+
     // define doc
     let doc = annotations;
     doc['_creationDate'] = new Date().valueOf();
+    let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
     // validate edge
-    validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info);
+    validateEdge(ctxt, source, sourceType, sourceField, target, targetType, info);
 
-    let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, {'_from': ${asAQLVar(sourceVar)}._id, '_to': ${asAQLVar(targetVar)}._id}) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+    // insert edge
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, {'_from': ${source}, '_to': ${target} }) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
     // directives handling
     addFinalDirectiveChecksForType(ctxt, sourceType, sourceVar, info.schema);
     // return promises for roots and null for nested result
+
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
@@ -366,15 +382,15 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
  * @returns {null|Promise<any>}
  */
 function create(isRoot, ctxt, data, returnType, info, resVar = null) {
+    // init transaction
+    initTransaction(ctxt);
+    ctxt.trans.code.push(`\n\t/* create ${returnType.name} */`);
+
     // explicitly set null value for all undefined variables.
     checkVariables(info, ctxt);
 
     // extract imported fields
     let importedFields = extractImportedFields(data, ctxt);
-
-    // init transaction
-    initTransaction(ctxt);
-    ctxt.trans.code.push(`\n\t/* create ${returnType.name} */`);
 
     // get non-object fields, add creation date and add as parameter
     let doc = getScalarsAndEnums(data, returnType);
@@ -407,12 +423,13 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
 
             if (value['connect']) {
                 let typeToConnect = targetType;
-                if (graphql.isInterfaceType(targetType)) {
-                    typeToConnect = info.schema.getType(value['connect'].split('/')[0]);
-                    if (!info.schema.getPossibleTypes(targetType).includes(typeToConnect)) {
-                        throw new ApolloError(`${value['connect']} is not an instance of a type implementing the interface ${targetType}`);
-                    }
-                }
+                //if (graphql.isInterfaceType(targetType)) {
+                //    typeToConnect = info.schema.getType(value['connect'].split('/')[0]);
+                //    if (!info.schema.getPossibleTypes(targetType).includes(typeToConnect)) {
+                //        throw new ApolloError(`${value['connect']} is not an instance of a type implementing the interface ${targetType}`);
+                //    }
+                //}
+                // TODO Put connect interface in correct collection
                 createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], typeToConnect, annotations, info);
             } else {
                 // reference to target
@@ -538,12 +555,13 @@ function extractImportedFields(data, ctxt){
     Object.entries(data).forEach((entry) => {
         let fieldName = entry[0];
         let value = entry[1];
-        if(Array.isArray(value) && value[0] === VAR_PLACEHOLDER){
+        if (Array.isArray(value) && value[0] === VAR_PLACEHOLDER) {
             let varName = value[1];
             delete data[fieldName];
             imported[fieldName] = ctxt.trans.exportedVariables[varName];
         }
     });
+
     return imported;
 }
 
@@ -1087,15 +1105,15 @@ function getResultPromise(ctxt, key) {
  * @param targetType
  * @param info
  */
-function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info) {
+function validateEdge(ctxt, source, sourceType, sourceField, target, targetType, info) {
     if (disableEdgeValidation) {
         console.log('Edge validation disabled');
         return;
     }
     ctxt.trans.code.push('/* source exists? */');
-    exists(ctxt, sourceVar, sourceType, info.schema);
+    exists(ctxt, source, sourceType, info.schema);
     ctxt.trans.code.push('/* target exists? */');
-    exists(ctxt, targetVar, targetType, info.schema);
+    exists(ctxt, target, targetType, info.schema);
 
     // if field is not list type, verify that it is not already populated
     let fieldType = info.schema.getType(sourceType).getFields()[sourceField].type;
@@ -1103,7 +1121,7 @@ function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targe
     if (!graphql.isListType(fieldType)) {
         let edgeCollection = getEdgeCollectionName(sourceType.name, sourceField);
         let collectionVar = getCollectionVar(edgeCollection);
-        let query = `if(db._query(aql\`FOR x IN 1..1 OUTBOUND ${asAQLVar(sourceVar)} ${asAQLVar(collectionVar)} RETURN x\`).next()) { throw \`Edge already exists for ${sourceField} from '\${${sourceVar}._id}'\`}`;
+        let query = `if(db._query(aql\`FOR x IN 1..1 OUTBOUND ${source} ${asAQLVar(collectionVar)} RETURN x\`).next()) { throw \`Edge already exists for ${sourceField} from '${source}'\`}`;
         ctxt.trans.code.push(query);
     }
 }
@@ -1116,7 +1134,7 @@ function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targe
  * @param typeOrInterface
  * @param schema
  */
-function exists(ctxt, docVar, typeOrInterface, schema) {
+function exists(ctxt, id, typeOrInterface, schema) {
     let aqlCollectionVars = [];
     if (graphql.isInterfaceType(typeOrInterface)) {
         for (let possibleType in Object.values(schema.getPossibleTypes(typeOrInterface))) {
@@ -1125,7 +1143,7 @@ function exists(ctxt, docVar, typeOrInterface, schema) {
     } else {
         aqlCollectionVars.push(asAQLVar(getCollectionVar(typeOrInterface.name)));
     }
-    ctxt.trans.code.push(`if(!db._query(aql\`FOR doc IN FLATTEN(FOR i IN [${aqlCollectionVars.join(', ')}] RETURN i) FILTER doc._id == ${asAQLVar(docVar)}._id  RETURN doc\`).next()){ throw \`Object '\${${docVar}._id}' does not exist as instance of ${typeOrInterface}\`; }`);
+    ctxt.trans.code.push(`if(!db._query(aql\`FOR doc IN FLATTEN(FOR i IN [${aqlCollectionVars.join(', ')}] RETURN i) FILTER doc._id == ${id}  RETURN doc\`).next()){ throw \`Object '${id}' does not exist as instance of ${typeOrInterface}\`; }`);
 }
 
 /**

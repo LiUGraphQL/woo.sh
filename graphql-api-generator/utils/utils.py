@@ -356,20 +356,20 @@ def extend_connect(schema: GraphQLSchema, _type: GraphQLType, field_type: GraphQ
     make += 'connect: ID '
 
     # if interface
-    if is_interface_type(_type):
+    if is_interface_type(field_type):
         # add fields for all implementing types
-        for implementing_type in schema.get_possible_types(_type):
+        for implementing_type in schema.get_possible_types(field_type):
             create_field = f'create{implementing_type.name}'
             create_implementing_type = f'_InputToCreate{implementing_type.name}'
             make += f'{create_field} : {create_implementing_type} '
-    elif is_union_type(_type):
+    elif is_union_type(field_type):
         # add fields for types in the union
-        for _sub_type in _type.types:
+        for _sub_type in field_type.types:
             create_field = f'create{_sub_type.name}'
             create_sub_type = f'_InputToCreate{_sub_type.name}'
             make += f'{create_field} : {create_sub_type} '
     else:
-        create_name = f'_InputToCreate{_type.name}'
+        create_name = f'_InputToCreate{field_type.name}'
         make += f'create: {create_name} '
         
     # Get annotations
@@ -421,11 +421,7 @@ def add_input_update(schema: GraphQLSchema):
             if is_enum_or_scalar(inner_field_type):
                 num_fields += 1
                 make += f'extend input {update_name} {{ {field_name}: {f_type} }} \n'
-            #else:
-            #    # add create or connect field
-            #    connect_name = f'_InputToConnect{capitalize(field_name)}Of{_type.name}'
-            #    connect = copy_wrapper_structure(schema.get_type(connect_name), f_type)
-            #    make += f'extend input {update_name} {{ {field_name}: {connect} }} \n'
+
         if num_fields == 0:
             make += f'extend input {update_name} {{ _dummy: String }} \n'
     schema = add_to_schema(schema, make)

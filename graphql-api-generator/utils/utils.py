@@ -874,7 +874,7 @@ def add_mutation_update_edge_objects(schema: GraphQLSchema):
             if field_name.startswith('_') or is_enum_or_scalar(inner_field_type):
                 continue
             for t in connected_types:
-                annotations = get_field_annotations(field)
+                annotations, _ = get_field_annotations(field)
                 if len(annotations) > 0:
                     edge_from = f'{capitalize(field_name)}EdgeFrom{t.name}'
                     update = f'update{edge_from}'

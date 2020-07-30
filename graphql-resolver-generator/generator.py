@@ -37,6 +37,8 @@ def generate(input_file, output_dir, config: dict):
 
     # get list of types
     for type_name, _type in schema.type_map.items():
+        if is_union_type(_type):
+            continue
         if is_interface_type(_type):
             data['interfaces'].append(type_name)
         if is_edge_type(_type):
@@ -55,6 +57,8 @@ def generate(input_file, output_dir, config: dict):
             # add object fields
             for field_name, field_type in _type.fields.items():
                 inner_field_type = get_named_type(field_type.type)
+                if is_union_type(inner_field_type):
+                    continue
                 if field_name.startswith('_incoming') or field_name.startswith('_outgoing'):
                     t['edgeFields'].append(field_name)
                 elif is_schema_defined_object_type(inner_field_type) or is_interface_type(inner_field_type):

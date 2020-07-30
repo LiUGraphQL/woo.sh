@@ -261,7 +261,7 @@ function getScalarsAndEnums(object, type) {
 
 /**
  * Return an object containing only the edge portion of this object. This includes fields for which the values are
- * GraphQL types, GraphQL interfaces, lists of GraphQL types, and lists of GraphQL interfaces.
+ * GraphQL types, GraphQL interfaces, lists of GraphQL types, lists of GraphQL interfaces, GraphQL unions and lists of GraphQL unions.
  * @param object
  */
 function getTypesAndInterfaces(object, type) {
@@ -269,7 +269,7 @@ function getTypesAndInterfaces(object, type) {
     for (let i in type.getFields()) {
         let field = type.getFields()[i];
         let t = graphql.getNamedType(field.type);
-        if (graphql.isObjectType(t) || graphql.isInterfaceType(t)) {
+        if (graphql.isObjectType(t) || graphql.isInterfaceType(t) || graphql.isUnionType(t)) {
             if (object[field.name] !== undefined) {
                 doc[field.name] = object[field.name];
             }
@@ -288,7 +288,7 @@ function getObjectOrInterfaceFields(type) {
     for (let i in type.getFields()) {
         let value = type.getFields()[i];
         let t = graphql.getNamedType(value.type);
-        if (graphql.isObjectType(t) || graphql.isInterfaceType(t)) {
+        if (graphql.isObjectType(t) || graphql.isInterfaceType(t) || graphql.isUnionType(t)) {
             keys.push(value.name);
         }
     }
@@ -405,7 +405,7 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
                 let typeToConnect = targetType;
                 if (graphql.isInterfaceType(targetType)) {
                     typeToConnect = info.schema.getType(value['connect'].split('/')[0]);
-                    if (!info.schema.getPossibleTypes(targetType).includes(typeToConnect)) {
+                    if (!info.schema.getPossibleTypes(targetType).includes(typeToConnect) && !targetType.type.includes(typeToConnect)) {
                         throw new ApolloError(`${value['connect']} is not an instance of a type implementing the interface ${targetType}`);
                     }
                 }
@@ -416,6 +416,20 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
                 if (graphql.isInterfaceType(targetType)) {
                     let typeToCreate = null;
                     for (let possibleType of info.schema.getPossibleTypes(targetType)) {
+                        let possibleField = `create${possibleType.name}`;
+                        if (value[possibleField] && typeToCreate) {
+                            throw new ApolloError(`Multiple create fields defined for ${returnType}.${fieldName}`);
+                        }
+                        if (value[possibleField]) {
+                            typeToCreate = possibleType;
+                            create(false, ctxt, value[possibleField], typeToCreate, info, targetVar);
+                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, annotations, info);
+                        }
+                    }
+                }
+                else if (graphql.isUnionType(targetType)) {
+                    let typeToCreate = null;
+                    for (let possibleType of targetType.types) {
                         let possibleField = `create${possibleType.name}`;
                         if (value[possibleField] && typeToCreate) {
                             throw new ApolloError(`Multiple create fields defined for ${returnType}.${fieldName}`);
@@ -510,61 +524,6 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
 
     // update document
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
-
-    // update edges (i.e., all object fields)
-    // Object update will be deprecated as part of #67
-    let edgeFields = getTypesAndInterfaces(data, returnType);
-    for (let fieldName in edgeFields) {
-        let targetType = graphql.getNamedType(returnType.getFields()[fieldName].type);
-
-        // remove old edges
-        let edgeCollectionName = getEdgeCollectionName(returnType.name, fieldName);
-        let edgeCollectionVar = getCollectionVar(edgeCollectionName, ctxt, true);
-        ctxt.trans.code.push(`\n\t/* drop edges from ${edgeCollectionName} */`);
-        ctxt.trans.code.push(`db._query(aql\`FOR v IN ${asAQLVar(edgeCollectionVar)} FILTER(v._from == ${asAQLVar(idVar)}) REMOVE v IN ${asAQLVar(edgeCollectionVar)}\`);`);
-
-        // add all values for edge
-        let values = Array.isArray(edgeFields[fieldName]) ? edgeFields[fieldName] : [edgeFields[fieldName]];
-        for (let value of values) {
-            // prepare annotations
-            let annotations = null;
-            if (value['annotations']) {
-                annotations = getScalarsAndEnums(value['annotations'], info.schema.getType(`_InputToAnnotate${edgeCollectionName}`));
-                annotations['_creationDate'] = new Date().valueOf();
-            }
-
-            if (value['connect']) {
-                let typeToConnect = targetType;
-                if (graphql.isInterfaceType(targetType)) {
-                    typeToConnect = info.schema.getType(value['connect'].split('/')[0]);
-                    if (!info.schema.getPossibleTypes(targetType).includes(typeToConnect)) {
-                        throw new ApolloError(`${value['connect']} is not an instance of a type implementing the interface ${targetType}`);
-                    }
-                }
-                createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], typeToConnect, annotations, info);
-            } else {
-                // reference to target
-                let targetVar = createVar(ctxt);
-                if (graphql.isInterfaceType(targetType)) {
-                    let typeToCreate = null;
-                    for (let possibleType of info.schema.getPossibleTypes(targetType)) {
-                        let possibleField = `create${possibleType.name}`;
-                        if (value[possibleField] && typeToCreate) {
-                            throw new ApolloError(`Multiple create fields defined for ${returnType}.${fieldName}`);
-                        }
-                        if (value[possibleField]) {
-                            typeToCreate = possibleType;
-                            create(false, ctxt, value[possibleField], typeToCreate, info, targetVar);
-                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, annotations, info);
-                        }
-                    }
-                } else {
-                    create(false, ctxt, value['create'], targetType, info, targetVar);
-                    createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, annotations, info);
-                }
-            }
-        }
-    }
 
     // check key
     validateKey(ctxt, resVar, returnType, info);

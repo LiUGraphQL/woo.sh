@@ -832,6 +832,7 @@ def add_input_to_update_edge_objects(schema: GraphQLSchema):
                 continue
             for t in connected_types:
                 annotations, _ = get_field_annotations(field)
+                
                 if len(annotations) > 0:
                     edge_from = f'{capitalize(field_name)}EdgeFrom{t.name}'
                     edge_input = f'_InputToUpdate{edge_from}'

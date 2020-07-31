@@ -1577,10 +1577,7 @@ function addPossibleTypes(query, schema, type, ctxt = null) {
     if (graphql.isInterfaceType(type)) {
         let possible_types = schema.getPossibleTypes(type);
         for (let i in possible_types) {
-            if (i != 0) {
-                if (use_aql) query.push(aql`,`);
-                else query[query.length - 1] += `,`;
-            }
+            if (i != 0) query.push(`,`);
             if (ctxt !== null) {
                 let collectionVar = asAQLVar(getCollectionVar(possible_types[i].name, ctxt, true));
                 query.push(collectionVar);
@@ -1615,10 +1612,7 @@ function addPossibleEdgeTypes(query, ctxt, schema, type_name, field_name) {
     if (graphql.isInterfaceType(type)) {
         let possible_types = schema.getPossibleTypes(type);
         for (let i in possible_types) {
-            if (i != 0) {
-                if (use_aql) query.push(aql`,`);
-                else query[query.length - 1] += `,`;
-            }
+            if (i != 0) query.push(`,`);
             let collectionName = getEdgeCollectionName(possible_types[i].name, field_name);
             let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
             query.push(collectionVar);

@@ -34,7 +34,6 @@ def generate(input_file, output_dir, config: dict):
 
     data = {'types': [], 'types_by_key': [], 'interfaces': [], 'typeDelete': [], 'edge_types_to_delete': [], 'edge_types_to_update': [], 'edge_objects': []}
 
-
     # get list of types
     for type_name, _type in schema.type_map.items():
         if is_union_type(_type):

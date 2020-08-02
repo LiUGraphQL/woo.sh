@@ -336,7 +336,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
 
     // inject variable values
     if (Array.isArray(varOrSourceID) && varOrSourceID[0] === VAR_PLACEHOLDER) {
-        let varName = varOrTargetID[1];
+        let varName = varOrSourceID[1];
         varOrSourceID = ctxt.trans.exportedVariables[varName];
     }
     if (Array.isArray(varOrTargetID) && varOrTargetID[0] === VAR_PLACEHOLDER) {

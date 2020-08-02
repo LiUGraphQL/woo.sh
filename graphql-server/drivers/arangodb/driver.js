@@ -324,7 +324,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     checkVariables(info, ctxt);
 
     // prepare annotations
-    if (annotations === null) annotations = {};
+    if (annotations === null  || annotations === undefined) annotations = {};
     annotations = extractImportedFields(annotations, ctxt);
     let annotationType = info.schema.getType(`_InputToAnnotate${collectionName}`);
     if (annotationType) {

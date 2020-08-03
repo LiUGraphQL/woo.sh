@@ -1510,7 +1510,7 @@ async function isEndOfList(parent, args, info) {
 async function getTotalCount(parent, args, info) {
     let type = graphql.getNamedType(info.parentType.getFields()['content'].type);
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
-    addPossibleTypes(query, ctxt, info.schema, type);
+    addPossibleTypes(query, info.schema, type);
     query.push(aql`] RETURN i)`);
 
     // add filters

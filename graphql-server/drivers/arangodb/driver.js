@@ -700,103 +700,6 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
 }
 
 /**
- * Delete an object with the given id.
- *
- * @param isRoot
- * @param ctxt
- * @param id
- * @param type
- * @param info
- * @param resVar
- * @returns { null | Promise<any>}
- */
-function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
-    // init transaction
-    initTransaction(ctxt);
-    ctxt.trans.code.push(`\n\t/* delete ${typeToDelete} */`);
-
-    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
-
-    // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
-    resVar = resVar !== null ? resVar : createVar(ctxt);
-    let collectionVar = getCollectionVar(typeToDelete, ctxt, true);
-
-    // delete document
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} RETURN OLD\`).next();`);
-    // note that we dont throw errors if the key does not exists in the collection
-
-    // delete every edge either targeting, or originating from id
-    for (let i in typeToDelete.getFields()) {
-        let field = typeToDelete.getFields()[i];
-        let t = graphql.getNamedType(field.type);
-        if (graphql.isObjectType(t) || graphql.isInterfaceType(t)) {
-            if (field.name.startsWith('_incoming') || field.name.startsWith('_outgoing')) {
-                // Pass
-            }
-            else if (field.name[0] == '_') {
-                // Return edge
-                let type_name = graphql.getNamedType(field.type).name
-                let pattern_string = `^_(.+?)From${type_name}$`; // get the non-reversed edge name
-                let re = new RegExp(pattern_string);
-                let field_name = re.exec(field.name)[1];
-
-                let collectionName = getEdgeCollectionName(type_name, field_name);
-                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-
-                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x.source == ${asAQLVar(idVar)}._id OR x.target == ${asAQLVar(idVar)}._id REMOVE x IN ${collectionVar}\`);`);
-
-            } else {
-                // Normal edge
-                let collectionName = getEdgeCollectionName(typeToDelete.name, field.name);
-                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x.source == ${asAQLVar(idVar)}._id OR x.target == ${asAQLVar(idVar)}._id REMOVE x IN ${collectionVar}\`);`);
-            }
-        }
-    }
-
-    // directives handling
-    let resVarId = isVar(resVar) ? resVar : addParameterVar(ctxt, createParamVar(ctxt), { '_id': resVar });
-    addFinalDirectiveChecksForType(ctxt, typeToDelete, asAQLVar(resVarId), info.schema);
-    // return promises for roots and null for nested result
-    return isRoot ? getResult(ctxt, info, resVar) : null;
-}
-
-/**
- * Delete an edge with the given id
- *
- * @param isRoot
- * @param ctxt
- * @param id
- * @param edgeName
- * @param sourceType
- * @param info
- * @param resVar
- * @returns {null|Promise<any>}
- */
-function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null) {
-    // init transaction
-    initTransaction(ctxt);
-    ctxt.trans.code.push(`\n\t/* delete edge ${edgeName} */`);
-
-    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
-
-    // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
-    resVar = resVar !== null ? resVar : createVar(ctxt);
-    let collectionVar = getCollectionVar(edgeName, ctxt, true);
-
-    // update document
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} RETURN OLD\`).next();`);
-    // note that we dont throw errors if the key does not exists in the collection
-
-    // directives handling
-    let resVarId = isVar(resVar) ? resVar : addParameterVar(ctxt, createParamVar(ctxt), { '_id': resVar });
-    addFinalDirectiveChecksForType(ctxt, sourceType, asAQLVar(resVarId), info.schema);
-    // return promises for roots and null for nested result
-    return isRoot ? getResult(ctxt, info, resVar) : null;
-}
-
-
-/**
  * Delete an edge with the given id
  *
  * @param isRoot
@@ -827,7 +730,6 @@ function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null)
     // return promises for roots and null for nested result
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
-
 
 /**
  * Delete an object with the given id.

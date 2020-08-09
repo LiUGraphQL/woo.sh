@@ -616,6 +616,10 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* update ${returnType.name} */`);
 
+    // substitute field references to exported variables
+    // replacement is done recursively and is executed only for root
+    const substitutedFields = substituteExportedVariables(data, ctxt);
+
     // get non-object fields, add creation date and add as parameter
     let doc = getScalarsAndEnums(data, returnType);
     doc['_lastUpdateDate'] = new Date().valueOf();
@@ -627,7 +631,7 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
     let collectionVar = getCollectionVar(returnType.name, ctxt, true);
 
     // update document
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH  MERGE(${asAQLVar(docVar)}, ${stringifyImportedFields(substitutedFields)}) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
     // update edges (i.e., all object fields)
     // Object update will be deprecated as part of #67
@@ -644,22 +648,13 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
         // add all values for edge
         let values = Array.isArray(edgeFields[fieldName]) ? edgeFields[fieldName] : [edgeFields[fieldName]];
         for (let value of values) {
-            // prepare annotations
-            let annotations = null;
-            if (value['annotations']) {
-                annotations = getScalarsAndEnums(value['annotations'], info.schema.getType(`_InputToAnnotate${edgeCollectionName}`));
-                annotations['_creationDate'] = new Date().valueOf();
+            if (value['connect'] === null){
+                ctxt.trans.code.push(`throw "Value to connect is not defined"`);
+                continue;
             }
 
             if (value['connect']) {
-                let typeToConnect = targetType;
-                if (graphql.isInterfaceType(targetType)) {
-                    typeToConnect = info.schema.getType(value['connect'].split('/')[0]);
-                    if (!info.schema.getPossibleTypes(targetType).includes(typeToConnect)) {
-                        throw new ApolloError(`${value['connect']} is not an instance of a type implementing the interface ${targetType}`);
-                    }
-                }
-                createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], typeToConnect, annotations, info);
+                createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], targetType, value['annotations'], info);
             } else {
                 // reference to target
                 let targetVar = createVar(ctxt);
@@ -673,21 +668,27 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
                         if (value[possibleField]) {
                             typeToCreate = possibleType;
                             create(false, ctxt, value[possibleField], typeToCreate, info, targetVar);
-                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, annotations, info);
+                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, value['annotations'], info);
                         }
                     }
                 } else {
                     create(false, ctxt, value['create'], targetType, info, targetVar);
-                    createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, annotations, info);
+                    createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, value['annotations'], info);
                 }
             }
         }
+    }
+
+    // add exported variables from selection fields
+    if (isRoot) {
+        addExportedVariables(resVar, info, ctxt);
     }
 
     // check key
     validateKey(ctxt, resVar, returnType, info);
     // directives handling
     let resVarId = isVar(resVar) ? resVar : addParameterVar(ctxt, createParamVar(ctxt), { '_id': resVar });
+
     addFinalDirectiveChecksForType(ctxt, returnType, asAQLVar(resVarId), info.schema);
     // return promises for roots and null for nested result
     return isRoot ? getResult(ctxt, info, resVar) : null;

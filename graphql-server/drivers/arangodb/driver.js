@@ -1144,6 +1144,43 @@ async function getList(args, info) {
     }
 }
 
+
+/**
+ * Create a new info object based on a field name. Does not modify fragments, rootValue, operation, or variableValues
+ * in the original info object.
+ *
+ * Comment: Building a new info object in this way would help clean up some of the driver code. It would also be
+ * necessary in the current setup if we wish to be able to export variables from non-root fields. For now, this function
+ * is kept here for future reference.
+ *
+ * @param fieldName
+ * @param info
+ * @returns info object
+ */
+function buildInfo(fieldName, info){
+    let fieldNodes = [];
+    for(const fieldNode of info.fieldNodes){
+        for(const selection of fieldNode.selectionSet.selections){
+            if(selection.name.value === fieldName){
+                fieldNodes = selection.selectionSet ? selection.selectionSet.selections : [];
+                break;
+            }
+        }
+    }
+    return {
+        fieldName,
+        returnType:  info.schema.getType(info.returnType).getFields()[fieldName].type,
+        fieldNodes,
+        parentType: info.returnType,
+        path: {"key": fieldName, "prev": info.path},
+        schema: info.schema,
+        fragments: info.fragments,
+        rootValue: info.rootValue,
+        operation: info.operation,
+        variableValues: info.variableValues
+    };
+}
+
 /**
  * Add a new variable binding to the current transaction and return the corresponding parameter name.
  *

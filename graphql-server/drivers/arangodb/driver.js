@@ -590,6 +590,8 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
                     if (!info.schema.getPossibleTypes(targetType).includes(typeToConnect)) {
                         throw new ApolloError(`${value['connect']} is not an instance of a type implementing the interface ${targetType}`);
                     }
+                } else if (graphql.isUnionType(targetType)) {
+                    throw new ApolloError(`Inline updates of fields of union type is not supported! (Occurred for ${returnType}.${fieldName})`);
                 }
                 createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], typeToConnect, annotations, info);
             } else {

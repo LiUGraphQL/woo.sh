@@ -561,6 +561,63 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
     // update document
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
+    // update edges (i.e., all object fields)	
+    // Object update will be deprecated as part of #67	
+    let edgeFields = getTypesAndInterfaces(data, returnType);
+    for (let fieldName in edgeFields) {
+        let targetType = graphql.getNamedType(returnType.getFields()[fieldName].type);
+
+        // remove old edges	
+        let edgeCollectionName = getEdgeCollectionName(returnType.name, fieldName);
+        let edgeCollectionVar = getCollectionVar(edgeCollectionName, ctxt, true);
+        ctxt.trans.code.push(`\n\t/* drop edges from ${edgeCollectionName} */`);
+        ctxt.trans.code.push(`db._query(aql\`FOR v IN ${asAQLVar(edgeCollectionVar)} FILTER(v._from == ${asAQLVar(idVar)}) REMOVE v IN ${asAQLVar(edgeCollectionVar)}\`);`);
+
+        // add all values for edge	
+        let values = Array.isArray(edgeFields[fieldName]) ? edgeFields[fieldName] : [edgeFields[fieldName]];
+        for (let value of values) {
+            // prepare annotations	
+            let annotations = null;
+            if (value['annotations']) {
+                annotations = getScalarsAndEnums(value['annotations'], info.schema.getType(`_InputToAnnotate${edgeCollectionName}`));
+                annotations['_creationDate'] = new Date().valueOf();
+            }
+
+            if (value['connect']) {
+                let typeToConnect = targetType;
+                if (graphql.isInterfaceType(targetType)) {
+                    typeToConnect = info.schema.getType(value['connect'].split('/')[0]);
+                    if (!info.schema.getPossibleTypes(targetType).includes(typeToConnect)) {
+                        throw new ApolloError(`${value['connect']} is not an instance of a type implementing the interface ${targetType}`);
+                    }
+                }
+                createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], typeToConnect, annotations, info);
+            } else {
+                // reference to target	
+                let targetVar = createVar(ctxt);
+                if (graphql.isInterfaceType(targetType)) {
+                    let typeToCreate = null;
+                    for (let possibleType of info.schema.getPossibleTypes(targetType)) {
+                        let possibleField = `create${possibleType.name}`;
+                        if (value[possibleField] && typeToCreate) {
+                            throw new ApolloError(`Multiple create fields defined for ${returnType}.${fieldName}`);
+                        }
+                        if (value[possibleField]) {
+                            typeToCreate = possibleType;
+                            create(false, ctxt, value[possibleField], typeToCreate, info, targetVar);
+                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, annotations, info);
+                        }
+                    }
+                } else if (graphql.isUnionType(targetType)) {
+                    throw new ApolloError(`Inline updates of fields of union type is not supported! (Occurred for ${returnType}.${fieldName})`);
+                } else {
+                    create(false, ctxt, value['create'], targetType, info, targetVar);
+                    createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, annotations, info);
+                }
+            }
+        }
+    }
+
     // check key
     validateKey(ctxt, resVar, returnType, info);
     // directives handling

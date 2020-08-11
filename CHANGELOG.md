@@ -6,6 +6,7 @@
 * New feature: Objects can now be deleted. See: https://github.com/LiUGraphQL/woo.sh/issues/82
 * New feature: Incomming/outgoing edges can now be filtered. See: https://github.com/LiUGraphQL/woo.sh/issues/32
 * Bug fix: Changed how incomming/outgoing edges behavies for types implementing interfaces. See: https://github.com/LiUGraphQL/woo.sh/pull/85
+* Bug fix: If edge annotations are required, the annotation object is nor correctly marked as required for creation.
 
 **v0.1.1, released on June 23, 2020**
 * New feature: Edge annotations can now be set when creating and/or updating objects. See: https://github.com/LiUGraphQL/woo.sh/issues/24

@@ -410,23 +410,9 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
             } else {
                 // reference to target
                 let targetVar = createVar(ctxt);
-                if (graphql.isInterfaceType(targetType)) {
+                if (graphql.isInterfaceType(targetType) || graphql.isUnionType(targetType)) {
                     let typeToCreate = null;
                     for (let possibleType of info.schema.getPossibleTypes(targetType)) {
-                        let possibleField = `create${possibleType.name}`;
-                        if (value[possibleField] && typeToCreate) {
-                            throw new ApolloError(`Multiple create fields defined for ${returnType}.${fieldName}`);
-                        }
-                        if (value[possibleField]) {
-                            typeToCreate = possibleType;
-                            create(false, ctxt, value[possibleField], typeToCreate, info, targetVar);
-                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, annotations, info);
-                        }
-                    }
-                }
-                else if (graphql.isUnionType(targetType)) {
-                    let typeToCreate = null;
-                    for (let possibleType of targetType.types) {
                         let possibleField = `create${possibleType.name}`;
                         if (value[possibleField] && typeToCreate) {
                             throw new ApolloError(`Multiple create fields defined for ${returnType}.${fieldName}`);

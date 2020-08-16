@@ -321,6 +321,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
 
     // prepare annotations
     if (annotations === null  || annotations === undefined) annotations = {};
+    // substitute fields defined by exported variables
     annotations = substituteExportedVariables(annotations, ctxt);
     let annotationType = info.schema.getType(`_InputToAnnotate${collectionName}`);
     if (annotationType) { // RK: Should we be able to skip this due to previous validation?
@@ -353,10 +354,8 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     // insert edge
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, {'_from': ${source}, '_to': ${target} }) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
-    // add exported variables from selection fields
-    if (isRoot) {
-        addExportedVariables(resVar, info, ctxt);
-    }
+    // add exported variables from selection fields for root only
+    addExportedVariables(isRoot, resVar, info, ctxt);
 
     // directives handling
     addFinalDirectiveChecksForType(ctxt, sourceType, asAQLVar(sourceVar), info.schema);
@@ -381,8 +380,7 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* create ${returnType.name} */`);
 
-    // substitute field references to exported variables
-    // replacement is done recursively and is executed only for root
+    // substitute fields defined by exported variables
     const substitutedFields = substituteExportedVariables(data, ctxt);
 
     // get non-object fields, add creation date and add as parameter
@@ -437,10 +435,9 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
         }
     }
 
-    // add exported variables from selection fields
-    if (isRoot) {
-        addExportedVariables(resVar, info, ctxt);
-    }
+    // add exported variables from selection fields for root only
+    addExportedVariables(isRoot, resVar, info, ctxt);
+
     // validate key
     validateKey(ctxt, resVar, returnType, info);
     // add final directives check
@@ -508,49 +505,59 @@ function stringifyImportedFields(importedFields){
 
 /**
  * Find exported fields and bind them to AQL variable names. Variable references in the info object are replaced with
- * the corresponding variable definitions.
+ * the corresponding variable definitions. Only root fields can be exported by the ArangoDB driver at this time.
  *
- * Note: Only root value fields can be exported.
- *
- * TODO: Validate exported type against the variable definition! I.e. the value being exported is not validated.
-
  * @param resVar
  * @param info
  * @param ctxt
  */
-function addExportedVariables(resVar, info, ctxt){
+function addExportedVariables(isRoot, resVar, info, ctxt){
     // find all exported variables and the corresponding selection fields
     for(let fieldNode of info.fieldNodes){
         for(let selection of fieldNode.selectionSet.selections){
-            // skip non-root level, cannot export these fields
-            if(selection.selectionSet !== undefined) continue;
-            // selected field to be exported
-            let fieldName = selection.name.value;
-            for(let directive of selection.directives){
-                if(directive.name.value !== "export") continue;
-                for(let argument of directive.arguments) {
-                    if(argument.name.value !== "as") continue;
-                    // exported variable name
-                    let varName = argument.value.value;
-                    if(info.variableValues[varName] !== null){
-                        ctxt.trans.code.push(`throw "Failed to export '${varName}'"`);
-                    }
+            exportSelection(isRoot, resVar, selection, info, ctxt);
+        }
+    }
+}
 
-                    // Variable values  will be injected instead of variable references. If a value is added to
-                    // the set of variables references to the original value is lost. Therefore we need to keep the
-                    // variable name as part of the value. For validation we also keep the var type handy.
-                    for(let v of info.operation.variableDefinitions){
-                        if(v.variable.name.value === varName){
-                            info.variableValues[varName] = v;
-                        }
-                    }
-
-                    // rename id field
-                    if(fieldName === 'id') fieldName = '_id';
-                    ctxt.trans.exportedVariables[varName] = `${resVar}.${fieldName}`;
-                    ctxt.trans.code.push(`let ${varName} = ${resVar}.${fieldName};`);
+/**
+ * Add exported variables references.
+ *
+ * @param isRoot
+ * @param resVar
+ * @param selection
+ * @param info
+ * @param ctxt
+ */
+function exportSelection(isRoot, resVar, selection, info, ctxt){
+    // skip non-root level, cannot export these fields
+    if(selection.selectionSet !== undefined) {
+        for(let s of selection.selectionSet.selections){
+            exportSelection(false, resVar, s, info, ctxt)
+        }
+    }
+    // selected field to be exported
+    let fieldName = selection.name.value;
+    for(let directive of selection.directives){
+        if(directive.name.value !== 'export') continue;
+        let varName = directive.arguments[0].value.value;
+        if(!isRoot){
+            ctxt.trans.code.push(`throw "Cannot export non-root field for variable "$${varName}"`);
+        }
+        for(let argument of directive.arguments) {
+            // Variable values will be injected instead of variable references. If a value is added to
+            // the set of variables references to the original value is lost. Therefore we need to keep the
+            // variable name as part of the value.
+            for(let v of info.operation.variableDefinitions){
+                if(v.variable.name.value === varName){
+                    info.variableValues[varName] = v;
                 }
             }
+
+            // rename id field
+            if(fieldName === 'id') fieldName = '_id';
+            ctxt.trans.exportedVariables[varName] = `${resVar}.${fieldName}`;
+            ctxt.trans.code.push(`let ${varName} = ${resVar}.${fieldName};`);
         }
     }
 }
@@ -614,8 +621,7 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* update ${returnType.name} */`);
 
-    // substitute field references to exported variables
-    // replacement is done recursively and is executed only for root
+    // substitute fields defined by exported variables
     const substitutedFields = substituteExportedVariables(data, ctxt);
 
     // get non-object fields, add creation date and add as parameter
@@ -677,10 +683,8 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
         }
     }
 
-    // add exported variables from selection fields
-    if (isRoot) {
-        addExportedVariables(resVar, info, ctxt);
-    }
+    // add exported variables from selection fields for root only
+    addExportedVariables(isRoot, resVar, info, ctxt);
 
     // check key
     validateKey(ctxt, resVar, returnType, info);

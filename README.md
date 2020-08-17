@@ -34,3 +34,11 @@ Edge collection 'HomeWorldEdgeFromHuman' created
 Edge collection 'SpeciesEdgeFromHuman' created
 GraphQL service ready at: http://localhost:4000/
 ```
+
+# Tests
+
+## Directives/Constrains
+Tests for directives checking can be found in `graphql-server/tests`.
+
+To run them first run `directives-tests-generator.sh` to generate schema, resolver, driver and server as usual.
+Then start `server.js` in `graphql-server\tests\generated-directives-tests-server` (make sure `DISABLE_DIRECTIVES_CHECKING` is not set to true), and finally run `directives-tests.js`

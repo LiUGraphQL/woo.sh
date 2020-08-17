@@ -616,10 +616,15 @@ function getExportedValue(value, ctxt){
  * @param resVar
  * @returns {null|Promise<any>}
  */
-function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
+function update(isRoot, ctxt, varOrID, data, returnType, info, resVar = null) {
     // init transaction
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* update ${returnType.name} */`);
+
+    // inject variable value
+    varOrID = getExportedValue(varOrID, ctxt);
+    // define as AQL var
+    const idVar = isVar(varOrID) ? varOrID : addParameterVar(ctxt, createParamVar(ctxt), varOrID);
 
     // substitute fields defined by exported variables
     const substitutedFields = substituteExportedVariables(data, ctxt);
@@ -628,7 +633,6 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
     let doc = getScalarsAndEnums(data, returnType);
     doc['_lastUpdateDate'] = new Date().valueOf();
     let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
-    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
     resVar = resVar !== null ? resVar : createVar(ctxt);
@@ -739,12 +743,15 @@ function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null)
  * @param resVar
  * @returns { null | Promise<any>}
  */
-function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
+function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) {
     // init transaction
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* delete ${typeToDelete} */`);
 
-    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
+    // inject variable value
+    varOrID = getExportedValue(varOrID, ctxt);
+    // define as AQL var
+    const idVar = isVar(varOrID) ? varOrID : addParameterVar(ctxt, createParamVar(ctxt), varOrID);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
     resVar = resVar !== null ? resVar : createVar(ctxt);

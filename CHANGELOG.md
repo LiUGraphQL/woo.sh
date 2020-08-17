@@ -1,5 +1,6 @@
 **v0.1.2, to be released on ???**
 * Bug fix: Checks for existence of the database before attempting to drop it. See: https://github.com/LiUGraphQL/woo.sh/issues/89
+* New feature: Changed Edge validation behaviour to not check for existance of documents created in the same mutation. See: https://github.com/LiUGraphQL/woo.sh/pull/98
 * New feature: Individual edges can now by queried by ID
 * New feature: Edge (annotations) can now be updated. See: https://github.com/LiUGraphQL/woo.sh/issues/35
 * New feature: Edges can now be deleted. See: https://github.com/LiUGraphQL/woo.sh/issues/36

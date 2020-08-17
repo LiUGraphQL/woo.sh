@@ -309,10 +309,12 @@ function getObjectOrInterfaceFields(type) {
  * @param targetType
  * @param annotations
  * @param info
- * @param resVar
+ * @param resVar = null (optional)
+ * @param validateSource = true (optional)
+ * @param validateTarget = true (optional)
  * @returns {null|Promise<any>}
  */
-function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrTargetID, targetType, annotations, info, resVar = null) {
+function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrTargetID, targetType, annotations, info, resVar = null, validateSource = true, validateTarget = true) {
     // init transaction (if not already defined)
     initTransaction(ctxt);
 
@@ -342,7 +344,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     doc['_creationDate'] = new Date().valueOf();
 
     // validate edge
-    validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info);
+    validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info, validateSource, validateTarget);
 
     let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, {'_from': ${asAQLVar(sourceVar)}._id, '_to': ${asAQLVar(targetVar)}._id}) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
@@ -406,7 +408,7 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
                         throw new ApolloError(`${value['connect']} is not an instance of a type implementing the interface ${targetType}`);
                     }
                 }
-                createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], typeToConnect, annotations, info);
+                createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], typeToConnect, annotations, info, null, false, true);
             } else {
                 // reference to target
                 let targetVar = createVar(ctxt);
@@ -420,12 +422,12 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
                         if (value[possibleField]) {
                             typeToCreate = possibleType;
                             create(false, ctxt, value[possibleField], typeToCreate, info, targetVar);
-                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, annotations, info);
+                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, annotations, info, null, false, false);
                         }
                     }
                 } else {
                     create(false, ctxt, value['create'], targetType, info, targetVar);
-                    createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, annotations, info);
+                    createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, annotations, info, null, false, false);
                 }
             }
         }
@@ -577,7 +579,7 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
                         throw new ApolloError(`${value['connect']} is not an instance of a type implementing the interface ${targetType}`);
                     }
                 }
-                createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], typeToConnect, annotations, info);
+                createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], typeToConnect, annotations, info, null, false, true);
             } else {
                 // reference to target
                 let targetVar = createVar(ctxt);
@@ -591,12 +593,12 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
                         if (value[possibleField]) {
                             typeToCreate = possibleType;
                             create(false, ctxt, value[possibleField], typeToCreate, info, targetVar);
-                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, annotations, info);
+                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, annotations, info, null, false, false);
                         }
                     }
                 } else {
                     create(false, ctxt, value['create'], targetType, info, targetVar);
-                    createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, annotations, info);
+                    createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, annotations, info, null, false, false);
                 }
             }
         }
@@ -1160,16 +1162,22 @@ function getResultPromise(ctxt, key) {
  * @param varOrTargetID
  * @param targetType
  * @param info
+ * @param validateSource = true (optional)
+ * @param validateTarget = true (optional)
  */
-function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info) {
+function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info, validateSource = true, validateTarget = true) {
     if (disableEdgeValidation) {
         console.log('Edge validation disabled');
         return;
     }
-    ctxt.trans.code.push('/* source exists? */');
-    exists(ctxt, sourceVar, sourceType, info.schema);
-    ctxt.trans.code.push('/* target exists? */');
-    exists(ctxt, targetVar, targetType, info.schema);
+    if (validateSource) {
+        ctxt.trans.code.push('/* source exists? */');
+        exists(ctxt, sourceVar, sourceType, info.schema);
+    }
+    if (validateTarget) {
+        ctxt.trans.code.push('/* target exists? */');
+        exists(ctxt, targetVar, targetType, info.schema);
+    }
 
     // if field is not list type, verify that it is not already populated
     let fieldType = info.schema.getType(sourceType).getFields()[sourceField].type;

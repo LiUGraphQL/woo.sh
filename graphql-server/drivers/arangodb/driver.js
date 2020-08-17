@@ -66,7 +66,7 @@ async function init(args) {
     let dbName = args.dbName || 'dev-db';
     let url = args.url || 'http://localhost:8529';
     let drop = args.drop || false;
-    disableDirectivesChecking = args['disableDirectivesChecking'] || false;
+    disableDirectivesChecking = args['disableDirectivesChecking'] || true;
     disableEdgeValidation = args['disableEdgeValidation'] || false;
     db = new arangojs.Database({ url: url });
 
@@ -1518,7 +1518,7 @@ async function isEndOfList(parent, args, info) {
 async function getTotalCount(parent, args, info) {
     let type = graphql.getNamedType(info.parentType.getFields()['content'].type);
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
-    addPossibleTypes(query, ctxt, info.schema, type);
+    addPossibleTypes(query, info.schema, type);
     query.push(aql`] RETURN i)`);
 
     // add filters

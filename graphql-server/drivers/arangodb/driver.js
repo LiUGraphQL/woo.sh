@@ -1225,7 +1225,7 @@ function validateEdge(ctxt, source, sourceType, sourceField, target, targetType,
 function exists(ctxt, id, typeOrInterface, schema) {
     let aqlCollectionVars = [];
     if (graphql.isInterfaceType(typeOrInterface)) {
-        for (let possibleType in Object.values(schema.getPossibleTypes(typeOrInterface))) {
+        for (let possibleType of Object.values(schema.getPossibleTypes(typeOrInterface))) {
             aqlCollectionVars.push(asAQLVar(getCollectionVar(possibleType.name)));
         }
     } else {

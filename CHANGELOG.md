@@ -1,4 +1,6 @@
-**v0.1.2, to be released on ???**
+**v0.1.3, to be released on ???**
+
+**v0.1.2, to be released on August 19, 2020**
 * Bug fix: Checks for existence of the database before attempting to drop it. See: https://github.com/LiUGraphQL/woo.sh/issues/89
 * New feature: Changed Edge validation behaviour to not check for existance of documents created in the same mutation. See: https://github.com/LiUGraphQL/woo.sh/pull/98
 * New feature: Individual edges can now by queried by ID

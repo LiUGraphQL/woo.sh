@@ -1591,8 +1591,8 @@ function addPossibleTypes(query, schema, type, ctxt = null) {
                 query.push(collectionVar);
             }
             else {
-                let collection = asAQLVar(`db.${possible_types[i].name}`)
-                query.push(`${collection}`);
+                let collection = db.collection(possible_types[i].name)
+                query.push(aql`${collection}`);
             }
         }
     } else {
@@ -1601,8 +1601,8 @@ function addPossibleTypes(query, schema, type, ctxt = null) {
             query.push(collectionVar);
         }
         else {
-            let collection = asAQLVar(`db.${type.name}`);
-            query.push(`${collection}`);
+            let collection = db.collection(type.name);
+            query.push(aql`${collection}`);
         }
     }
 }

@@ -2,7 +2,8 @@ import argparse
 import yaml
 
 import yaml
-from graphql import build_schema, is_object_type, get_named_type, is_interface_type, assert_valid_schema, is_input_type
+from graphql import build_schema, is_object_type, get_named_type, is_interface_type, assert_valid_schema, is_input_type, \
+    is_union_type
 from mako.template import Template
 
 import sys
@@ -32,12 +33,22 @@ def generate(input_file, output_dir, config: dict):
         schema_string = f.read()
     schema = build_schema(schema_string)
 
-    data = {'types': [], 'types_by_key': [], 'interfaces': [], 'typeDelete': [], 'edge_types_to_delete': [], 'edge_types_to_update': [], 'edge_objects': []}
+    data = {
+        'types': [],
+        'types_by_key': [],
+        'interfaces': [],
+        'unions': [],
+        'typeDelete': [],
+        'edge_types_to_delete': [],
+        'edge_types_to_update': [],
+        'edge_objects': []}
 
     # get list of types
     for type_name, _type in schema.type_map.items():
         if is_interface_type(_type):
             data['interfaces'].append(type_name)
+        if is_union_type(_type):
+            data['unions'].append(type_name)
         if is_edge_type(_type):
             if config.get('generation').get('query_edge_by_id'):
                 data['edge_objects'].append(type_name)

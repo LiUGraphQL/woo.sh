@@ -696,7 +696,6 @@ function update(isRoot, ctxt, varOrID, data, returnType, info, resVar = null) {
     validateKey(ctxt, resVar, returnType, info);
     // directives handling
     let resVarId = isVar(resVar) ? resVar : addParameterVar(ctxt, createParamVar(ctxt), { '_id': resVar });
-
     addFinalDirectiveChecksForType(ctxt, returnType, asAQLVar(resVarId), info.schema);
     // return promises for roots and null for nested result
     return isRoot ? getResult(ctxt, info, resVar) : null;
@@ -718,7 +717,6 @@ function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null)
     // init transaction
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* delete edge ${edgeName} */`);
-
     let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
@@ -727,10 +725,12 @@ function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null)
 
     // return null if the key does not exists in the collection (i.e., don't throw error)
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next();`);
+    ctxt.trans.code.push(`if(${resVar}){`);
 
     // directives handling
     addFinalDirectiveChecksForType(ctxt, sourceType, aql`${asAQLVar(resVar)}._source`, info.schema);
     // return promises for roots and null for nested result
+    ctxt.trans.code.push(`}`);
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
@@ -762,6 +762,7 @@ function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) 
     // delete document
     // return null if the key does not exists in the collection (i.e., don't throw error)
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next();`);
+    ctxt.trans.code.push(`if(${resVar}){`);
 
     // delete every edge either targeting, or originating from id
     for (let i in typeToDelete.getFields()) {
@@ -796,6 +797,7 @@ function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) 
     // directives handling
     addFinalDirectiveChecksForType(ctxt, typeToDelete, aql`${asAQLVar(resVar)}._id`, info.schema);
     // return promises for roots and null for nested result
+    ctxt.trans.code.push(`}`);
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 

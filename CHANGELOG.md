@@ -1,5 +1,7 @@
 **v0.1.3, to be released on ???**
+* Bug fix: Corrected an issue when trying to delete non-existing objects/edges.
 * Bug fix: small bug fix in addPossibleTypes for queries; see: https://github.com/LiUGraphQL/woo.sh/commit/514a8e01acceab355a0e4729b1b1a6de2a6ee2df
+
 
 **v0.1.2, to be released on August 19, 2020**
 * New feature: Changed Edge validation behaviour to not check for existance of documents created in the same mutation. See: https://github.com/LiUGraphQL/woo.sh/pull/98

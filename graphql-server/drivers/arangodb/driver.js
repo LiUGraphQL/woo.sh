@@ -623,6 +623,7 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
  * @param info
  * @param resVar
  * @returns { null | Promise<any>}
+ * 
  */
 function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
     // init transaction
@@ -735,10 +736,11 @@ function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null)
 
     // return null if the key does not exists in the collection (i.e., don't throw error)
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next();`);
-
+    ctxt.trans.code.push(`if(${resVar}){`);
     // directives handling
     addFinalDirectiveChecksForType(ctxt, sourceType, aql`${asAQLVar(resVar)}._source`, info.schema);
     // return promises for roots and null for nested result
+    ctxt.trans.code.push(`}`);
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
@@ -768,6 +770,7 @@ function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
     // delete document
     // return null if the key does not exists in the collection (i.e., don't throw error)
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next();`);
+    ctxt.trans.code.push(`if(${resVar}){`);
 
     // delete every edge either targeting, or originating from id
     for (let i in typeToDelete.getFields()) {
@@ -802,6 +805,7 @@ function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
     // directives handling
     addFinalDirectiveChecksForType(ctxt, typeToDelete, aql`${asAQLVar(resVar)}._id`, info.schema);
     // return promises for roots and null for nested result
+    ctxt.trans.code.push(`}`);
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 

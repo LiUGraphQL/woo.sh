@@ -14,12 +14,12 @@ const fetch = require('node-fetch');
 async function testDistinct(client) {
     // Creates 4 distinct objects of which the third one should fail.
     // Then creates 2 new edges of which the first should fail.
-
+    
     // Create Distinct 1
     let createDistinct1 = `
         mutation {
             createDistinctTest(data:{
-                dummyField: 0
+                testDummyField: 0
             }) {
                 id
             }
@@ -30,13 +30,13 @@ async function testDistinct(client) {
         console.error(mutationCreateDistinct1.errors);
         return false;
     }
-    let distinct1Id = mutationCreateDistinct1.data[`createDistinct`].id;
-
+    let distinct1Id = mutationCreateDistinct1.data[`createDistinctTest`].id;
+    
     // Create Distinct 2
     let createDistinct2 = `
         mutation {
             createDistinctTest(data:{
-                dummyField: 1
+                testDummyField: 1
             }) {
                 id
             }
@@ -47,8 +47,8 @@ async function testDistinct(client) {
         console.error(mutationCreateDistinct2.errors);
         return false;
     }
-    let distinct2Id = mutationCreateDistinct2.data[`createDistinct`].id;
-
+    let distinct2Id = mutationCreateDistinct2.data[`createDistinctTest`].id;
+    
     // Create Distinct 3
     let createDistinct3 = `
         mutation {
@@ -62,14 +62,16 @@ async function testDistinct(client) {
             }
         }
     `;
-    const mutationCreateDistinct3 = await client.mutate({ mutation: gql`${createDistinct3}` });
-    if (mutationCreateDistinct3.errors) {
-        // empty, should actually give errors.
-    } else {
+
+    try { 
+        const mutationCreateDistinct3 = await client.mutate({ mutation: gql`${createDistinct3}` });
         console.error("Breaking a @distinct directive did not yield an error!");
         return false;
     }
-
+    catch (e) {
+        // Should actually throw an error
+    }
+    
     // Create Distinct 4
     let createDistinct4 = `
         mutation {
@@ -88,8 +90,8 @@ async function testDistinct(client) {
         console.error(mutationCreateDistinct4.errors);
         return false;
     }
-    let distinct4Id = mutationCreateDistinct4.data[`createDistinct`].id;
-
+    let distinct4Id = mutationCreateDistinct4.data[`createDistinctTest`].id;
+    
     // Create Distinct Edge 1
     let createEdge1 = `
         mutation {
@@ -100,15 +102,16 @@ async function testDistinct(client) {
                 id
             }
         }
-    `;
-    const mutationCreateEdge1 = await client.mutate({ mutation: gql`${createEdge1}` });
-    if (mutationCreateEdge1.errors) {
-        // empty, should actually give errors.
-    } else {
+    `; 
+    try {
+        const mutationCreateEdge1 = await client.mutate({ mutation: gql`${createEdge1}` });
         console.error("Breaking a @distinct directive did not yield an error!");
         return false;
     }
-
+    catch (e) {
+        // Should actually throw an error
+    }
+    
     // Create Distinct Edge 2
     let createEdge2 = `
         mutation {
@@ -125,19 +128,19 @@ async function testDistinct(client) {
         console.error(mutationCreateEdge2.errors);
         return false;
     }
-
+    
     return true;
 }
 
 async function testNoloops(client) {
     // Create the two connected object.
     // Create two edges of which one the first is a loop and should fail
-
+    
     // Create Noloops 1
     let createNoloops1 = `
         mutation {
             createNoloopsTest(data:{
-                dummyField: 0
+                testDummyField: 0
             }) {
                 id
             }
@@ -148,7 +151,7 @@ async function testNoloops(client) {
         console.error(mutationCreateNoloops1.errors);
         return false;
     }
-    let noloops1Id = mutationCreateNoloops1.data[`createNoloops`].id;
+    let noloops1Id = mutationCreateNoloops1.data[`createNoloopsTest`].id;
 
     // Create Noloops 2
     let createNoloops2 = `
@@ -165,6 +168,7 @@ async function testNoloops(client) {
         console.error(mutationCreateNoloops2.errors);
         return false;
     }
+    let noloops2Id = mutationCreateNoloops2.data[`createNoloopsTest`].id;
     
     // Create Loop edge
     let createLoop = `
@@ -177,12 +181,14 @@ async function testNoloops(client) {
             }
         }
     `;
-    const mutationCreateLoop = await client.mutate({ mutation: gql`${createLoop}` });
-    if (mutationCreateLoop.errors) {
-        // empty, should actually give errors.
-    } else {
+
+    try {
+        const mutationCreateLoop = await client.mutate({ mutation: gql`${createLoop}` });
         console.error("Breaking a @noloops directive did not yield an error!");
         return false;
+    }
+    catch (e) {
+        // Should actually throw an error
     }
 
     // Create Not Loop edge
@@ -197,7 +203,7 @@ async function testNoloops(client) {
         }
     `;
     const mutationCreateNotLoop = await client.mutate({ mutation: gql`${createNotLoop}` });
-    if (mutationCreateNotLoops.error) {
+    if (mutationCreateNotLoop.error) {
         console.error(mutationCreateNotLoop.errors);
         return false;
     }
@@ -210,30 +216,32 @@ async function testRequiredForTargetTest(client) {
     // Queries the id of the edge, and tries to delete the edge followed by the object.
     // Both deletions should fail.
     // Lastly delete both objects in valid order
-
+    
     // Create RequiredForTargetTarget 1
     let createRequiredForTargetTarget1 = `
         mutation {
             createRequiredForTargetTarget(data:{
-                dummyField: 0
+                testDummyField: 0
             }) {
                 id
             }
         }
     `;
-    const mutationCreateRequiredForTargetTarget1 = await client.mutate({ mutation: gql`${createRequiredForTargetTarget1}` });
-    if (mutationCreateRequiredForTargetTarget1.errors) {
-        // empty, should actually give errors.
-    } else {
+
+    try {
+        const mutationCreateRequiredForTargetTarget1 = await client.mutate({ mutation: gql`${createRequiredForTargetTarget1}` });
         console.error("Breaking a @requiredForTarget directive did not yield an error!");
         return false;
     }
-
+    catch (e) {
+        // Should actually throw an error
+    }
+    
     // Create 
     let create = `
         mutation {
             createRequiredForTargetTest(data:{
-                target: {create: {dummyField: 1}}
+                target: {create: {testDummyField: 1}}
             }) {
                 id
             }
@@ -245,13 +253,13 @@ async function testRequiredForTargetTest(client) {
         return false;
     }
     let noRequiredSourceId = mutationCreate.data[`createRequiredForTargetTest`].id;
-
+    
     // Get edge id
     let getIds = `
         query {
             requiredForTargetTest(id: "${noRequiredSourceId}") {
-                target
-                _outgoingTargetEdges { id }
+                target { id }
+                _outgoingTargetEdgesFromRequiredForTargetTest { id }
             }
         }`;
     
@@ -260,9 +268,10 @@ async function testRequiredForTargetTest(client) {
     if (queryIds.errors) {
         console.error(queryIds.errors);
     }
-    let targetId = queryIds.requiredForTargetTest.target.id
-    let edgeId = queryIds.requiredForTargetTest._outgoingTargetEdges.id;;
 
+    let targetId = queryIds.data.requiredForTargetTest.target.id
+    let edgeId = queryIds.data.requiredForTargetTest._outgoingTargetEdgesFromRequiredForTargetTest.id;
+    
     // Delete Edge
     let deleteEdge = `
         mutation {
@@ -270,14 +279,16 @@ async function testRequiredForTargetTest(client) {
                 id
             }
         }`;
-    const mutationDeleteEdge = await client.mutate({ mutation: gql`${deleteEdge}` });
-    if (mutationDeleteEdge.errors) {
-        // empty, should actually give errors.
-    } else {
+
+    try {
+        const mutationDeleteEdge = await client.mutate({ mutation: gql`${deleteEdge}` });
         console.error("Breaking a @requiredForTarget directive did not yield an error!");
         return false;
     }
-
+    catch (e) {
+        // Should actually throw an error
+    }
+    
     // Delete Object
     let deleteObject = `
         mutation {
@@ -285,14 +296,16 @@ async function testRequiredForTargetTest(client) {
                 id
             }
         }`;
-    const mutationDeleteObject = await client.mutate({ mutation: gql`${deleteObject}` });
-    if (mutationDeleteObject.errors) {
-        // empty, should actually give errors.
-    } else {
+
+    try {
+        const mutationDeleteObject = await client.mutate({ mutation: gql`${deleteObject}` });
         console.error("Breaking a @requiredForTarget directive did not yield an error!");
         return false;
     }
-
+    catch (e) {
+        // Should actually throw an error
+    }
+    
     // Delete Target
     let deleteTarget = `
         mutation {
@@ -305,7 +318,7 @@ async function testRequiredForTargetTest(client) {
         console.error(mutationDeleteTarget.errors);
         return false;
     }
-
+    
     // Delete Target
     let deleteSource = `
         mutation {
@@ -324,12 +337,12 @@ async function testRequiredForTargetTest(client) {
 
 async function testUniqueForTargetTest(client) {
     // 
-
+    
     // Create UniqueForTargetTarget 
     let createUniqueForTargetTarget = `
         mutation {
             createUniqueForTargetTarget(data:{
-                dummyField: 0
+                testDummyField: 0
             }) {
                 id
             }
@@ -368,12 +381,14 @@ async function testUniqueForTargetTest(client) {
             }
         }
     `;
-    const mutationCreateUniqueForTargetTest2 = await client.mutate({ mutation: gql`${createUniqueForTargetTest2}` });
-    if (mutationCreateUniqueForTargetTest2.errors) {
-        // empty, should actually give errors.
-    } else {
+
+    try {
+        const mutationCreateUniqueForTargetTest2 = await client.mutate({ mutation: gql`${createUniqueForTargetTest2}` });
         console.error("Breaking a @uniqueForTarget directive did not yield an error!");
         return false;
+    }
+    catch (e) {
+        // Should actually throw an error
     }
 
     return true;

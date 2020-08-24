@@ -13,16 +13,16 @@ directive @key(fields: [String!]!) on OBJECT
 
 type DistinctTest {
     shouldBeDistinct: [DistinctTest] @distinct
-    dummyField: Int
+    testDummyField: Int
 }
 
 type NoloopsTest {
     possibleLoop: [NoloopsTest] @noloops
-    dummyField: Int
+    testDummyField: Int
 }
 
 type RequiredForTargetTarget {
-    dummyField: Int
+    testDummyField: Int
 }
 
 type RequiredForTargetTest {
@@ -30,7 +30,7 @@ type RequiredForTargetTest {
 }
 
 type UniqueForTargetTarget {
-    dummyField: Int
+    testDummyField: Int
 }
 
 type UniqueForTargetTest {

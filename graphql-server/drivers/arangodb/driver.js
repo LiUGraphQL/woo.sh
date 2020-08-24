@@ -66,7 +66,7 @@ async function init(args) {
     let dbName = args.dbName || 'dev-db';
     let url = args.url || 'http://localhost:8529';
     let drop = args.drop || false;
-    disableDirectivesChecking = args['disableDirectivesChecking'] || false;
+    disableDirectivesChecking = args['disableDirectivesChecking'] || true;
     disableEdgeValidation = args['disableEdgeValidation'] || false;
     db = new arangojs.Database({ url: url });
 
@@ -309,46 +309,59 @@ function getObjectOrInterfaceFields(type) {
  * @param targetType
  * @param annotations
  * @param info
- * @param resVar
+ * @param resVar = null (optional)
+ * @param validateSource = true (optional)
+ * @param validateTarget = true (optional)
  * @returns {null|Promise<any>}
  */
-function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrTargetID, targetType, annotations, info, resVar = null) {
+function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrTargetID, targetType, annotations, info, resVar = null, validateSource = true, validateTarget = true) {
     // init transaction (if not already defined)
     initTransaction(ctxt);
+    const collectionName = getEdgeCollectionName(sourceType.name, sourceField);
+    const collectionVar = getCollectionVar(collectionName, ctxt, true);
+    ctxt.trans.code.push(`\n\t/* createEdge ${collectionName} */`);
+
+    // prepare annotations
+    if (annotations === null  || annotations === undefined) annotations = {};
+    // substitute fields defined by exported variables
+    annotations = substituteExportedVariables(annotations, ctxt);
+    let annotationType = info.schema.getType(`_InputToAnnotate${collectionName}`);
+    if (annotationType) { // RK: Should we be able to skip this due to previous validation?
+        annotations = getScalarsAndEnums(annotations, info.schema.getType(annotationType));
+    }
 
     // create a new variable if resVar was not defined by the calling function
     resVar = resVar !== null ? resVar : createVar(ctxt);
 
-    let collectionName = getEdgeCollectionName(sourceType.name, sourceField);
-    let collectionVar = getCollectionVar(collectionName, ctxt, true);
-    ctxt.trans.code.push(`\n\t/* edge ${collectionName} */`);
+    // inject variable values
+    varOrSourceID = getExportedValue(varOrSourceID, ctxt);
+    varOrTargetID = getExportedValue(varOrTargetID, ctxt);
 
     // define source and target as AQL vars
-    let sourceVar = isVar(varOrSourceID) ? varOrSourceID : addParameterVar(ctxt, createParamVar(ctxt), { '_id': varOrSourceID });
-    let targetVar = isVar(varOrTargetID) ? varOrTargetID : addParameterVar(ctxt, createParamVar(ctxt), { '_id': varOrTargetID });
+    const sourceVar = isVar(varOrSourceID) ? varOrSourceID : addParameterVar(ctxt, createParamVar(ctxt), varOrSourceID);
+    const targetVar = isVar(varOrTargetID) ? varOrTargetID : addParameterVar(ctxt, createParamVar(ctxt), varOrTargetID);
 
-    // prepare annotations
-    if (annotations == null) {
-        annotations = {};
-    }
-
-    let annotationType = info.schema.getType(`_InputToAnnotate${collectionName}`);
-    if (annotationType) {
-        annotations = getScalarsAndEnums(annotations, info.schema.getType(annotationType));
-    }
+    // add reference to source and target ID fields if needed
+    const source = sourceVar.indexOf('.') !== -1 ? asAQLVar(sourceVar) : asAQLVar(sourceVar + '._id');
+    const target = targetVar.indexOf('.') !== -1 ? asAQLVar(targetVar) : asAQLVar(targetVar + '._id');
 
     // define doc
-    let doc = annotations;
+    const doc = annotations;
     doc['_creationDate'] = new Date().valueOf();
+    const docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
     // validate edge
-    validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info);
+    validateEdge(ctxt, source, sourceType, sourceField, target, targetType, info, validateSource, validateTarget);
 
-    let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, {'_from': ${asAQLVar(sourceVar)}._id, '_to': ${asAQLVar(targetVar)}._id}) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+    // insert edge
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, {'_from': ${source}, '_to': ${target} }) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+
+    // add exported variables from selection fields for root only
+    addExportedVariables(isRoot, resVar, info, ctxt);
 
     // directives handling
     addFinalDirectiveChecksForType(ctxt, sourceType, asAQLVar(sourceVar), info.schema);
+
     // return promises for roots and null for nested result
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
@@ -369,44 +382,37 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* create ${returnType.name} */`);
 
+    // substitute fields defined by exported variables
+    const substitutedFields = substituteExportedVariables(data, ctxt);
+
     // get non-object fields, add creation date and add as parameter
-    let doc = getScalarsAndEnums(data, returnType);
+    const doc = getScalarsAndEnums(data, returnType);
     doc['_creationDate'] = new Date().valueOf();
-    let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
+    const docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
     resVar = resVar !== null ? resVar : createVar(ctxt);
 
-    let collectionVar = getCollectionVar(returnType.name, ctxt, true);
+    const collectionVar = getCollectionVar(returnType.name, ctxt, true);
 
-    // insert document
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+    // insert document and merge with imported fields
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, ${stringifyImportedFields(substitutedFields)}) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
     // add edges (i.e., all object fields)
-    let edgeFields = getTypesAndInterfaces(data, returnType);
-    for (let fieldName in edgeFields) {
-        let targetType = graphql.getNamedType(returnType.getFields()[fieldName].type);
-        let edgeCollectionName = getEdgeCollectionName(returnType.name, fieldName);
+    const edgeFields = getTypesAndInterfaces(data, returnType);
+    for (const fieldName in edgeFields) {
+        const targetType = graphql.getNamedType(returnType.getFields()[fieldName].type);
 
         // add all values for edge
-        let values = Array.isArray(edgeFields[fieldName]) ? edgeFields[fieldName] : [edgeFields[fieldName]];
+        const values = Array.isArray(edgeFields[fieldName]) ? edgeFields[fieldName] : [edgeFields[fieldName]];
         for (let value of values) {
-            // prepare annotations
-            let annotations = null;
-            if (value['annotations']) {
-                annotations = getScalarsAndEnums(value['annotations'], info.schema.getType(`_InputToAnnotate${edgeCollectionName}`));
-                annotations['_creationDate'] = new Date().valueOf();
+            if (value['connect'] === null){
+                ctxt.trans.code.push(`throw "Value to connect is not defined"`);
+                continue;
             }
 
             if (value['connect']) {
-                let typeToConnect = targetType;
-                if (graphql.isInterfaceType(targetType)) {
-                    typeToConnect = info.schema.getType(value['connect'].split('/')[0]);
-                    if (!info.schema.getPossibleTypes(targetType).includes(typeToConnect) && !targetType.type.includes(typeToConnect)) {
-                        throw new ApolloError(`${value['connect']} is not an instance of a type implementing the interface ${targetType}`);
-                    }
-                }
-                createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], typeToConnect, annotations, info);
+                createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], targetType, value['annotations'], info, null, false, true);
             } else {
                 // reference to target
                 let targetVar = createVar(ctxt);
@@ -420,23 +426,27 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
                         if (value[possibleField]) {
                             typeToCreate = possibleType;
                             create(false, ctxt, value[possibleField], typeToCreate, info, targetVar);
-                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, annotations, info);
+                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, value['annotations'], info, null, false, false);
                         }
                     }
                 } else {
                     create(false, ctxt, value['create'], targetType, info, targetVar);
-                    createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, annotations, info);
+                    createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, value['annotations'], info, null, false, false);
                 }
             }
         }
     }
 
+    // add exported variables from selection fields for root only
+    addExportedVariables(isRoot, resVar, info, ctxt);
+
     // validate key
     validateKey(ctxt, resVar, returnType, info);
     // add final directives check
-    let resVarId = isVar(resVar) ? resVar : addParameterVar(ctxt, createParamVar(ctxt), { '_id': resVar });
+    let resVarId = isVar(resVar) ? resVar : addParameterVar(ctxt, createParamVar(ctxt), {'_id': resVar});
     addFinalDirectiveChecksForType(ctxt, returnType, asAQLVar(resVarId), info.schema);
     // return promises for roots and null for nested result
+
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
@@ -460,15 +470,14 @@ function updateEdge(isRoot, ctxt, id, data, edgeName, inputToUpdateType, info, r
 
     // create a new variable if resVar was not defined by the calling function
     resVar = resVar !== null ? resVar : createVar(ctxt);
-
-    let collectionVar = getCollectionVar(edgeName, ctxt, true);
+    const collectionVar = getCollectionVar(edgeName, ctxt, true);
     ctxt.trans.code.push(`\n\t/* update edge ${edgeName} */`);
 
     // define doc
-    let doc = getScalarsAndEnums(data, info.schema.getType(inputToUpdateType));;
+    const doc = getScalarsAndEnums(data, info.schema.getType(inputToUpdateType));;
     doc['_lastUpdateDate'] = new Date().valueOf();
-    let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
-    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
+    const docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
+    const idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
 
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
@@ -477,45 +486,134 @@ function updateEdge(isRoot, ctxt, id, data, edgeName, inputToUpdateType, info, r
     // return promises for roots and null for nested result
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
-
 
 /**
- * Update an edge.
+ * Stringify an imported fields object for use in an AQL query.
  *
- * @param isRoot
- * @param ctxt
- * @param id
- * @param data
- * @param edgeName
- * @param inputToUpdateType
- * @param info
- * @param resVar
- * @returns {null|Promise<any>}
+ * @param importedFields
+ * @returns {string}
  */
-function updateEdge(isRoot, ctxt, id, data, edgeName, inputToUpdateType, info, resVar = null) {
-    // init transaction (if not already defined)
-    initTransaction(ctxt);
-
-    // create a new variable if resVar was not defined by the calling function
-    resVar = resVar !== null ? resVar : createVar(ctxt);
-    
-    let collectionVar = getCollectionVar(edgeName, ctxt, true);
-    ctxt.trans.code.push(`\n\t/* update edge ${edgeName} */`);
-    
-    // define doc
-    let doc = getScalarsAndEnums(data, info.schema.getType(inputToUpdateType));;
-    doc['_lastUpdateDate'] = new Date().valueOf();
-    let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
-    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
-
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
-
-    //directives handling is not needed for edge updates as they can not have directives as of current
-
-    // return promises for roots and null for nested result
-    return isRoot ? getResult(ctxt, info, resVar) : null;
+function stringifyImportedFields(importedFields){
+    let s = '{';
+    let first = true;
+    for(let i in importedFields){
+        if(!first) s += ',';
+        s += `"${i}": ${asAQLVar(importedFields[i])}`;
+        first = false;
+    }
+    s += '}';
+    return s;
 }
 
+/**
+ * Find exported fields and bind them to AQL variable names. Variable references in the info object are replaced with
+ * the corresponding variable definitions. Only root fields can be exported by the ArangoDB driver at this time.
+ *
+ * @param resVar
+ * @param info
+ * @param ctxt
+ */
+function addExportedVariables(isRoot, resVar, info, ctxt){
+    // check exports only for the root field
+    if(!isRoot) return;
+    // find all exported variables and the corresponding selection fields
+    for(let fieldNode of info.fieldNodes){
+        for(let selection of fieldNode.selectionSet.selections){
+            exportSelection(isRoot, resVar, selection, info, ctxt);
+        }
+    }
+}
+
+/**
+ * Add exported variables references.
+ *
+ * @param isRoot
+ * @param resVar
+ * @param selection
+ * @param info
+ * @param ctxt
+ */
+function exportSelection(isRoot, resVar, selection, info, ctxt){
+    // skip inline fragments
+    if(selection.kind === 'InlineFragment') return;
+
+    // skip non-root level, cannot export these fields
+    if(selection.selectionSet !== undefined) {
+        for(let s of selection.selectionSet.selections){
+            exportSelection(false, resVar, s, info, ctxt)
+        }
+    }
+    // selected field to be exported
+    let fieldName = selection.name.value;
+    for(let directive of selection.directives){
+        if(directive.name.value !== 'export') continue;
+        let varName = directive.arguments[0].value.value;
+        if(!isRoot){
+            ctxt.trans.code.push(`throw "Cannot export non-root field for variable $${varName}";`);
+        }
+        for(let argument of directive.arguments) {
+            // Variable values will be injected instead of variable references. If a value is added to
+            // the set of variables references to the original value is lost. Therefore we need to keep the
+            // variable name as part of the value.
+            for(let v of info.operation.variableDefinitions){
+                if(v.variable.name.value === varName){
+                    info.variableValues[varName] = v;
+                }
+            }
+
+            // rename id field
+            if(fieldName === 'id') fieldName = '_id';
+            ctxt.trans.exportedVariables[varName] = `${resVar}.${fieldName}`;
+            ctxt.trans.code.push(`let ${varName} = ${resVar}.${fieldName};`);
+        }
+    }
+}
+
+/**
+ * Takes an input object, removes all fields defined by exported variables, and returns an object containing only the
+ * exported fields. Note that the values of this returned object represent variable references in AQL (i.e., they are
+ * not query parameters and need special treatment).
+ *
+ * @param data
+ * @param ctxt
+ */
+function substituteExportedVariables(data, ctxt){
+    const substitutes = {};
+    Object.entries(data).forEach((entry) => {
+        const fieldName = entry[0];
+        const value = entry[1];
+        // if value is an object it must be a variable
+        if(typeof value === 'object' && value !== null){
+            if(value.kind === 'VariableDefinition'){
+                const varName = value.variable.name.value;
+                if(ctxt.trans.exportedVariables[varName] === undefined){
+                    ctxt.trans.code.push(`throw "Variable $${varName} has not been exported";`);
+                } else {
+                    // remove field from data object
+                    delete data[fieldName];
+                    substitutes[fieldName] = ctxt.trans.exportedVariables[varName];
+                }
+            }
+        }
+    });
+    return substitutes;
+}
+
+/**
+ * Return the exported variable value if a variable, otherwise returns value.
+ *
+ * @param value
+ * @returns {*}
+ */
+function getExportedValue(value, ctxt){
+    // if value is an object it must be a variable
+    if(typeof value === 'object' && value !== null){
+        if(value.kind === 'VariableDefinition'){
+            return ctxt.trans.exportedVariables[value.variable.name.value];
+        }
+    }
+    return value;
+}
 
 /**
  * Update an object including, and replace existing edges.
@@ -529,23 +627,30 @@ function updateEdge(isRoot, ctxt, id, data, edgeName, inputToUpdateType, info, r
  * @param resVar
  * @returns {null|Promise<any>}
  */
-function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
+function update(isRoot, ctxt, varOrID, data, returnType, info, resVar = null) {
     // init transaction
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* update ${returnType.name} */`);
+
+    // inject variable value
+    varOrID = getExportedValue(varOrID, ctxt);
+    // define as AQL var
+    const idVar = isVar(varOrID) ? varOrID : addParameterVar(ctxt, createParamVar(ctxt), varOrID);
+
+    // substitute fields defined by exported variables
+    const substitutedFields = substituteExportedVariables(data, ctxt);
 
     // get non-object fields, add creation date and add as parameter
     let doc = getScalarsAndEnums(data, returnType);
     doc['_lastUpdateDate'] = new Date().valueOf();
     let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
-    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
     resVar = resVar !== null ? resVar : createVar(ctxt);
     let collectionVar = getCollectionVar(returnType.name, ctxt, true);
 
     // update document
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH  MERGE(${asAQLVar(docVar)}, ${stringifyImportedFields(substitutedFields)}) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
     // update edges (i.e., all object fields)	
     // Object update will be deprecated as part of #67	
@@ -562,24 +667,13 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
         // add all values for edge	
         let values = Array.isArray(edgeFields[fieldName]) ? edgeFields[fieldName] : [edgeFields[fieldName]];
         for (let value of values) {
-            // prepare annotations	
-            let annotations = null;
-            if (value['annotations']) {
-                annotations = getScalarsAndEnums(value['annotations'], info.schema.getType(`_InputToAnnotate${edgeCollectionName}`));
-                annotations['_creationDate'] = new Date().valueOf();
+            if (value['connect'] === null){
+                ctxt.trans.code.push(`throw "Value to connect is not defined"`);
+                continue;
             }
 
             if (value['connect']) {
-                let typeToConnect = targetType;
-                if (graphql.isInterfaceType(targetType)) {
-                    typeToConnect = info.schema.getType(value['connect'].split('/')[0]);
-                    if (!info.schema.getPossibleTypes(targetType).includes(typeToConnect)) {
-                        throw new ApolloError(`${value['connect']} is not an instance of a type implementing the interface ${targetType}`);
-                    }
-                } else if (graphql.isUnionType(targetType)) {
-                    throw new ApolloError(`Inline updates of fields of union type is not supported! (Occurred for ${returnType}.${fieldName})`);
-                }
-                createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], typeToConnect, annotations, info);
+                createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], targetType, value['annotations'], info, null, false, true);
             } else {
                 // reference to target	
                 let targetVar = createVar(ctxt);
@@ -593,18 +687,21 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
                         if (value[possibleField]) {
                             typeToCreate = possibleType;
                             create(false, ctxt, value[possibleField], typeToCreate, info, targetVar);
-                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, annotations, info);
+                            createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, value['annotations'], info, null, false, false);
                         }
                     }
                 } else if (graphql.isUnionType(targetType)) {
                     throw new ApolloError(`Inline updates of fields of union type is not supported! (Occurred for ${returnType}.${fieldName})`);
                 } else {
                     create(false, ctxt, value['create'], targetType, info, targetVar);
-                    createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, annotations, info);
+                    createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, value['annotations'], info, null, false, false);
                 }
             }
         }
     }
+
+    // add exported variables from selection fields for root only
+    addExportedVariables(isRoot, resVar, info, ctxt);
 
     // check key
     validateKey(ctxt, resVar, returnType, info);
@@ -616,68 +713,6 @@ function update(isRoot, ctxt, id, data, returnType, info, resVar = null) {
 }
 
 /**
- * Delete an object with the given id.
- *
- * @param isRoot
- * @param ctxt
- * @param id
- * @param type
- * @param info
- * @param resVar
- * @returns { null | Promise<any>}
- */
-function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
-    // init transaction
-    initTransaction(ctxt);
-    ctxt.trans.code.push(`\n\t/* delete ${typeToDelete} */`);
-
-    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
-
-    // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
-    resVar = resVar !== null ? resVar : createVar(ctxt);
-    let collectionVar = getCollectionVar(typeToDelete, ctxt, true);
-
-    // delete document
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} RETURN OLD\`).next();`);
-    // note that we dont throw errors if the key does not exists in the collection
-
-    // delete every edge either targeting, or originating from id
-    for (let i in typeToDelete.getFields()) {
-        let field = typeToDelete.getFields()[i];
-        let t = graphql.getNamedType(field.type);
-        if (graphql.isObjectType(t) || graphql.isInterfaceType(t)) {
-            if (field.name.startsWith('_incoming') || field.name.startsWith('_outgoing')) {
-                // Pass
-            }
-            else if (field.name[0] == '_') {
-                // Return edge
-                let type_name = graphql.getNamedType(field.type).name
-                let pattern_string = `^_(.+?)From${type_name}$`; // get the non-reversed edge name
-                let re = new RegExp(pattern_string);
-                let field_name = re.exec(field.name)[1];
-
-                let collectionName = getEdgeCollectionName(type_name, field_name);
-                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-
-                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x.source == ${asAQLVar(idVar)}._id OR x.target == ${asAQLVar(idVar)}._id REMOVE x IN ${collectionVar}\`);`);
-
-            } else {
-                // Normal edge
-                let collectionName = getEdgeCollectionName(typeToDelete.name, field.name);
-                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x.source == ${asAQLVar(idVar)}._id OR x.target == ${asAQLVar(idVar)}._id REMOVE x IN ${collectionVar}\`);`);
-            }
-        }
-    }
-
-    // directives handling
-    let resVarId = isVar(resVar) ? resVar : addParameterVar(ctxt, createParamVar(ctxt), { '_id': resVar });
-    addFinalDirectiveChecksForType(ctxt, typeToDelete, asAQLVar(resVarId), info.schema);
-    // return promises for roots and null for nested result
-    return isRoot ? getResult(ctxt, info, resVar) : null;
-}
-
-/**
  * Delete an edge with the given id
  *
  * @param isRoot
@@ -693,42 +728,6 @@ function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null)
     // init transaction
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* delete edge ${edgeName} */`);
-
-    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
-
-    // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
-    resVar = resVar !== null ? resVar : createVar(ctxt);
-    let collectionVar = getCollectionVar(edgeName, ctxt, true);
-
-    // update document
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} RETURN OLD\`).next();`);
-    // note that we dont throw errors if the key does not exists in the collection
-
-    // directives handling
-    let resVarId = isVar(resVar) ? resVar : addParameterVar(ctxt, createParamVar(ctxt), { '_id': resVar });
-    addFinalDirectiveChecksForType(ctxt, sourceType, asAQLVar(resVarId), info.schema);
-    // return promises for roots and null for nested result
-    return isRoot ? getResult(ctxt, info, resVar) : null;
-}
-
-
-/**
- * Delete an edge with the given id
- *
- * @param isRoot
- * @param ctxt
- * @param id
- * @param edgeName
- * @param sourceType
- * @param info
- * @param resVar
- * @returns {null|Promise<any>}
- */
-function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null) {
-    // init transaction
-    initTransaction(ctxt);
-    ctxt.trans.code.push(`\n\t/* delete edge ${edgeName} */`);
-    
     let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
@@ -737,13 +736,14 @@ function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null)
 
     // return null if the key does not exists in the collection (i.e., don't throw error)
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next();`);
+    ctxt.trans.code.push(`if(${resVar}){`);
 
     // directives handling
     addFinalDirectiveChecksForType(ctxt, sourceType, aql`${asAQLVar(resVar)}._source`, info.schema);
     // return promises for roots and null for nested result
+    ctxt.trans.code.push(`}`);
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
-
 
 /**
  * Delete an object with the given id.
@@ -756,12 +756,15 @@ function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null)
  * @param resVar
  * @returns { null | Promise<any>}
  */
-function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
+function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) {
     // init transaction
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* delete ${typeToDelete} */`);
 
-    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
+    // inject variable value
+    varOrID = getExportedValue(varOrID, ctxt);
+    // define as AQL var
+    const idVar = isVar(varOrID) ? varOrID : addParameterVar(ctxt, createParamVar(ctxt), varOrID);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
     resVar = resVar !== null ? resVar : createVar(ctxt);
@@ -770,6 +773,7 @@ function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
     // delete document
     // return null if the key does not exists in the collection (i.e., don't throw error)
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next();`);
+    ctxt.trans.code.push(`if(${resVar}){`);
 
     // delete every edge either targeting, or originating from id
     for (let i in typeToDelete.getFields()) {
@@ -804,6 +808,7 @@ function deleteObject(isRoot, ctxt, id, typeToDelete, info, resVar = null) {
     // directives handling
     addFinalDirectiveChecksForType(ctxt, typeToDelete, aql`${asAQLVar(resVar)}._id`, info.schema);
     // return promises for roots and null for nested result
+    ctxt.trans.code.push(`}`);
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
@@ -968,7 +973,7 @@ async function getEdge(parent, args, info) {
             query_filters = query_filters.concat(filters[i]);
         }
     }
-    
+
     query = query.concat(query_filters);
     query.push(aql`RETURN e`);
 
@@ -982,7 +987,7 @@ async function getEdge(parent, args, info) {
 
 /**
  * Get object by key.
- * 
+ *
  * @param key
  * @param returnType
  * @returns {Promise<*>}
@@ -1058,6 +1063,43 @@ async function getList(args, info) {
         console.error(err);
         throw new ApolloError(err);
     }
+}
+
+
+/**
+ * Create a new info object based on a field name. Does not modify fragments, rootValue, operation, or variableValues
+ * in the original info object.
+ *
+ * Comment: Building a new info object in this way would help clean up some of the driver code. It would also be
+ * necessary in the current setup if we wish to be able to export variables from non-root fields. For now, this function
+ * is kept here for future reference.
+ *
+ * @param fieldName
+ * @param info
+ * @returns info object
+ */
+function buildInfo(fieldName, info){
+    let fieldNodes = [];
+    for(const fieldNode of info.fieldNodes){
+        for(const selection of fieldNode.selectionSet.selections){
+            if(selection.name.value === fieldName){
+                fieldNodes = selection.selectionSet ? selection.selectionSet.selections : [];
+                break;
+            }
+        }
+    }
+    return {
+        fieldName,
+        returnType:  info.schema.getType(info.returnType).getFields()[fieldName].type,
+        fieldNodes,
+        parentType: info.returnType,
+        path: {"key": fieldName, "prev": info.path},
+        schema: info.schema,
+        fragments: info.fragments,
+        rootValue: info.rootValue,
+        operation: info.operation,
+        variableValues: info.variableValues
+    };
 }
 
 /**
@@ -1164,25 +1206,32 @@ function getResultPromise(ctxt, key) {
  * @param varOrTargetID
  * @param targetType
  * @param info
+ * @param validateSource = true (optional)
+ * @param validateTarget = true (optional)
  */
-function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targetType, info) {
+function validateEdge(ctxt, source, sourceType, sourceField, target, targetType, info, validateSource = true, validateTarget = true) {
     if (disableEdgeValidation) {
         console.log('Edge validation disabled');
         return;
     }
-    ctxt.trans.code.push('/* source exists? */');
-    exists(ctxt, sourceVar, sourceType, info.schema);
-    ctxt.trans.code.push('/* target exists? */');
-    exists(ctxt, targetVar, targetType, info.schema);
+
+    if (validateSource) {
+        ctxt.trans.code.push('/* source exists? */');
+        exists(ctxt, source, sourceType, info.schema);
+    }
+    if (validateTarget) {
+        ctxt.trans.code.push('/* target exists? */');
+        exists(ctxt, target, targetType, info.schema);
+    }
 
     // if field is not list type, verify that it is not already populated
     let fieldType = info.schema.getType(sourceType).getFields()[sourceField].type;
-  
+
     if (graphql.isNonNullType(fieldType)) fieldType = fieldType.ofType; // Strip non Null if non Null
     if (!graphql.isListType(fieldType)) {
         let edgeCollection = getEdgeCollectionName(sourceType.name, sourceField);
         let collectionVar = getCollectionVar(edgeCollection);
-        let query = `if(db._query(aql\`FOR x IN 1..1 OUTBOUND ${asAQLVar(sourceVar)} ${asAQLVar(collectionVar)} RETURN x\`).next()) { throw \`Edge already exists for ${sourceField} from '\${${sourceVar}._id}'\`}`;
+        let query = `if(db._query(aql\`FOR x IN 1..1 OUTBOUND ${source} ${asAQLVar(collectionVar)} RETURN x\`).next()) { throw \`Edge already exists for ${sourceField} from '${source}'\`}`;
         ctxt.trans.code.push(query);
     }
 }
@@ -1195,16 +1244,16 @@ function validateEdge(ctxt, sourceVar, sourceType, sourceField, targetVar, targe
  * @param typeOrInterface
  * @param schema
  */
-function exists(ctxt, docVar, typeOrInterface, schema) {
+function exists(ctxt, id, typeOrInterface, schema) {
     let aqlCollectionVars = [];
     if (graphql.isInterfaceType(typeOrInterface)) {
-        for (let possibleType in Object.values(schema.getPossibleTypes(typeOrInterface))) {
+        for (let possibleType of Object.values(schema.getPossibleTypes(typeOrInterface))) {
             aqlCollectionVars.push(asAQLVar(getCollectionVar(possibleType.name)));
         }
     } else {
         aqlCollectionVars.push(asAQLVar(getCollectionVar(typeOrInterface.name)));
     }
-    ctxt.trans.code.push(`if(!db._query(aql\`FOR doc IN FLATTEN(FOR i IN [${aqlCollectionVars.join(', ')}] RETURN i) FILTER doc._id == ${asAQLVar(docVar)}._id  RETURN doc\`).next()){ throw \`Object '\${${docVar}._id}' does not exist as instance of ${typeOrInterface}\`; }`);
+    ctxt.trans.code.push(`if(!db._query(aql\`FOR doc IN FLATTEN(FOR i IN [${aqlCollectionVars.join(', ')}] RETURN i) FILTER doc._id == ${id}  RETURN doc\`).next()){ throw \`Object '${id}' does not exist as instance of ${typeOrInterface}\`; }`);
 }
 
 /**
@@ -1234,7 +1283,8 @@ function initTransaction(ctxt) {
                 'const {aql} = require("@arangodb");',
                 'let result = Object.create(null);'
             ],
-            finalConstraintChecks: []
+            finalConstraintChecks: [],
+            exportedVariables: {}
         };
     }
 }
@@ -1319,7 +1369,7 @@ function asAqlArray(array) {
  * Convert input data to match the format used for storage in the database. The function currently used only for
  * custom scalars.
  *
- * @param type (of field) 
+ * @param type (of field)
  * @param value
  * @returns
  */
@@ -1514,7 +1564,7 @@ async function isEndOfList(parent, args, info) {
 async function getTotalCount(parent, args, info) {
     let type = graphql.getNamedType(info.parentType.getFields()['content'].type);
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
-    addPossibleTypes(query, ctxt, info.schema, type);
+    addPossibleTypes(query, info.schema, type);
     query.push(aql`] RETURN i)`);
 
     // add filters
@@ -1581,17 +1631,14 @@ function addPossibleTypes(query, schema, type, ctxt = null) {
     if (graphql.isInterfaceType(type)) {
         let possible_types = schema.getPossibleTypes(type);
         for (let i in possible_types) {
-            if (i != 0) {
-                if (use_aql) query.push(aql`,`);
-                else query[query.length - 1] += `,`;
-            }
+            if (i != 0) query.push(`,`);
             if (ctxt !== null) {
                 let collectionVar = asAQLVar(getCollectionVar(possible_types[i].name, ctxt, true));
                 query.push(collectionVar);
             }
             else {
-                let collection = asAQLVar(`db.${possible_types[i].name}`)
-                query.push(`${collection}`);
+                let collection = db.collection(possible_types[i].name)
+                query.push(aql`${collection}`);
             }
         }
     } else {
@@ -1600,8 +1647,8 @@ function addPossibleTypes(query, schema, type, ctxt = null) {
             query.push(collectionVar);
         }
         else {
-            let collection = asAQLVar(`db.${type.name}`);
-            query.push(`${collection}`);
+            let collection = db.collection(type.name);
+            query.push(aql`${collection}`);
         }
     }
 }
@@ -1619,10 +1666,7 @@ function addPossibleEdgeTypes(query, ctxt, schema, type_name, field_name) {
     if (graphql.isInterfaceType(type)) {
         let possible_types = schema.getPossibleTypes(type);
         for (let i in possible_types) {
-            if (i != 0) {
-                if (use_aql) query.push(aql`,`);
-                else query[query.length - 1] += `,`;
-            }
+            if (i != 0) query.push(`,`);
             let collectionName = getEdgeCollectionName(possible_types[i].name, field_name);
             let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
             query.push(collectionVar);
@@ -1644,7 +1688,7 @@ function addPossibleEdgeTypes(query, ctxt, schema, type_name, field_name) {
  */
 function addFinalDirectiveChecksForType(ctxt, type, id, schema) {
     if (disableDirectivesChecking) {
-        console.log('Directives checking disabled');
+        console.debug('Directives checking disabled');
         return;
     }
 

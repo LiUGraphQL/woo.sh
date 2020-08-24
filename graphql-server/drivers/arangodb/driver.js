@@ -514,6 +514,8 @@ function stringifyImportedFields(importedFields){
  * @param ctxt
  */
 function addExportedVariables(isRoot, resVar, info, ctxt){
+    // check exports only for the root field
+    if(!isRoot) return;
     // find all exported variables and the corresponding selection fields
     for(let fieldNode of info.fieldNodes){
         for(let selection of fieldNode.selectionSet.selections){
@@ -532,6 +534,9 @@ function addExportedVariables(isRoot, resVar, info, ctxt){
  * @param ctxt
  */
 function exportSelection(isRoot, resVar, selection, info, ctxt){
+    // skip inline fragments
+    if(selection.kind === 'InlineFragment') return;
+
     // skip non-root level, cannot export these fields
     if(selection.selectionSet !== undefined) {
         for(let s of selection.selectionSet.selections){
@@ -544,7 +549,7 @@ function exportSelection(isRoot, resVar, selection, info, ctxt){
         if(directive.name.value !== 'export') continue;
         let varName = directive.arguments[0].value.value;
         if(!isRoot){
-            ctxt.trans.code.push(`throw "Cannot export non-root field for variable "$${varName}"`);
+            ctxt.trans.code.push(`throw "Cannot export non-root field for variable $${varName}";`);
         }
         for(let argument of directive.arguments) {
             // Variable values will be injected instead of variable references. If a value is added to
@@ -581,9 +586,13 @@ function substituteExportedVariables(data, ctxt){
         if(typeof value === 'object' && value !== null){
             if(value.kind === 'VariableDefinition'){
                 const varName = value.variable.name.value;
-                // remove field from data object
-                delete data[fieldName];
-                substitutes[fieldName] = ctxt.trans.exportedVariables[varName];
+                if(ctxt.trans.exportedVariables[varName] === undefined){
+                    ctxt.trans.code.push(`throw "Variable $${varName} has not been exported";`);
+                } else {
+                    // remove field from data object
+                    delete data[fieldName];
+                    substitutes[fieldName] = ctxt.trans.exportedVariables[varName];
+                }
             }
         }
     });

@@ -47,6 +47,11 @@ GraphQL service ready at: http://localhost:4000/
 
 # Tests
 
+## API/driver functionality
+Test for API and driver functionality can be found in `graphql-server/tests`.
+
+To run them first Use the example above for the Star Wars schema, end then run `graphql-server\tests\client-api-tests`
+
 ## Directives/Constrains
 Tests for directives checking can be found in `graphql-server/tests`.
 

@@ -1,4 +1,5 @@
 **v0.1.3, to be released on ???**
+* New feature: Support for multiple *dependent* mutation operations within a single mutation request; https://github.com/LiUGraphQL/woo.sh/issues/52
 * Bug fix: Corrected an issue when trying to delete non-existing objects/edges.
 * Bug fix: small bug fix in addPossibleTypes for queries; see: https://github.com/LiUGraphQL/woo.sh/commit/514a8e01acceab355a0e4729b1b1a6de2a6ee2df
 

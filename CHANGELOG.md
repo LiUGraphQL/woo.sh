@@ -1,10 +1,11 @@
-**v0.1.3, to be released on ???**
+**v0.1.4, to be released on ???**
+
+**v0.1.3, released on August 28, 2020**
 * New feature: Support for multiple *dependent* mutation operations within a single mutation request; https://github.com/LiUGraphQL/woo.sh/issues/52
 * Bug fix: Corrected an issue when trying to delete non-existing objects/edges.
 * Bug fix: small bug fix in addPossibleTypes for queries; see: https://github.com/LiUGraphQL/woo.sh/commit/514a8e01acceab355a0e4729b1b1a6de2a6ee2df
 
-
-**v0.1.2, to be released on August 19, 2020**
+**v0.1.2, released on August 19, 2020**
 * New feature: Changed Edge validation behaviour to not check for existance of documents created in the same mutation. See: https://github.com/LiUGraphQL/woo.sh/pull/98
 * New feature: Individual edges can now by queried by ID
 * New feature: Edge (annotations) can now be updated. See: https://github.com/LiUGraphQL/woo.sh/issues/35

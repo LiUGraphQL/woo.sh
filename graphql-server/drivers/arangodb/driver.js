@@ -347,7 +347,9 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
 
     // define doc
     const doc = annotations;
+    // #IF field_for_creation_date
     doc['_creationDate'] = new Date().valueOf();
+    // #ENDIF
     const docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
     // validate edge
@@ -387,7 +389,9 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
 
     // get non-object fields, add creation date and add as parameter
     const doc = getScalarsAndEnums(data, returnType);
+    // #IF field_for_creation_date
     doc['_creationDate'] = new Date().valueOf();
+    // #ENDIF
     const docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
@@ -474,8 +478,10 @@ function updateEdge(isRoot, ctxt, id, data, edgeName, inputToUpdateType, info, r
     ctxt.trans.code.push(`\n\t/* update edge ${edgeName} */`);
 
     // define doc
-    const doc = getScalarsAndEnums(data, info.schema.getType(inputToUpdateType));;
+    const doc = getScalarsAndEnums(data, info.schema.getType(inputToUpdateType));
+    // #IF field_for_last_update_date
     doc['_lastUpdateDate'] = new Date().valueOf();
+    // #ENDIF
     const docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
     const idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
 
@@ -642,7 +648,9 @@ function update(isRoot, ctxt, varOrID, data, returnType, info, resVar = null) {
 
     // get non-object fields, add creation date and add as parameter
     let doc = getScalarsAndEnums(data, returnType);
+    // #IF field_for_last_update_date
     doc['_lastUpdateDate'] = new Date().valueOf();
+    // #ENDIF
     let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges

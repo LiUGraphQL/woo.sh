@@ -473,3 +473,11 @@ python3 generator.py \
     --output ${output_dir} \
     --config ${config_file}
 cd ..
+
+# parse driver
+cd ./graphql-server/drivers
+python3 driver_parser.py \
+    --input ${driver_dir}/driver.js \
+    --output ${output_dir} \
+    --config ${config_file}
+cd ..

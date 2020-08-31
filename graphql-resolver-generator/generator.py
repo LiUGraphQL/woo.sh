@@ -1,7 +1,6 @@
 import argparse
 import yaml
 
-import yaml
 from graphql import build_schema, is_object_type, get_named_type, is_interface_type, assert_valid_schema, is_input_type
 from mako.template import Template
 

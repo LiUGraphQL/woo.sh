@@ -1,4 +1,5 @@
 **v0.1.4, to be released on ???**
+* New feature: Generation of the driver now takes the choosen configuration into account; see: https://github.com/LiUGraphQL/woo.sh/issues/64
 
 **v0.1.3, released on August 28, 2020**
 * New feature: Support for multiple *dependent* mutation operations within a single mutation request; https://github.com/LiUGraphQL/woo.sh/issues/52

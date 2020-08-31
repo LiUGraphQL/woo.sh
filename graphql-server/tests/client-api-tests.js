@@ -207,6 +207,8 @@ async function testUpdate(client) {
     let id1 = mutationCreatePlanet1.data.createPlanet.id
 
     // Test update of required (key) field and optional field
+
+    let time1 = new Date();
     let update1 = `
         mutation {
             updatePlanet(id: "${id1}", data: {
@@ -215,6 +217,7 @@ async function testUpdate(client) {
             }) {
                 name
                 climate
+                _lastUpdateDate
             }
         }
     `;
@@ -228,8 +231,10 @@ async function testUpdate(client) {
 
     let name1 = mutationUpdate1.data.updatePlanet.name;
     let climate1 = mutationUpdate1.data.updatePlanet.climate;
+    let lastUpdateDate = new Date(mutationUpdate1.data.updatePlanet._lastUpdateDate);
+    let time2 = new Date();
 
-    if (name1 != "testUpdatePlanet2" || climate1 != "testUpdateClimate1") {
+    if (name1 != "testUpdatePlanet2" || climate1 != "testUpdateClimate1" || time1 > lastUpdateDate || lastUpdateDate > time2) {
         console.error("Update 1 did not return expected results");
         return false;
     }

@@ -19,8 +19,8 @@ generation:
     # add reverse edges for traversal
     reverse_edges: true
     # add edge types
-    edge_types: false
-    fields_for_edge_types: false
+    edge_types: true
+    fields_for_edge_types: true
     # add queries
     query_by_id: true
     query_type_filter: true

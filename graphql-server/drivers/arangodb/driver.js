@@ -348,6 +348,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     // define doc
     const doc = annotations;
     doc['_creationDate'] = new Date().valueOf();
+    doc['__typename'] = `_${collectionName}`;
     const docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
     // validate edge
@@ -388,6 +389,7 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
     // get non-object fields, add creation date and add as parameter
     const doc = getScalarsAndEnums(data, returnType);
     doc['_creationDate'] = new Date().valueOf();
+    doc['__typename'] = returnType.name;
     const docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
@@ -643,6 +645,7 @@ function update(isRoot, ctxt, varOrID, data, returnType, info, resVar = null) {
     // get non-object fields, add creation date and add as parameter
     let doc = getScalarsAndEnums(data, returnType);
     doc['_lastUpdateDate'] = new Date().valueOf();
+    doc['__typename'] = returnType.name;
     let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges

@@ -41,6 +41,8 @@ def generate(input_file, output_dir, config: dict):
             continue
         if is_interface_type(_type):
             data['interfaces'].append(type_name)
+        if is_union_type(_type):
+            data['unions'].append(type_name)
         if is_edge_type(_type):
             if config.get('generation').get('query_edge_by_id'):
                 data['edge_objects'].append(type_name)

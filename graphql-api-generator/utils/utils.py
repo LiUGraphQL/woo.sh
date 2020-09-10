@@ -421,6 +421,11 @@ def add_input_update(schema: GraphQLSchema):
             if is_enum_or_scalar(inner_field_type):
                 num_fields += 1
                 make += f'extend input {update_name} {{ {field_name}: {f_type} }} \n'
+            else:
+                num_fields += 1
+                connect_name = f'_InputToConnect{capitalize(field_name)}Of{_type.name}'
+                connect = copy_wrapper_structure(schema.type_map[connect_name], f_type)
+                make += f'extend input {update_name} {{ {field_name}: {connect} }} \n'
 
         if num_fields == 0:
             make += f'extend input {update_name} {{ _dummy: String }} \n'

@@ -26,17 +26,18 @@ generation:
     query_type_filter: true
     query_list_of: true
     query_by_key: true
+    query_edge_by_id: true
     # add input types
     input_to_create_objects: true
     input_to_update_objects: true
     # add edge input types (update not supported)
     input_to_create_edge_objects: true
-    input_to_update_edge_objects: false
+    input_to_update_edge_objects: true
     # add mutations
     create_objects: true
     update_objects: true
-    delete_objects: false
+    delete_objects: true
     # add edge mutations (update and delete not supported)
     create_edge_objects: true
-    update_edge_objects: false
-    delete_edge_objects: false
+    update_edge_objects: true
+    delete_edge_objects: true

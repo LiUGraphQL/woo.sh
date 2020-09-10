@@ -1,4 +1,5 @@
 **v0.1.4, to be released on ???**
+* New feature: Add tests for API and driver functionality
 * Bug fix: Generate fields for edges in inputs used to update objects See: https://github.com/LiUGraphQL/woo.sh/issues/111
 * New feature: Add support for unions. See: https://github.com/LiUGraphQL/woo.sh/issues/95
 * New feature: Encode the typename as part of the inserted object. See: https://github.com/LiUGraphQL/woo.sh/issues/100

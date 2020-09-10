@@ -170,7 +170,7 @@ def validate_names(schema: GraphQLSchema, validate):
         if f is None:
             raise Exception('Unrecognized option: ' + validate.get('field_names'))
         for type_name, _type in schema.type_map.items():
-            if is_introspection_type(_type) or is_enum_or_scalar(_type):
+            if is_introspection_type(_type) or is_enum_or_scalar(_type) or is_union_type(_type):
                 continue
             for field_name in _type.fields.keys():
                 if field_name.startswith('_'):
@@ -233,7 +233,7 @@ def transform_types(schema, transform):
 
 def transform_fields(schema, transform):
     for _type in schema.type_map.values():
-        if _type.name.startswith('_') or is_scalar_type(_type) or is_enum_type(_type):
+        if _type.name.startswith('_') or is_scalar_type(_type) or is_enum_type(_type) or is_union_type(_type):
             continue
         field_names = list(_type.fields.keys())
         for field_name in field_names:
@@ -259,7 +259,7 @@ def transform_enums(schema, transform):
 def drop_comments(schema):
     for _type in schema.type_map.values():
         _type.description = None
-        if _type.name.startswith('_') or is_scalar_type(_type):
+        if _type.name.startswith('_') or is_scalar_type(_type) or is_union_type(_type):
             continue
         elif is_enum_type(_type):
             for e in _type.values.values():

@@ -150,10 +150,38 @@ const resolvers = {
     % if interface_name.startswith('_'):
     ${interface_name}: {
         __resolveType: (parent, args, context, info) =>
-            '_' + parent._id.split('/')[0]
+            '_' + parent.__typename
     },
     % else:
     ${interface_name}: {
+        __resolveType: (parent, args, context, info) =>
+            parent.__typename
+    },
+    % endif
+% endfor
+
+% for union_name in data['unions']:
+    % if union_name.startswith('_'):
+    ${union_name}: {
+        __resolveType: (parent, args, context, info) =>
+            '_' + union_name.__typename
+    },
+    % else:
+    ${union_name}: {
+        __resolveType: (parent, args, context, info) =>
+            parent.__typename
+    },
+    % endif
+% endfor
+
+% for union_name in data['unions']:
+    % if union_name.startswith('_'):
+    ${union_name}: {
+        __resolveType: (parent, args, context, info) =>
+            '_' + parent._id.split('/')[0]
+    },
+    % else:
+    ${union_name}: {
         __resolveType: (parent, args, context, info) =>
             parent._id.split('/')[0]
     },

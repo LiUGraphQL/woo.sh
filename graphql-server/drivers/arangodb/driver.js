@@ -258,7 +258,7 @@ function getScalarsAndEnums(object, type) {
 
 /**
  * Return an object containing only the edge portion of this object. This includes fields for which the values are
- * GraphQL types, GraphQL interfaces, lists of GraphQL types, and lists of GraphQL interfaces.
+ * GraphQL types, GraphQL interfaces, lists of GraphQL types, lists of GraphQL interfaces, GraphQL unions and lists of GraphQL unions.
  * @param object
  */
 function getTypesAndInterfaces(object, type) {
@@ -266,7 +266,7 @@ function getTypesAndInterfaces(object, type) {
     for (let i in type.getFields()) {
         let field = type.getFields()[i];
         let t = graphql.getNamedType(field.type);
-        if (graphql.isObjectType(t) || graphql.isInterfaceType(t)) {
+        if (graphql.isObjectType(t) || graphql.isInterfaceType(t) || graphql.isUnionType(t)) {
             if (object[field.name] !== undefined) {
                 doc[field.name] = object[field.name];
             }
@@ -285,7 +285,7 @@ function getObjectOrInterfaceFields(type) {
     for (let i in type.getFields()) {
         let value = type.getFields()[i];
         let t = graphql.getNamedType(value.type);
-        if (graphql.isObjectType(t) || graphql.isInterfaceType(t)) {
+        if (graphql.isObjectType(t) || graphql.isInterfaceType(t) || graphql.isUnionType(t)) {
             keys.push(value.name);
         }
     }
@@ -348,6 +348,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     // define doc
     const doc = annotations;
     doc['_creationDate'] = new Date().valueOf();
+    doc['__typename'] = `_${collectionName}`;
     const docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
     // validate edge
@@ -388,6 +389,7 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
     // get non-object fields, add creation date and add as parameter
     const doc = getScalarsAndEnums(data, returnType);
     doc['_creationDate'] = new Date().valueOf();
+    doc['__typename'] = returnType.name;
     const docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
@@ -416,7 +418,7 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
             } else {
                 // reference to target
                 let targetVar = createVar(ctxt);
-                if (graphql.isInterfaceType(targetType)) {
+                if (graphql.isInterfaceType(targetType) || graphql.isUnionType(targetType)) {
                     let typeToCreate = null;
                     for (let possibleType of info.schema.getPossibleTypes(targetType)) {
                         let possibleField = `create${possibleType.name}`;
@@ -514,6 +516,8 @@ function stringifyImportedFields(importedFields){
  * @param ctxt
  */
 function addExportedVariables(isRoot, resVar, info, ctxt){
+    // check exports only for the root field
+    if(!isRoot) return;
     // find all exported variables and the corresponding selection fields
     for(let fieldNode of info.fieldNodes){
         for(let selection of fieldNode.selectionSet.selections){
@@ -532,6 +536,9 @@ function addExportedVariables(isRoot, resVar, info, ctxt){
  * @param ctxt
  */
 function exportSelection(isRoot, resVar, selection, info, ctxt){
+    // skip inline fragments
+    if(selection.kind === 'InlineFragment') return;
+
     // skip non-root level, cannot export these fields
     if(selection.selectionSet !== undefined) {
         for(let s of selection.selectionSet.selections){
@@ -544,7 +551,7 @@ function exportSelection(isRoot, resVar, selection, info, ctxt){
         if(directive.name.value !== 'export') continue;
         let varName = directive.arguments[0].value.value;
         if(!isRoot){
-            ctxt.trans.code.push(`throw "Cannot export non-root field for variable "$${varName}"`);
+            ctxt.trans.code.push(`throw "Cannot export non-root field for variable $${varName}";`);
         }
         for(let argument of directive.arguments) {
             // Variable values will be injected instead of variable references. If a value is added to
@@ -581,9 +588,13 @@ function substituteExportedVariables(data, ctxt){
         if(typeof value === 'object' && value !== null){
             if(value.kind === 'VariableDefinition'){
                 const varName = value.variable.name.value;
-                // remove field from data object
-                delete data[fieldName];
-                substitutes[fieldName] = ctxt.trans.exportedVariables[varName];
+                if(ctxt.trans.exportedVariables[varName] === undefined){
+                    ctxt.trans.code.push(`throw "Variable $${varName} has not been exported";`);
+                } else {
+                    // remove field from data object
+                    delete data[fieldName];
+                    substitutes[fieldName] = ctxt.trans.exportedVariables[varName];
+                }
             }
         }
     });
@@ -634,6 +645,7 @@ function update(isRoot, ctxt, varOrID, data, returnType, info, resVar = null) {
     // get non-object fields, add creation date and add as parameter
     let doc = getScalarsAndEnums(data, returnType);
     doc['_lastUpdateDate'] = new Date().valueOf();
+    doc['__typename'] = returnType.name;
     let docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
@@ -643,19 +655,19 @@ function update(isRoot, ctxt, varOrID, data, returnType, info, resVar = null) {
     // update document
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH  MERGE(${asAQLVar(docVar)}, ${stringifyImportedFields(substitutedFields)}) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
-    // update edges (i.e., all object fields)
-    // Object update will be deprecated as part of #67
+    // update edges (i.e., all object fields)	
+    // Object update will be deprecated as part of #67	
     let edgeFields = getTypesAndInterfaces(data, returnType);
     for (let fieldName in edgeFields) {
         let targetType = graphql.getNamedType(returnType.getFields()[fieldName].type);
 
-        // remove old edges
+        // remove old edges	
         let edgeCollectionName = getEdgeCollectionName(returnType.name, fieldName);
         let edgeCollectionVar = getCollectionVar(edgeCollectionName, ctxt, true);
         ctxt.trans.code.push(`\n\t/* drop edges from ${edgeCollectionName} */`);
         ctxt.trans.code.push(`db._query(aql\`FOR v IN ${asAQLVar(edgeCollectionVar)} FILTER(v._from == ${asAQLVar(idVar)}) REMOVE v IN ${asAQLVar(edgeCollectionVar)}\`);`);
 
-        // add all values for edge
+        // add all values for edge	
         let values = Array.isArray(edgeFields[fieldName]) ? edgeFields[fieldName] : [edgeFields[fieldName]];
         for (let value of values) {
             if (value['connect'] === null){
@@ -666,7 +678,7 @@ function update(isRoot, ctxt, varOrID, data, returnType, info, resVar = null) {
             if (value['connect']) {
                 createEdge(false, ctxt, resVar, returnType, fieldName, value['connect'], targetType, value['annotations'], info, null, false, true);
             } else {
-                // reference to target
+                // reference to target	
                 let targetVar = createVar(ctxt);
                 if (graphql.isInterfaceType(targetType)) {
                     let typeToCreate = null;
@@ -681,6 +693,8 @@ function update(isRoot, ctxt, varOrID, data, returnType, info, resVar = null) {
                             createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, typeToCreate, value['annotations'], info, null, false, false);
                         }
                     }
+                } else if (graphql.isUnionType(targetType)) {
+                    throw new ApolloError(`Inline updates of fields of union type is not supported! (Occurred for ${returnType}.${fieldName})`);
                 } else {
                     create(false, ctxt, value['create'], targetType, info, targetVar);
                     createEdge(false, ctxt, resVar, returnType, fieldName, targetVar, targetType, value['annotations'], info, null, false, false);

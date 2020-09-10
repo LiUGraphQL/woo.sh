@@ -1,5 +1,8 @@
 directive @key(fields: [String!]!) on OBJECT
 
+union PlanetAndSpecies = Planet | Species
+
+
 enum Episode {
   NEWHOPE
   EMPIRE
@@ -46,4 +49,5 @@ type Species {
 type Starship {
   name: String!
   length: Float
+  style: PlanetAndSpecies
 }

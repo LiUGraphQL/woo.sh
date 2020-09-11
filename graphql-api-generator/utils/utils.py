@@ -1221,6 +1221,7 @@ def print_schema_with_directives(schema):
     :return string:
     """
     manual_directives = {
+        'directive': 'directive @export(as: String!) on FIELD',
         'required': 'directive @required on FIELD_DEFINITION',
         'key': 'directive @key(fields: [String!]!) on OBJECT | INPUT_OBJECT',
         'distinct': 'directive @distinct on FIELD_DEFINITION | INPUT_FIELD_DEFINITION',

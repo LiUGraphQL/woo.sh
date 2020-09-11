@@ -1,8 +1,9 @@
 **v0.1.4, to be released on ???**
 * New feature: Add tests for API and driver functionality
-* Bug fix: Generate fields for edges in inputs used to update objects See: https://github.com/LiUGraphQL/woo.sh/issues/111
 * New feature: Add support for unions. See: https://github.com/LiUGraphQL/woo.sh/issues/95
 * New feature: Encode the typename as part of the inserted object. See: https://github.com/LiUGraphQL/woo.sh/issues/100
+* Bug fix: Generate fields for edges in inputs used to update objects. See: https://github.com/LiUGraphQL/woo.sh/issues/111
+* Bug fix: Generating filter argument for lists of union types failed. See: https://github.com/LiUGraphQL/woo.sh/issues/113
 
 **v0.1.3, released on August 28, 2020**
 * New feature: Support for multiple *dependent* mutation operations within a single mutation request; https://github.com/LiUGraphQL/woo.sh/issues/52

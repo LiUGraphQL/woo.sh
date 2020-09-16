@@ -2,7 +2,7 @@ const graphql = require('graphql');
 const arangojs = require("arangojs");
 const aql = arangojs.aql;
 const { makeExecutableSchema } = require('graphql-tools');
-const { ApolloError } = require('apollo-server');
+const { ApolloError, gql } = require('apollo-server');
 const waitOn = require('wait-on');
 
 let db;
@@ -62,7 +62,7 @@ module.exports = {
 };
 
 async function init(args) {
-    let typeDefs = args.typeDefs;
+    let typeDefs = gql`${args.baseSchema}`;
     let dbName = args.dbName || 'dev-db';
     let url = args.url || 'http://localhost:8529';
     let drop = args.drop || false;

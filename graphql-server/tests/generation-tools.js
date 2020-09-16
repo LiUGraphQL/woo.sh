@@ -150,6 +150,8 @@ function getSubFields(type, depth=0, limit=3){
     for(let f in type.getFields()){
         let t = graphql.getNamedType(type.getFields()[f].type);
 
+        if(t.name.startsWith('_')) continue;
+
         if((graphql.isObjectType(t) || graphql.isInterfaceType(t)) && depth >= limit){
             continue;
         }

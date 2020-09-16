@@ -4,12 +4,14 @@ require('dotenv').config();
 
 const baseSchema = readFileSync(process.env.API_SCHEMA || './resources/api-schema.graphql', 'utf8');
 const customSchema = readFileSync(process.env.CUSTOM_API_SCHEMA || './resources/custom-api-schema.graphql', 'utf8');
+const resolvers = require(process.env.RESOLVERS || './resources/resolvers.js', 'utf8');
+const customResolvers = require(process.env.CUSTOM_RESOLVERS || './resources/custom-resolvers.js', 'utf8');
 
 let options = {
     baseSchema,
     customSchema,
-    'resolvers': process.env.RESOLVERS || './resources/resolvers.js',
-    'customResolvers': process.env.CUSTOM_RESOLVERS || './resources/custom-resolvers.js',
+    resolvers,
+    customResolvers,
     'driver': process.env.DRIVER || 'arangodb',
     'dbName': process.env.DB_NAME || 'dev-db',
     'dbUrl': process.env.URL || 'http://localhost:8529',

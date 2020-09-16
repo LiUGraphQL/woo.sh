@@ -1,3 +1,7 @@
+**v0.1.5, to be released on ???**
+* Refactor: Export the server as a module to increase reusability and simplify testing. See: https://github.com/LiUGraphQL/woo.sh/issues/117
+
+
 **v0.1.4, to be released on ???**
 * New feature: Add tests for API and driver functionality
 * New feature: Add support for unions. See: https://github.com/LiUGraphQL/woo.sh/issues/95

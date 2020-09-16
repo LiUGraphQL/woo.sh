@@ -52,7 +52,7 @@ async function run() {
         if(!isObjectType(t) || i == 'Query' || i == 'Mutation' || i.startsWith('_') || i.includes('EdgeFrom')) continue;
 
         // mutations to create
-        let inputToCreate = tools.makeInputToCreate(t, schema, 6, true);
+        let inputToCreate = tools.makeInputToCreate(t, schema, 6, false);
         let createArg = tools.jsonToGraphQL(inputToCreate);
         let create = `
            mutation {
@@ -85,7 +85,7 @@ async function run() {
         }
 
         // update fields, create a new object and write over the values
-        let inputToUpdate = tools.makeInputToCreate(t, schema, 7, true);
+        let inputToUpdate = tools.makeInputToCreate(t, schema, 7, false);
         let updateArg = tools.jsonToGraphQL(inputToUpdate);
         let mutation2 = `
             mutation {

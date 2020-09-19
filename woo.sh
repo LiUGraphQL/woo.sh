@@ -423,8 +423,8 @@ config_file="$(cd "$(dirname "${arg_c}")" && pwd)/$(basename "${arg_c}")"
 shopt -s extglob
 
 # Try to create output directory
+mkdir -p ${arg_o}/
 output_dir=$(cd ${arg_o}; pwd)
-mkdir -p ${output_dir}
 
 # Check if output directory is empty
 if [[ "$(ls ${output_dir})" ]]; then
@@ -469,16 +469,6 @@ fi
 # copy all server files
 rsync -qrv --exclude=node_modules --exclude=".*" ${__dir}/graphql-server/* ${output_dir}
 
-
-rm -rf ${output_dir}/node_modules/*/.git/
-
-# Run the driver setup script (if present)
-DRIVER_SETUP=${driver_dir}/setup.sh
-if [[ -f ${DRIVER_SETUP} ]]; then
-    echo "Run driver setup.sh"
-    (cd ${output_dir}; sh ${driver_dir}/setup.sh)
-fi
-
 # Install npm dependencies
 (cd ${output_dir}; npm install)
 
@@ -488,7 +478,7 @@ if [[ ! -z ${custom_schema} ]]; then
   cp ${custom_schema} ${output_dir}/resources/custom-api-schema.graphql
 fi
 if [[ ! -z ${custom_resolvers} ]]; then
-  echo "copy custom resolvers"
+  echo "Copy custom resolvers"
   cp ${custom_resolvers} ${output_dir}/resources/custom-resolvers.js
 fi
 

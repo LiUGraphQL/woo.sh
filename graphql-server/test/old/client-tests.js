@@ -28,7 +28,7 @@ const { isObjectType } = require('graphql');
 const tools = require('./generation-tools.js');
 
 /**
- * The transaction tests requires the database to be empty prior to testing.
+ * The transaction test requires the database to be empty prior to testing.
  */
 async function transactionTest() {
     // connect
@@ -130,13 +130,13 @@ async function connect(uri){
 }
 
 run().then(() => {
-    console.log("Client tests passed.");
+    console.log("Client test passed.");
     let exitAfterClientTests = process.env.EXIT_AFTER_CLIENT_TESTS === 'true';
     if(exitAfterClientTests) process.exit(0);
 }).catch(reason => {
     let exitAfterClientTests = process.env.EXIT_AFTER_CLIENT_TESTS === 'true';
     // Not the nicest way to exit, but it works for testing.
     console.error(reason);
-    console.error("Client tests did NOT pass.");
+    console.error("Client test did NOT pass.");
     if(exitAfterClientTests) process.exit(1);
 });

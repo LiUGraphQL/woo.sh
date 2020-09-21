@@ -1,6 +1,6 @@
 /**
  * This class is meant to test the fur directives/constraints @noloops, @distinct, @requiredForTarget and @uniqueForTarget.
- * As of currently is only tests for creation of objects/edges.
+ * As of currently is only test for creation of objects/edges.
  * Createions/Updates/Deletions are handled in exactly the same manner for transactions, so only testing creations *should* be fine.
  */
 
@@ -400,7 +400,7 @@ async function run() {
     let {client, schema} = await connect(uri);
 
     if (!(await testDistinct(client) && await testNoloops(client) && await testRequiredForTargetTest(client) && await testUniqueForTargetTest(client))) {
-        console.error("One or more tests failed!");
+        console.error("One or more test failed!");
         throw "Test failed";
     }
 }
@@ -413,13 +413,13 @@ async function connect(uri){
 }
 
 run().then(() => {
-    console.log("Directives tests passed.");
+    console.log("Directives test passed.");
     let exitAfterClientTests = process.env.EXIT_AFTER_CLIENT_TESTS === 'true';
     if(exitAfterClientTests) process.exit(0);
 }).catch(reason => {
     let exitAfterClientTests = process.env.EXIT_AFTER_CLIENT_TESTS === 'true';
     // Not the nicest way to exit, but it works for testing.
     console.error(reason);
-    console.error("Directives tests did NOT pass.");
+    console.error("Directives test did NOT pass.");
     if(exitAfterClientTests) process.exit(1);
 });

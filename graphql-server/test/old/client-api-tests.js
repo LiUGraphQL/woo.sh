@@ -1,12 +1,12 @@
 /**
- * This class is meant as basic functionality tests to see that the basic api of works as intended,
+ * This class is meant as basic functionality test to see that the basic api of works as intended,
  * that the basic concept of a schema is used correctly (required fields and edges),
  * and that the correct data is inserted and retrieved into and from the the db.
  * 
  * Required edge validation to be set to on.
  *
  * This does not currently test edge annotations as these are not part of the starwars test schema
- * (Should probably write a custom schema for these tests instead)
+ * (Should probably write a custom schema for these test instead)
  * 
  */
 
@@ -951,13 +951,13 @@ async function connect(uri) {
 }
 
 run().then(() => {
-    console.log("API tests passed.");
+    console.log("API test passed.");
     let exitAfterClientTests = process.env.EXIT_AFTER_CLIENT_TESTS === 'true';
     if (exitAfterClientTests) process.exit(0);
 }).catch(reason => {
     let exitAfterClientTests = process.env.EXIT_AFTER_CLIENT_TESTS === 'true';
     // Not the nicest way to exit, but it works for testing.
     console.error(reason);
-    console.error("API tests did NOT pass.");
+    console.error("API test did NOT pass.");
     if (exitAfterClientTests) process.exit(1);
 });

@@ -1,4 +1,4 @@
-**v0.1.4, to be released on ???**
+**v0.1.4, released on September 21, 2020**
 * New feature: Add tests for API and driver functionality
 * New feature: Add support for unions. See: https://github.com/LiUGraphQL/woo.sh/issues/95
 * New feature: Encode the typename as part of the inserted object. See: https://github.com/LiUGraphQL/woo.sh/issues/100

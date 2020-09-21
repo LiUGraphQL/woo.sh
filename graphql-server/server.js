@@ -8,12 +8,14 @@ async function makeServer(options){
     const driver = require(`./drivers/${options.driver}/driver.js`);
     await driver.init(options);
 
+    // Resolvers
+    let resolvers = options.resolvers.get({driver});
+    let customResolvers = options.customResolvers ? options.customResolvers.get({driver}) : '';
+
     // Create instance of server
     const server = new ApolloServer({
-        'typeDefs': gql`${options.baseSchema} ${options.customSchema}`,
-        'resolvers': [
-            options.resolvers.get({ driver }),
-            options.customResolvers.get({ driver }) ]
+        'typeDefs': gql`${options.baseSchema} ${options.customSchema || ''}`,
+        'resolvers': [ resolvers, customResolvers ]
     });
 
     // Return server

@@ -64,7 +64,7 @@ module.exports = {
 async function init(args) {
     let typeDefs = gql`${args.baseSchema}`;
     let dbName = args.dbName || 'dev-db';
-    let url = args.url || 'http://localhost:8529';
+    let url = args.dbUrl || 'http://localhost:8529';
     let drop = args.drop || false;
     disableDirectivesChecking = args['disableDirectivesChecking'] || false;
     disableEdgeValidation = args['disableEdgeValidation'] || false;

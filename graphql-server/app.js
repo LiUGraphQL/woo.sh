@@ -14,7 +14,7 @@ let options = {
     customResolvers,
     'driver': process.env.DRIVER || 'arangodb',
     'dbName': process.env.DB_NAME || 'dev-db',
-    'dbUrl': process.env.URL || 'http://localhost:8529',
+    'dbUrl': process.env.DB_URL || 'http://localhost:8529',
     'drop': process.env.DROP === 'true',
     'disableDirectivesChecking': process.env.DISABLE_DIRECTIVES_CHECKING === 'true',
     'disableEdgeValidation': process.env.DISABLE_EDGE_VALIDATION === 'true',

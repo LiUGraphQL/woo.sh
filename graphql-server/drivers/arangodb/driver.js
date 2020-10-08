@@ -1058,7 +1058,7 @@ async function getList(args, info) {
         const cursor = await db.query(q);
         let result = await cursor.all();
         let list = {
-            '_filter': queryFilters, // needed to resolve fields 'isEndOfList' and 'totalLength'
+            '_filter': queryFilters, // needed to resolve fields 'isEndOfList' and 'totalCount'
             'content': result
         };
         return list;
@@ -1531,13 +1531,12 @@ function getFilters(filterArg, type_to_filter, alias = 'x') {
 async function isEndOfList(parent, args, info) {
     let type = graphql.getNamedType(info.parentType.getFields()['content'].type);
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
-    addPossibleTypes(query, info.schema, type);
+    query.push(getPossibleTypes(type, info.schema));;
     query.push(aql`] RETURN i)`);
 
     // add filters
-    if (parent._filter) {
-        query = query.concat(parent._filter);
-    }
+    query.push(...parent._filter);
+
     // get last ID in parent content
     if (parent.content.length != 0) {
         const last = parent.content[parent.content.length - 1];
@@ -1546,6 +1545,7 @@ async function isEndOfList(parent, args, info) {
 
     query.push(aql`SORT x._id COLLECT WITH COUNT INTO length RETURN length`);
     try {
+        console.debug(aql.join(query));
         const cursor = await db.query(aql.join(query));
         const result = await cursor.next();
         return result == 0;
@@ -1567,16 +1567,15 @@ async function isEndOfList(parent, args, info) {
 async function getTotalCount(parent, args, info) {
     let type = graphql.getNamedType(info.parentType.getFields()['content'].type);
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
-    addPossibleTypes(query, info.schema, type);
+    query.push(getPossibleTypes(type, info.schema));
     query.push(aql`] RETURN i)`);
 
     // add filters
-    if (parent._filter) {
-        query = query.concat(parent._filter);
-    }
+    query.push(...parent._filter);
 
     query.push(aql`COLLECT WITH COUNT INTO length RETURN length`);
     try {
+        console.debug(aql.join(query));
         const cursor = await db.query(aql.join(query));
         return await cursor.next();
     } catch (err) {
@@ -1619,6 +1618,31 @@ function createVar(ctxt) {
 function createParamVar(ctxt) {
     ctxt.paramVarCounter = ctxt.paramVarCounter === undefined ? 0 : ctxt.paramVarCounter + 1;
     return `_${ctxt.paramVarCounter}`;
+}
+
+/**
+ * Return an AQL query fragment listing all possible collections for the given type.
+ *
+ * If context is not null, collections are explicitly bound to AQL variables.
+ *
+ * @param type
+ * @param schema
+ * @param conext = null (optional)
+ */
+function getPossibleTypes(type, schema, ctxt = null) {
+    let collections = [];
+    let types = graphql.isUnionType(type) || graphql.isInterfaceType(type) ? schema.getPossibleTypes(type): [type];
+
+    for (let t of types) {
+        if (ctxt !== null) {
+            let collectionVar = asAQLVar(getCollectionVar(t.name, ctxt, true));
+            collections.push(collectionVar);
+        } else {
+            let collection = db.collection(t.name)
+            collections.push(aql`${collection}`);
+        }
+    }
+    return aql.join(collections, ',');
 }
 
 /**

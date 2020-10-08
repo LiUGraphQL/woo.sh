@@ -2,13 +2,13 @@
 
 const chai = require('chai');
 const expect = chai.expect;
-const { makeServer } = require('../server');
+const { makeServer } = require('../../../server');
 const { request, gql } = require('graphql-request');
 const { readFileSync } = require('fs');
 
 // Schema before API generation
 let baseSchema = readFileSync('./test/resources/basic-api-schema.graphql', 'utf8'); // relative to root
-let resolvers = require('./resources/basic-resolvers.js'); // relative to test file
+let resolvers = require('./basic-resolvers.js'); // relative to test file
 
 let testServer;
 let url;

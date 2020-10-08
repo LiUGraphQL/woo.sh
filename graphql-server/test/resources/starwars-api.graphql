@@ -1,0 +1,526 @@
+directive @export(as: String!) on FIELD
+
+directive @required on FIELD_DEFINITION
+
+directive @key(fields: [String!]!) on OBJECT | INPUT_OBJECT
+
+directive @distinct on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+directive @noloops on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+directive @requiredForTarget on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+directive @uniqueForTarget on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+directive @_requiredForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+directive @_uniqueForTarget_AccordingToInterface(interface: String!) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+interface Character {
+  name: String!
+  friends(filter: _FilterForCharacter): [Character]
+  appearsIn: [Episode]!
+  id: ID!
+  _friendsFromCharacter(filter: _FilterForCharacter): [Character]
+  _friendsFromHuman(filter: _FilterForHuman): [Human]
+  _friendsFromDroid(filter: _FilterForDroid): [Droid]
+  _outgoingFriendsEdgesFromCharacter(filter: _FilterForFriendsEdgeFromCharacter): [_FriendsEdgeFromCharacter]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+scalar DateTime
+
+type Droid implements Character @key(fields:["name"]) {
+  name: String!
+  friends(filter: _FilterForCharacter): [Character]
+  appearsIn: [Episode]!
+  primaryFunction: String
+  id: ID!
+  _friendsFromCharacter(filter: _FilterForCharacter): [Character]
+  _friendsFromHuman(filter: _FilterForHuman): [Human]
+  _friendsFromDroid(filter: _FilterForDroid): [Droid]
+  _highlightsFromReview(filter: _FilterForReview): [Review]
+  _outgoingFriendsEdgesFromCharacter(filter: _FilterForFriendsEdgeFromCharacter): [_FriendsEdgeFromCharacter]
+  _incomingFriendsEdgeFromCharacter(filter: _FilterForFriendsEdgeFromCharacter): [_FriendsEdgeFromCharacter]
+  _incomingFriendsEdgeFromHuman(filter: _FilterForFriendsEdgeFromHuman): [_FriendsEdgeFromHuman]
+  _outgoingFriendsEdgesFromDroid(filter: _FilterForFriendsEdgeFromDroid): [_FriendsEdgeFromDroid]
+  _incomingFriendsEdgeFromDroid(filter: _FilterForFriendsEdgeFromDroid): [_FriendsEdgeFromDroid]
+  _incomingHighlightsEdgeFromReview(filter: _FilterForHighlightsEdgeFromReview): [_HighlightsEdgeFromReview]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+union Entity = Human | Droid | Starship
+
+enum Episode {
+  NEWHOPE
+  EMPIRE
+  JEDI
+}
+
+type Human implements Character @key(fields:["name"]) {
+  name: String!
+  homePlanet: String
+  height: Float
+  mass: Float
+  friends(filter: _FilterForCharacter): [Character]
+  appearsIn: [Episode]!
+  starships(filter: _FilterForStarship): [Starship]
+  id: ID!
+  _friendsFromCharacter(filter: _FilterForCharacter): [Character]
+  _friendsFromHuman(filter: _FilterForHuman): [Human]
+  _friendsFromDroid(filter: _FilterForDroid): [Droid]
+  _highlightsFromReview(filter: _FilterForReview): [Review]
+  _outgoingFriendsEdgesFromCharacter(filter: _FilterForFriendsEdgeFromCharacter): [_FriendsEdgeFromCharacter]
+  _incomingFriendsEdgeFromCharacter(filter: _FilterForFriendsEdgeFromCharacter): [_FriendsEdgeFromCharacter]
+  _outgoingFriendsEdgesFromHuman(filter: _FilterForFriendsEdgeFromHuman): [_FriendsEdgeFromHuman]
+  _incomingFriendsEdgeFromHuman(filter: _FilterForFriendsEdgeFromHuman): [_FriendsEdgeFromHuman]
+  _outgoingStarshipsEdgesFromHuman(filter: _FilterForStarshipsEdgeFromHuman): [_StarshipsEdgeFromHuman]
+  _incomingFriendsEdgeFromDroid(filter: _FilterForFriendsEdgeFromDroid): [_FriendsEdgeFromDroid]
+  _incomingHighlightsEdgeFromReview(filter: _FilterForHighlightsEdgeFromReview): [_HighlightsEdgeFromReview]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type Mutation {
+  createHuman(data: _InputToCreateHuman!): Human
+  createDroid(data: _InputToCreateDroid!): Droid
+  createReview(data: _InputToCreateReview!): Review
+  createStarship(data: _InputToCreateStarship!): Starship
+  updateHuman(id: ID!, data: _InputToUpdateHuman!): Human
+  updateDroid(id: ID!, data: _InputToUpdateDroid!): Droid
+  updateReview(id: ID!, data: _InputToUpdateReview!): Review
+  updateStarship(id: ID!, data: _InputToUpdateStarship!): Starship
+  deleteCharacter(id: ID!): Character
+  deleteHuman(id: ID!): Human
+  deleteDroid(id: ID!): Droid
+  deleteReview(id: ID!): Review
+  deleteStarship(id: ID!): Starship
+  createFriendsEdgeFromHuman(data: _InputToCreateFriendsEdgeFromHuman): _FriendsEdgeFromHuman
+  createStarshipsEdgeFromHuman(data: _InputToCreateStarshipsEdgeFromHuman): _StarshipsEdgeFromHuman
+  createFriendsEdgeFromDroid(data: _InputToCreateFriendsEdgeFromDroid): _FriendsEdgeFromDroid
+  createHighlightsEdgeFromReview(data: _InputToCreateHighlightsEdgeFromReview): _HighlightsEdgeFromReview
+  updateStarshipsEdgeFromHuman(id: ID!, data: _InputToUpdateStarshipsEdgeFromHuman!): _StarshipsEdgeFromHuman
+  deleteFriendsEdgeFromHuman(id: ID!): _FriendsEdgeFromHuman
+  deleteStarshipsEdgeFromHuman(id: ID!): _StarshipsEdgeFromHuman
+  deleteFriendsEdgeFromDroid(id: ID!): _FriendsEdgeFromDroid
+  deleteHighlightsEdgeFromReview(id: ID!): _HighlightsEdgeFromReview
+}
+
+type Query {
+  character(id: ID!): Character
+  human(id: ID!): Human
+  droid(id: ID!): Droid
+  review(id: ID!): Review
+  starship(id: ID!): Starship
+  entity(id: ID!): Entity
+  listOfCharacters(first: Int=10, after: ID="", filter: _FilterForCharacter): _ListOfCharacters
+  listOfHumans(first: Int=10, after: ID="", filter: _FilterForHuman): _ListOfHumans
+  listOfDroids(first: Int=10, after: ID="", filter: _FilterForDroid): _ListOfDroids
+  listOfReviews(first: Int=10, after: ID="", filter: _FilterForReview): _ListOfReviews
+  listOfStarships(first: Int=10, after: ID="", filter: _FilterForStarship): _ListOfStarships
+  humanByKey(key: _KeyForHuman!): Human
+  droidByKey(key: _KeyForDroid!): Droid
+  _FriendsEdgeFromCharacter(id: ID!): _FriendsEdgeFromCharacter
+  _FriendsEdgeFromHuman(id: ID!): _FriendsEdgeFromHuman
+  _StarshipsEdgeFromHuman(id: ID!): _StarshipsEdgeFromHuman
+  _FriendsEdgeFromDroid(id: ID!): _FriendsEdgeFromDroid
+  _HighlightsEdgeFromReview(id: ID!): _HighlightsEdgeFromReview
+}
+
+type Review {
+  episode: Episode
+  stars: Int!
+  commentary: String
+  highlights: [Entity!]!
+  id: ID!
+  _outgoingHighlightsEdgesFromReview(filter: _FilterForHighlightsEdgeFromReview): [_HighlightsEdgeFromReview!]!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type Starship {
+  name: String!
+  length: Float
+  coordinates: [[Float!]!]
+  id: ID!
+  _starshipsFromHuman(filter: _FilterForHuman): [Human]
+  _highlightsFromReview(filter: _FilterForReview): [Review]
+  _incomingStarshipsEdgeFromHuman(filter: _FilterForStarshipsEdgeFromHuman): [_StarshipsEdgeFromHuman]
+  _incomingHighlightsEdgeFromReview(filter: _FilterForHighlightsEdgeFromReview): [_HighlightsEdgeFromReview]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+input _BooleanFilter {
+  _eq: Boolean
+  _neq: Boolean
+}
+
+input _DateTimeFilter {
+  _eq: DateTime
+  _neq: DateTime
+  _in: [DateTime]
+  _nin: [DateTime]
+  _gt: DateTime
+  _egt: DateTime
+  _lt: DateTime
+  _elt: DateTime
+}
+
+input _EpisodeFilter {
+  _eq: Episode
+  _neq: Episode
+  _in: [Episode]
+  _nin: [Episode]
+}
+
+input _FilterForCharacter {
+  _and: [_FilterForCharacter]
+  _or: [_FilterForCharacter]
+  _not: _FilterForCharacter
+  name: _StringFilter
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForDroid {
+  _and: [_FilterForDroid]
+  _or: [_FilterForDroid]
+  _not: _FilterForDroid
+  name: _StringFilter
+  primaryFunction: _StringFilter
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForFriendsEdgeFromCharacter {
+  _and: [_FilterForFriendsEdgeFromCharacter]
+  _or: [_FilterForFriendsEdgeFromCharacter]
+  _not: _FilterForFriendsEdgeFromCharacter
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForFriendsEdgeFromDroid {
+  _and: [_FilterForFriendsEdgeFromDroid]
+  _or: [_FilterForFriendsEdgeFromDroid]
+  _not: _FilterForFriendsEdgeFromDroid
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForFriendsEdgeFromHuman {
+  _and: [_FilterForFriendsEdgeFromHuman]
+  _or: [_FilterForFriendsEdgeFromHuman]
+  _not: _FilterForFriendsEdgeFromHuman
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForHighlightsEdgeFromReview {
+  _and: [_FilterForHighlightsEdgeFromReview]
+  _or: [_FilterForHighlightsEdgeFromReview]
+  _not: _FilterForHighlightsEdgeFromReview
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForHuman {
+  _and: [_FilterForHuman]
+  _or: [_FilterForHuman]
+  _not: _FilterForHuman
+  name: _StringFilter
+  homePlanet: _StringFilter
+  height: _FloatFilter
+  mass: _FloatFilter
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForReview {
+  _and: [_FilterForReview]
+  _or: [_FilterForReview]
+  _not: _FilterForReview
+  episode: _EpisodeFilter
+  stars: _IntFilter
+  commentary: _StringFilter
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForStarship {
+  _and: [_FilterForStarship]
+  _or: [_FilterForStarship]
+  _not: _FilterForStarship
+  name: _StringFilter
+  length: _FloatFilter
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForStarshipsEdgeFromHuman {
+  _and: [_FilterForStarshipsEdgeFromHuman]
+  _or: [_FilterForStarshipsEdgeFromHuman]
+  _not: _FilterForStarshipsEdgeFromHuman
+  id: _IDFilter
+  owner: _BooleanFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FloatFilter {
+  _eq: Float
+  _neq: Float
+  _gt: Float
+  _egt: Float
+  _lt: Float
+  _elt: Float
+  _in: [Float]
+  _nin: [Float]
+}
+
+interface _FriendsEdgeFromCharacter {
+  id: ID!
+  source: Character!
+  target: Character!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type _FriendsEdgeFromDroid implements _FriendsEdgeFromCharacter {
+  id: ID!
+  source: Droid!
+  target: Character!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type _FriendsEdgeFromHuman implements _FriendsEdgeFromCharacter {
+  id: ID!
+  source: Human!
+  target: Character!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type _HighlightsEdgeFromReview {
+  id: ID!
+  source: Review!
+  target: Entity!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+input _IDFilter {
+  _eq: String
+  _neq: String
+  _gt: String
+  _egt: String
+  _lt: String
+  _elt: String
+  _in: [String]
+  _nin: [String]
+  _like: String
+  _ilike: String
+  _nlike: String
+  _nilike: String
+}
+
+input _InputToAnnotateStarshipsEdgeFromHuman {
+  owner: Boolean
+}
+
+input _InputToConnectFriendsOfDroid {
+  connect: ID
+  createHuman: _InputToCreateHuman
+  createDroid: _InputToCreateDroid
+}
+
+input _InputToConnectFriendsOfHuman {
+  connect: ID
+  createHuman: _InputToCreateHuman
+  createDroid: _InputToCreateDroid
+}
+
+input _InputToConnectHighlightsOfReview {
+  connect: ID
+  createHuman: _InputToCreateHuman
+  createDroid: _InputToCreateDroid
+  createStarship: _InputToCreateStarship
+}
+
+input _InputToConnectStarshipsOfHuman {
+  connect: ID
+  create: _InputToCreateStarship
+  annotations: _InputToAnnotateStarshipsEdgeFromHuman
+}
+
+input _InputToCreateDroid @key(fields:["name"]) {
+  name: String!
+  friends: [_InputToConnectFriendsOfDroid]
+  appearsIn: [Episode]!
+  primaryFunction: String
+}
+
+input _InputToCreateFriendsEdgeFromDroid {
+  sourceID: ID!
+  targetID: ID!
+}
+
+input _InputToCreateFriendsEdgeFromHuman {
+  sourceID: ID!
+  targetID: ID!
+}
+
+input _InputToCreateHighlightsEdgeFromReview {
+  sourceID: ID!
+  targetID: ID!
+}
+
+input _InputToCreateHuman @key(fields:["name"]) {
+  name: String!
+  homePlanet: String
+  height: Float
+  mass: Float
+  friends: [_InputToConnectFriendsOfHuman]
+  appearsIn: [Episode]!
+  starships: [_InputToConnectStarshipsOfHuman]
+}
+
+input _InputToCreateReview {
+  episode: Episode
+  stars: Int!
+  commentary: String
+  highlights: [_InputToConnectHighlightsOfReview!]!
+}
+
+input _InputToCreateStarship {
+  name: String!
+  length: Float
+  coordinates: [[Float!]!]
+}
+
+input _InputToCreateStarshipsEdgeFromHuman {
+  sourceID: ID!
+  targetID: ID!
+  annotations: _InputToAnnotateStarshipsEdgeFromHuman
+}
+
+input _InputToUpdateDroid @key(fields:["name"]) {
+  name: String
+  friends: [_InputToConnectFriendsOfDroid]
+  appearsIn: [Episode]
+  primaryFunction: String
+}
+
+input _InputToUpdateHuman @key(fields:["name"]) {
+  name: String
+  homePlanet: String
+  height: Float
+  mass: Float
+  friends: [_InputToConnectFriendsOfHuman]
+  appearsIn: [Episode]
+  starships: [_InputToConnectStarshipsOfHuman]
+}
+
+input _InputToUpdateReview {
+  episode: Episode
+  stars: Int
+  commentary: String
+  highlights: [_InputToConnectHighlightsOfReview!]
+}
+
+input _InputToUpdateStarship {
+  name: String
+  length: Float
+  coordinates: [[Float!]!]
+}
+
+input _InputToUpdateStarshipsEdgeFromHuman {
+  owner: Boolean
+}
+
+input _IntFilter {
+  _eq: Int
+  _neq: Int
+  _gt: Int
+  _egt: Int
+  _lt: Int
+  _elt: Int
+  _in: [Int]
+  _nin: [Int]
+}
+
+input _KeyForDroid {
+  name: String!
+}
+
+input _KeyForHuman {
+  name: String!
+}
+
+type _ListOfCharacters {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [Character]!
+}
+
+type _ListOfDroids {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [Droid]!
+}
+
+type _ListOfHumans {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [Human]!
+}
+
+type _ListOfReviews {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [Review]!
+}
+
+type _ListOfStarships {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [Starship]!
+}
+
+type _StarshipsEdgeFromHuman {
+  id: ID!
+  source: Human!
+  target: Starship!
+  owner: Boolean
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+input _StringFilter {
+  _eq: String
+  _neq: String
+  _gt: String
+  _egt: String
+  _lt: String
+  _elt: String
+  _in: [String]
+  _nin: [String]
+  _like: String
+  _ilike: String
+  _nlike: String
+  _nilike: String
+}
+

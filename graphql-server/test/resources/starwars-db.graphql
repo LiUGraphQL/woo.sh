@@ -1,0 +1,56 @@
+directive @distinct on FIELD_DEFINITION
+
+directive @noloops on FIELD_DEFINITION
+
+directive @required on FIELD_DEFINITION
+
+directive @requiredForTarget on FIELD_DEFINITION
+
+directive @uniqueForTarget on FIELD_DEFINITION
+
+directive @key(fields: [String!]!) on OBJECT
+
+
+interface Character {
+    name: String!
+    friends: [Character]
+    appearsIn: [Episode]!
+}
+
+type Human implements Character @key(fields:["name"]){
+    name: String!
+    homePlanet: String
+    height: Float
+    mass: Float
+    friends: [Character]
+    appearsIn: [Episode]!
+    starships(owner: Boolean): [Starship]
+}
+
+type Droid implements Character @key(fields:["name"]){
+    name: String!
+    friends: [Character]
+    appearsIn: [Episode]!
+    primaryFunction: String
+}
+
+type Review {
+    episode: Episode
+    stars: Int!
+    commentary: String
+    highlights: [Entity!]!
+}
+
+type Starship {
+    name: String!
+    length: Float
+    coordinates: [[Float!]!]
+}
+
+union Entity = Human | Droid | Starship
+
+enum Episode {
+    NEWHOPE
+    EMPIRE
+    JEDI
+}

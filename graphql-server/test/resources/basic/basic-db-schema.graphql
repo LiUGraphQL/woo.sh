@@ -9,3 +9,8 @@ enum Gender {
     MALE
     FEMALE
 }
+
+interface Character {
+    name: String!
+
+}

@@ -37,19 +37,15 @@
 - query list of interface with paging
 - query list of interface with string filter
 
-# Below not yet implemented
-
 ## type with union edge
 - create type with union edge
+- query type with union edge by ID
+- create type with union edge with duplicate key
 - create type with union edge connect
 - create type with illegal union edge connect
-- query type with union edge
-- query type with filtered union edge
-- query union by ID (?)
-- query union by key (?)
-- query list of union (?)
-- query list of union with paging (?)
-- query list of union with string filter (?)
+- query type with reverse union edge
+
+# Below not yet implemented
 
 ## edge
 - create edge with types

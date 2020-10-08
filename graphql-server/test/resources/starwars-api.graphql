@@ -40,13 +40,13 @@ type Droid implements Character @key(fields:["name"]) {
   _friendsFromCharacter(filter: _FilterForCharacter): [Character]
   _friendsFromHuman(filter: _FilterForHuman): [Human]
   _friendsFromDroid(filter: _FilterForDroid): [Droid]
-  _highlightsFromReview(filter: _FilterForReview): [Review]
+  _mentionsFromReview(filter: _FilterForReview): [Review]
   _outgoingFriendsEdgesFromCharacter(filter: _FilterForFriendsEdgeFromCharacter): [_FriendsEdgeFromCharacter]
   _incomingFriendsEdgeFromCharacter(filter: _FilterForFriendsEdgeFromCharacter): [_FriendsEdgeFromCharacter]
   _incomingFriendsEdgeFromHuman(filter: _FilterForFriendsEdgeFromHuman): [_FriendsEdgeFromHuman]
   _outgoingFriendsEdgesFromDroid(filter: _FilterForFriendsEdgeFromDroid): [_FriendsEdgeFromDroid]
   _incomingFriendsEdgeFromDroid(filter: _FilterForFriendsEdgeFromDroid): [_FriendsEdgeFromDroid]
-  _incomingHighlightsEdgeFromReview(filter: _FilterForHighlightsEdgeFromReview): [_HighlightsEdgeFromReview]
+  _incomingMentionsEdgeFromReview(filter: _FilterForMentionsEdgeFromReview): [_MentionsEdgeFromReview]
   _creationDate: DateTime!
   _lastUpdateDate: DateTime
 }
@@ -71,14 +71,14 @@ type Human implements Character @key(fields:["name"]) {
   _friendsFromCharacter(filter: _FilterForCharacter): [Character]
   _friendsFromHuman(filter: _FilterForHuman): [Human]
   _friendsFromDroid(filter: _FilterForDroid): [Droid]
-  _highlightsFromReview(filter: _FilterForReview): [Review]
+  _mentionsFromReview(filter: _FilterForReview): [Review]
   _outgoingFriendsEdgesFromCharacter(filter: _FilterForFriendsEdgeFromCharacter): [_FriendsEdgeFromCharacter]
   _incomingFriendsEdgeFromCharacter(filter: _FilterForFriendsEdgeFromCharacter): [_FriendsEdgeFromCharacter]
   _outgoingFriendsEdgesFromHuman(filter: _FilterForFriendsEdgeFromHuman): [_FriendsEdgeFromHuman]
   _incomingFriendsEdgeFromHuman(filter: _FilterForFriendsEdgeFromHuman): [_FriendsEdgeFromHuman]
   _outgoingStarshipsEdgesFromHuman(filter: _FilterForStarshipsEdgeFromHuman): [_StarshipsEdgeFromHuman]
   _incomingFriendsEdgeFromDroid(filter: _FilterForFriendsEdgeFromDroid): [_FriendsEdgeFromDroid]
-  _incomingHighlightsEdgeFromReview(filter: _FilterForHighlightsEdgeFromReview): [_HighlightsEdgeFromReview]
+  _incomingMentionsEdgeFromReview(filter: _FilterForMentionsEdgeFromReview): [_MentionsEdgeFromReview]
   _creationDate: DateTime!
   _lastUpdateDate: DateTime
 }
@@ -100,12 +100,12 @@ type Mutation {
   createFriendsEdgeFromHuman(data: _InputToCreateFriendsEdgeFromHuman): _FriendsEdgeFromHuman
   createStarshipsEdgeFromHuman(data: _InputToCreateStarshipsEdgeFromHuman): _StarshipsEdgeFromHuman
   createFriendsEdgeFromDroid(data: _InputToCreateFriendsEdgeFromDroid): _FriendsEdgeFromDroid
-  createHighlightsEdgeFromReview(data: _InputToCreateHighlightsEdgeFromReview): _HighlightsEdgeFromReview
+  createMentionsEdgeFromReview(data: _InputToCreateMentionsEdgeFromReview): _MentionsEdgeFromReview
   updateStarshipsEdgeFromHuman(id: ID!, data: _InputToUpdateStarshipsEdgeFromHuman!): _StarshipsEdgeFromHuman
   deleteFriendsEdgeFromHuman(id: ID!): _FriendsEdgeFromHuman
   deleteStarshipsEdgeFromHuman(id: ID!): _StarshipsEdgeFromHuman
   deleteFriendsEdgeFromDroid(id: ID!): _FriendsEdgeFromDroid
-  deleteHighlightsEdgeFromReview(id: ID!): _HighlightsEdgeFromReview
+  deleteMentionsEdgeFromReview(id: ID!): _MentionsEdgeFromReview
 }
 
 type Query {
@@ -126,16 +126,16 @@ type Query {
   _FriendsEdgeFromHuman(id: ID!): _FriendsEdgeFromHuman
   _StarshipsEdgeFromHuman(id: ID!): _StarshipsEdgeFromHuman
   _FriendsEdgeFromDroid(id: ID!): _FriendsEdgeFromDroid
-  _HighlightsEdgeFromReview(id: ID!): _HighlightsEdgeFromReview
+  _MentionsEdgeFromReview(id: ID!): _MentionsEdgeFromReview
 }
 
 type Review {
-  episode: Episode
+  episode: Episode!
   stars: Int!
   commentary: String
-  highlights: [Entity!]!
+  mentions: [Entity!]!
   id: ID!
-  _outgoingHighlightsEdgesFromReview(filter: _FilterForHighlightsEdgeFromReview): [_HighlightsEdgeFromReview!]!
+  _outgoingMentionsEdgesFromReview(filter: _FilterForMentionsEdgeFromReview): [_MentionsEdgeFromReview!]!
   _creationDate: DateTime!
   _lastUpdateDate: DateTime
 }
@@ -146,9 +146,9 @@ type Starship {
   coordinates: [[Float!]!]
   id: ID!
   _starshipsFromHuman(filter: _FilterForHuman): [Human]
-  _highlightsFromReview(filter: _FilterForReview): [Review]
+  _mentionsFromReview(filter: _FilterForReview): [Review]
   _incomingStarshipsEdgeFromHuman(filter: _FilterForStarshipsEdgeFromHuman): [_StarshipsEdgeFromHuman]
-  _incomingHighlightsEdgeFromReview(filter: _FilterForHighlightsEdgeFromReview): [_HighlightsEdgeFromReview]
+  _incomingMentionsEdgeFromReview(filter: _FilterForMentionsEdgeFromReview): [_MentionsEdgeFromReview]
   _creationDate: DateTime!
   _lastUpdateDate: DateTime
 }
@@ -224,15 +224,6 @@ input _FilterForFriendsEdgeFromHuman {
   _lastUpdateDate: _DateTimeFilter
 }
 
-input _FilterForHighlightsEdgeFromReview {
-  _and: [_FilterForHighlightsEdgeFromReview]
-  _or: [_FilterForHighlightsEdgeFromReview]
-  _not: _FilterForHighlightsEdgeFromReview
-  id: _IDFilter
-  _creationDate: _DateTimeFilter
-  _lastUpdateDate: _DateTimeFilter
-}
-
 input _FilterForHuman {
   _and: [_FilterForHuman]
   _or: [_FilterForHuman]
@@ -241,6 +232,15 @@ input _FilterForHuman {
   homePlanet: _StringFilter
   height: _FloatFilter
   mass: _FloatFilter
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForMentionsEdgeFromReview {
+  _and: [_FilterForMentionsEdgeFromReview]
+  _or: [_FilterForMentionsEdgeFromReview]
+  _not: _FilterForMentionsEdgeFromReview
   id: _IDFilter
   _creationDate: _DateTimeFilter
   _lastUpdateDate: _DateTimeFilter
@@ -314,14 +314,6 @@ type _FriendsEdgeFromHuman implements _FriendsEdgeFromCharacter {
   _lastUpdateDate: DateTime
 }
 
-type _HighlightsEdgeFromReview {
-  id: ID!
-  source: Review!
-  target: Entity!
-  _creationDate: DateTime!
-  _lastUpdateDate: DateTime
-}
-
 input _IDFilter {
   _eq: String
   _neq: String
@@ -353,7 +345,7 @@ input _InputToConnectFriendsOfHuman {
   createDroid: _InputToCreateDroid
 }
 
-input _InputToConnectHighlightsOfReview {
+input _InputToConnectMentionsOfReview {
   connect: ID
   createHuman: _InputToCreateHuman
   createDroid: _InputToCreateDroid
@@ -383,11 +375,6 @@ input _InputToCreateFriendsEdgeFromHuman {
   targetID: ID!
 }
 
-input _InputToCreateHighlightsEdgeFromReview {
-  sourceID: ID!
-  targetID: ID!
-}
-
 input _InputToCreateHuman @key(fields:["name"]) {
   name: String!
   homePlanet: String
@@ -398,11 +385,16 @@ input _InputToCreateHuman @key(fields:["name"]) {
   starships: [_InputToConnectStarshipsOfHuman]
 }
 
+input _InputToCreateMentionsEdgeFromReview {
+  sourceID: ID!
+  targetID: ID!
+}
+
 input _InputToCreateReview {
-  episode: Episode
+  episode: Episode!
   stars: Int!
   commentary: String
-  highlights: [_InputToConnectHighlightsOfReview!]!
+  mentions: [_InputToConnectMentionsOfReview!]!
 }
 
 input _InputToCreateStarship {
@@ -438,7 +430,7 @@ input _InputToUpdateReview {
   episode: Episode
   stars: Int
   commentary: String
-  highlights: [_InputToConnectHighlightsOfReview!]
+  mentions: [_InputToConnectMentionsOfReview!]
 }
 
 input _InputToUpdateStarship {
@@ -498,6 +490,14 @@ type _ListOfStarships {
   totalCount: Int!
   isEndOfWholeList: Boolean!
   content: [Starship]!
+}
+
+type _MentionsEdgeFromReview {
+  id: ID!
+  source: Review!
+  target: Entity!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
 }
 
 type _StarshipsEdgeFromHuman {

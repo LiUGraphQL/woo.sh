@@ -35,10 +35,10 @@ type Droid implements Character @key(fields:["name"]){
 }
 
 type Review {
-    episode: Episode
+    episode: Episode!
     stars: Int!
     commentary: String
-    highlights: [Entity!]!
+    mentions: [Entity!]!
 }
 
 type Starship {

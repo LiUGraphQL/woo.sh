@@ -38,7 +38,7 @@ const resolvers = {
             await driver.get(args.id, info.returnType, info.schema),
         _FriendsEdgeFromHuman: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
-        _HighlightsEdgeFromReview: async (parent, args, context, info) =>
+        _MentionsEdgeFromReview: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
         _StarshipsEdgeFromHuman: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
@@ -93,13 +93,13 @@ const resolvers = {
                 info.schema.getType('Starship'),
                 args.data.annotations,
                 info),
-        createHighlightsEdgeFromReview: async (parent, args, context, info) =>
+        createMentionsEdgeFromReview: async (parent, args, context, info) =>
             await driver.createEdge(
                 true,
                 context,
                 args.data.sourceID,
                 info.schema.getType('Review'),
-                'highlights',
+                'mentions',
                 args.data.targetID,
                 info.schema.getType('Entity'),
                 args.data.annotations,
@@ -173,12 +173,12 @@ const resolvers = {
                 'FriendsEdgeFromHuman',
                 info.schema.getType('Human'),
                 info),
-        deleteHighlightsEdgeFromReview: async (parent, args, context, info) =>
+        deleteMentionsEdgeFromReview: async (parent, args, context, info) =>
             await driver.deleteEdge(
                 true,
                 context,
                 args.id,
-                'HighlightsEdgeFromReview',
+                'MentionsEdgeFromReview',
                 info.schema.getType('Review'),
                 info),
         deleteStarshipsEdgeFromHuman: async (parent, args, context, info) =>
@@ -201,7 +201,7 @@ const resolvers = {
             await driver.getEdgeEndpoint(parent, args, info),
         _friendsFromDroid: async (parent, args, context, info) =>
             await driver.getEdgeEndpoint(parent, args, info),
-        _highlightsFromReview: async (parent, args, context, info) =>
+        _mentionsFromReview: async (parent, args, context, info) =>
             await driver.getEdgeEndpoint(parent, args, info),
         _creationDate: async (parent, args, context, info) => new Date(parent._creationDate),
         _lastUpdateDate: async (parent, args, context, info) => new Date(parent._lastUpdateDate),
@@ -215,7 +215,7 @@ const resolvers = {
             await driver.getEdge(parent, args, info),
         _incomingFriendsEdgeFromDroid: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
-        _incomingHighlightsEdgeFromReview: async (parent, args, context, info) =>
+        _incomingMentionsEdgeFromReview: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
     },
     Human: {
@@ -230,7 +230,7 @@ const resolvers = {
             await driver.getEdgeEndpoint(parent, args, info),
         _friendsFromDroid: async (parent, args, context, info) =>
             await driver.getEdgeEndpoint(parent, args, info),
-        _highlightsFromReview: async (parent, args, context, info) =>
+        _mentionsFromReview: async (parent, args, context, info) =>
             await driver.getEdgeEndpoint(parent, args, info),
         _creationDate: async (parent, args, context, info) => new Date(parent._creationDate),
         _lastUpdateDate: async (parent, args, context, info) => new Date(parent._lastUpdateDate),
@@ -246,29 +246,29 @@ const resolvers = {
             await driver.getEdge(parent, args, info),
         _incomingFriendsEdgeFromDroid: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
-        _incomingHighlightsEdgeFromReview: async (parent, args, context, info) =>
+        _incomingMentionsEdgeFromReview: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
     },
     Review: {
         id: (parent, args, context, info) => parent._id,
-        highlights: async (parent, args, context, info) =>
+        mentions: async (parent, args, context, info) =>
             await driver.getEdgeEndpoint(parent, args, info),
         _creationDate: async (parent, args, context, info) => new Date(parent._creationDate),
         _lastUpdateDate: async (parent, args, context, info) => new Date(parent._lastUpdateDate),
-        _outgoingHighlightsEdgesFromReview: async (parent, args, context, info) =>
+        _outgoingMentionsEdgesFromReview: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
     },
     Starship: {
         id: (parent, args, context, info) => parent._id,
         _starshipsFromHuman: async (parent, args, context, info) =>
             await driver.getEdgeEndpoint(parent, args, info),
-        _highlightsFromReview: async (parent, args, context, info) =>
+        _mentionsFromReview: async (parent, args, context, info) =>
             await driver.getEdgeEndpoint(parent, args, info),
         _creationDate: async (parent, args, context, info) => new Date(parent._creationDate),
         _lastUpdateDate: async (parent, args, context, info) => new Date(parent._lastUpdateDate),
         _incomingStarshipsEdgeFromHuman: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
-        _incomingHighlightsEdgeFromReview: async (parent, args, context, info) =>
+        _incomingMentionsEdgeFromReview: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
     },
 
@@ -325,7 +325,7 @@ const resolvers = {
         target: async (parent, args, context, info) =>
             await driver.get(parent._to, info.schema.getType('Starship'), info.schema),
     },
-    _HighlightsEdgeFromReview: {
+    _MentionsEdgeFromReview: {
         id: (parent, args, context, info) => parent._id,
         source: async (parent, args, context, info) =>
             await driver.get(parent._from, info.schema.getType('Review'), info.schema),

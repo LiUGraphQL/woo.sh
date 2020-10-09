@@ -324,11 +324,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     // prepare annotations
     if (annotations === null  || annotations === undefined) annotations = {};
     // substitute fields defined by exported variables
-    annotations = substituteExportedVariables(annotations, ctxt);
-    let annotationType = info.schema.getType(`_InputToAnnotate${collectionName}`);
-    if (annotationType) { // RK: Should we be able to skip this due to previous validation?
-        annotations = getScalarsAndEnums(annotations, info.schema.getType(annotationType));
-    }
+    const substitutedFields = substituteExportedVariables(annotations, ctxt);
 
     // create a new variable if resVar was not defined by the calling function
     resVar = resVar !== null ? resVar : createVar(ctxt);
@@ -355,7 +351,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     validateEdge(ctxt, source, sourceType, sourceField, target, targetType, info, validateSource, validateTarget);
 
     // insert edge
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, {'_from': ${source}, '_to': ${target} }) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, ${stringifyImportedFields(substitutedFields)}, {'_from': ${source}, '_to': ${target} }) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
     // add exported variables from selection fields for root only
     addExportedVariables(isRoot, resVar, info, ctxt);
@@ -581,7 +577,7 @@ function exportSelection(isRoot, resVar, selection, info, ctxt){
  */
 function substituteExportedVariables(data, ctxt){
     const substitutes = {};
-    Object.entries(data).forEach((entry) => {
+    for(let entry of Object.entries(data)) {
         const fieldName = entry[0];
         const value = entry[1];
         // if value is an object it must be a variable
@@ -597,7 +593,7 @@ function substituteExportedVariables(data, ctxt){
                 }
             }
         }
-    });
+    }
     return substitutes;
 }
 

@@ -471,13 +471,16 @@ function updateEdge(isRoot, ctxt, id, data, edgeName, inputToUpdateType, info, r
     const collectionVar = getCollectionVar(edgeName, ctxt, true);
     ctxt.trans.code.push(`\n\t/* update edge ${edgeName} */`);
 
+    // substitute fields defined by exported variables
+    const substitutedFields = substituteExportedVariables(data, ctxt);
+
     // define doc
     const doc = getScalarsAndEnums(data, info.schema.getType(inputToUpdateType));;
     doc['_lastUpdateDate'] = new Date().valueOf();
     const docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
     const idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
 
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH MERGE(${asAQLVar(docVar)}, ${stringifyImportedFields(substitutedFields)}) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
     //directives handling is not needed for edge updates as they can not have directives as of current
 
@@ -862,7 +865,7 @@ async function get(id, returnType, schema) {
 }
 
 /**
- * Get the source/target an given edge field connected to parent.
+ * Get the source/target of a given edge field connected to parent.
  *
  * @param parent
  * @param args

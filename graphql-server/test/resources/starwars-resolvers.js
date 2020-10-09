@@ -138,6 +138,33 @@ const resolvers = {
                 info.schema.getType('Starship'),
                 info),
 
+        updateFriendsEdgeFromDroid: async (parent, args, context, info) =>
+            await driver.updateEdge(
+                true,
+                context,
+                args.id,
+                args.data,
+                'FriendsEdgeFromDroid',
+                info.schema.getType('_InputToUpdateFriendsEdgeFromDroid'),
+                info),
+        updateFriendsEdgeFromHuman: async (parent, args, context, info) =>
+            await driver.updateEdge(
+                true,
+                context,
+                args.id,
+                args.data,
+                'FriendsEdgeFromHuman',
+                info.schema.getType('_InputToUpdateFriendsEdgeFromHuman'),
+                info),
+        updateMentionsEdgeFromReview: async (parent, args, context, info) =>
+            await driver.updateEdge(
+                true,
+                context,
+                args.id,
+                args.data,
+                'MentionsEdgeFromReview',
+                info.schema.getType('_InputToUpdateMentionsEdgeFromReview'),
+                info),
         updateStarshipsEdgeFromHuman: async (parent, args, context, info) =>
             await driver.updateEdge(
                 true,

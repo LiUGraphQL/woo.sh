@@ -13,7 +13,7 @@ directive @key(fields: [String!]!) on OBJECT
 
 interface Character {
     name: String!
-    friends: [Character]
+    friends(description: String): [Character]
     appearsIn: [Episode]!
 }
 
@@ -22,14 +22,14 @@ type Human implements Character @key(fields:["name"]){
     homePlanet: String
     height: Float
     mass: Float
-    friends: [Character]
+    friends(description: String): [Character]
     appearsIn: [Episode]!
     starships(owner: Boolean): [Starship]
 }
 
 type Droid implements Character @key(fields:["name"]){
     name: String!
-    friends: [Character]
+    friends(description: String): [Character]
     appearsIn: [Episode]!
     primaryFunction: String
 }
@@ -38,7 +38,7 @@ type Review {
     episode: Episode!
     stars: Int!
     commentary: String
-    mentions: [Entity!]!
+    mentions(important: Boolean): [Entity!]!
 }
 
 type Starship {

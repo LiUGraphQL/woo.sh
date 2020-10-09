@@ -823,7 +823,7 @@ function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) 
 async function get(id, returnType, schema) {
     let type = returnType;
     let query = [aql`FOR i IN`];
-    if (graphql.isInterfaceType(type)) {
+    if (graphql.isInterfaceType(type) || graphql.isUnionType(type)) {
         let possible_types = schema.getPossibleTypes(type);
         if (possible_types.length > 1) {
             query.push(aql`UNION(`);

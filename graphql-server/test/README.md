@@ -59,5 +59,15 @@
 - update edge annotation
 - delete edge
 
+## export variables
+- export scalar to create
+- export scalar list to create
+- export ID to connect type
+- export ID connect interface
+- export ID connect union
+- export to create edge
+- illegal export ID to connect
+- export to update
+- export to update edge
 
-## Export variables (not implemented)
+## directives (tests to be implemented)

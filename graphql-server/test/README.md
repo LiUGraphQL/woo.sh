@@ -45,31 +45,19 @@
 - create type with illegal union edge connect
 - query type with reverse union edge
 
-# Below not yet implemented
-
 ## edge
-- create edge with types
-- create edge with connect
-- create edge with illegal connect
-- update edge
-- update edge with connect
-- update edge with illegal connect
+- create edge between types
+- query edge by ID
+- create annotated edge between types
+- create edge between illegal types
+- create edge between type and interface
+- create edge between type and illegal interface
+- create annotated edge between type and interface
+- create edge between type and union
+- create edge between type and illegal union
+- create annotated edge between type and union
+- update edge annotation
 - delete edge
 
-## edge with interface
-- create edge with interface
-- create edge with interface connect
-- create edge with illegal interface connect
-- update edge with interface
-- update edge with interface connect
-- update edge with interface with illegal connect
-- delete edge with interface
 
-## edge with union
-- create edge with union
-- create edge with union connect
-- create edge with illegal union connect
-- update edge with union
-- update edge with union connect
-- update edge with union with illegal connect
-- delete edge with union
+## Export variables (not implemented)

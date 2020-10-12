@@ -1,0 +1,38 @@
+directive @distinct on FIELD_DEFINITION
+
+directive @noloops on FIELD_DEFINITION
+
+directive @required on FIELD_DEFINITION
+
+directive @requiredForTarget on FIELD_DEFINITION
+
+directive @uniqueForTarget on FIELD_DEFINITION
+
+directive @key(fields: [String!]!) on OBJECT
+
+
+type DistinctTest {
+    shouldBeDistinct: [DistinctTest] @distinct
+    testDummyField: Int
+}
+
+type NoloopsTest {
+    possibleLoop: [NoloopsTest] @noloops
+    testDummyField: Int
+}
+
+type RequiredForTargetTarget {
+    testDummyField: Int
+}
+
+type RequiredForTargetTest {
+    target: RequiredForTargetTarget @requiredForTarget
+}
+
+type UniqueForTargetTarget {
+    testDummyField: Int
+}
+
+type UniqueForTargetTest {
+    target: UniqueForTargetTarget @uniqueForTarget
+}

@@ -1,3 +1,6 @@
+**v0.1.5, to be released on ???**
+* Bug fix: Fix failing validation of union for edge. See: https://github.com/LiUGraphQL/woo.sh/issues/123
+
 **v0.1.4, released on September 21, 2020**
 * New feature: Add tests for API and driver functionality
 * New feature: Add support for unions. See: https://github.com/LiUGraphQL/woo.sh/issues/95

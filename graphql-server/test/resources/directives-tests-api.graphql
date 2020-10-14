@@ -50,21 +50,29 @@ type Mutation {
   deleteUniqueForTargetTest(id: ID!): UniqueForTargetTest
   createShouldBeDistinctEdgeFromDistinctTest(data: _InputToCreateShouldBeDistinctEdgeFromDistinctTest): _ShouldBeDistinctEdgeFromDistinctTest
   createPossibleLoopEdgeFromNoloopsTest(data: _InputToCreatePossibleLoopEdgeFromNoloopsTest): _PossibleLoopEdgeFromNoloopsTest
+  createPossibleLoopsEdgeFromNoloopsTest(data: _InputToCreatePossibleLoopsEdgeFromNoloopsTest): _PossibleLoopsEdgeFromNoloopsTest
   createTargetEdgeFromRequiredForTargetTest(data: _InputToCreateTargetEdgeFromRequiredForTargetTest): _TargetEdgeFromRequiredForTargetTest
   createTargetEdgeFromUniqueForTargetTest(data: _InputToCreateTargetEdgeFromUniqueForTargetTest): _TargetEdgeFromUniqueForTargetTest
+  createTargetsEdgeFromUniqueForTargetTest(data: _InputToCreateTargetsEdgeFromUniqueForTargetTest): _TargetsEdgeFromUniqueForTargetTest
   deleteShouldBeDistinctEdgeFromDistinctTest(id: ID!): _ShouldBeDistinctEdgeFromDistinctTest
   deletePossibleLoopEdgeFromNoloopsTest(id: ID!): _PossibleLoopEdgeFromNoloopsTest
+  deletePossibleLoopsEdgeFromNoloopsTest(id: ID!): _PossibleLoopsEdgeFromNoloopsTest
   deleteTargetEdgeFromRequiredForTargetTest(id: ID!): _TargetEdgeFromRequiredForTargetTest
   deleteTargetEdgeFromUniqueForTargetTest(id: ID!): _TargetEdgeFromUniqueForTargetTest
+  deleteTargetsEdgeFromUniqueForTargetTest(id: ID!): _TargetsEdgeFromUniqueForTargetTest
 }
 
 type NoloopsTest {
-  possibleLoop(filter: _FilterForNoloopsTest): [NoloopsTest] @noloops
+  possibleLoop: NoloopsTest @noloops
+  possibleLoops(filter: _FilterForNoloopsTest): [NoloopsTest] @noloops
   testDummyField: Int
   id: ID!
   _possibleLoopFromNoloopsTest(filter: _FilterForNoloopsTest): [NoloopsTest]
-  _outgoingPossibleLoopEdgesFromNoloopsTest(filter: _FilterForPossibleLoopEdgeFromNoloopsTest): [_PossibleLoopEdgeFromNoloopsTest]
+  _possibleLoopsFromNoloopsTest(filter: _FilterForNoloopsTest): [NoloopsTest]
+  _outgoingPossibleLoopEdgesFromNoloopsTest: _PossibleLoopEdgeFromNoloopsTest
   _incomingPossibleLoopEdgeFromNoloopsTest(filter: _FilterForPossibleLoopEdgeFromNoloopsTest): [_PossibleLoopEdgeFromNoloopsTest]
+  _outgoingPossibleLoopsEdgesFromNoloopsTest(filter: _FilterForPossibleLoopsEdgeFromNoloopsTest): [_PossibleLoopsEdgeFromNoloopsTest]
+  _incomingPossibleLoopsEdgeFromNoloopsTest(filter: _FilterForPossibleLoopsEdgeFromNoloopsTest): [_PossibleLoopsEdgeFromNoloopsTest]
   _creationDate: DateTime!
   _lastUpdateDate: DateTime
 }
@@ -84,8 +92,10 @@ type Query {
   listOfUniqueForTargetTests(first: Int=10, after: ID="", filter: _FilterForUniqueForTargetTest): _ListOfUniqueForTargetTests
   _ShouldBeDistinctEdgeFromDistinctTest(id: ID!): _ShouldBeDistinctEdgeFromDistinctTest
   _PossibleLoopEdgeFromNoloopsTest(id: ID!): _PossibleLoopEdgeFromNoloopsTest
+  _PossibleLoopsEdgeFromNoloopsTest(id: ID!): _PossibleLoopsEdgeFromNoloopsTest
   _TargetEdgeFromRequiredForTargetTest(id: ID!): _TargetEdgeFromRequiredForTargetTest
   _TargetEdgeFromUniqueForTargetTest(id: ID!): _TargetEdgeFromUniqueForTargetTest
+  _TargetsEdgeFromUniqueForTargetTest(id: ID!): _TargetsEdgeFromUniqueForTargetTest
 }
 
 type RequiredForTargetTarget {
@@ -109,15 +119,19 @@ type UniqueForTargetTarget {
   testDummyField: Int
   id: ID!
   _targetFromUniqueForTargetTest: UniqueForTargetTest
+  _targetsFromUniqueForTargetTest: UniqueForTargetTest
   _incomingTargetEdgeFromUniqueForTargetTest: _TargetEdgeFromUniqueForTargetTest
+  _incomingTargetsEdgeFromUniqueForTargetTest: _TargetsEdgeFromUniqueForTargetTest
   _creationDate: DateTime!
   _lastUpdateDate: DateTime
 }
 
 type UniqueForTargetTest {
   target: UniqueForTargetTarget @uniqueForTarget
+  targets(filter: _FilterForUniqueForTargetTarget): [UniqueForTargetTarget] @uniqueForTarget
   id: ID!
   _outgoingTargetEdgesFromUniqueForTargetTest: _TargetEdgeFromUniqueForTargetTest
+  _outgoingTargetsEdgesFromUniqueForTargetTest(filter: _FilterForTargetsEdgeFromUniqueForTargetTest): [_TargetsEdgeFromUniqueForTargetTest]
   _creationDate: DateTime!
   _lastUpdateDate: DateTime
 }
@@ -167,6 +181,15 @@ input _FilterForPossibleLoopEdgeFromNoloopsTest {
   _lastUpdateDate: _DateTimeFilter
 }
 
+input _FilterForPossibleLoopsEdgeFromNoloopsTest {
+  _and: [_FilterForPossibleLoopsEdgeFromNoloopsTest]
+  _or: [_FilterForPossibleLoopsEdgeFromNoloopsTest]
+  _not: _FilterForPossibleLoopsEdgeFromNoloopsTest
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
 input _FilterForRequiredForTargetTarget {
   _and: [_FilterForRequiredForTargetTarget]
   _or: [_FilterForRequiredForTargetTarget]
@@ -208,6 +231,15 @@ input _FilterForTargetEdgeFromUniqueForTargetTest {
   _and: [_FilterForTargetEdgeFromUniqueForTargetTest]
   _or: [_FilterForTargetEdgeFromUniqueForTargetTest]
   _not: _FilterForTargetEdgeFromUniqueForTargetTest
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForTargetsEdgeFromUniqueForTargetTest {
+  _and: [_FilterForTargetsEdgeFromUniqueForTargetTest]
+  _or: [_FilterForTargetsEdgeFromUniqueForTargetTest]
+  _not: _FilterForTargetsEdgeFromUniqueForTargetTest
   id: _IDFilter
   _creationDate: _DateTimeFilter
   _lastUpdateDate: _DateTimeFilter
@@ -263,6 +295,11 @@ input _InputToConnectPossibleLoopOfNoloopsTest {
   create: _InputToCreateNoloopsTest
 }
 
+input _InputToConnectPossibleLoopsOfNoloopsTest {
+  connect: ID
+  create: _InputToCreateNoloopsTest
+}
+
 input _InputToConnectShouldBeDistinctOfDistinctTest {
   connect: ID
   create: _InputToCreateDistinctTest
@@ -278,17 +315,28 @@ input _InputToConnectTargetOfUniqueForTargetTest {
   create: _InputToCreateUniqueForTargetTarget
 }
 
+input _InputToConnectTargetsOfUniqueForTargetTest {
+  connect: ID
+  create: _InputToCreateUniqueForTargetTarget
+}
+
 input _InputToCreateDistinctTest {
   shouldBeDistinct: [_InputToConnectShouldBeDistinctOfDistinctTest] @distinct
   testDummyField: Int
 }
 
 input _InputToCreateNoloopsTest {
-  possibleLoop: [_InputToConnectPossibleLoopOfNoloopsTest] @noloops
+  possibleLoop: _InputToConnectPossibleLoopOfNoloopsTest @noloops
+  possibleLoops: [_InputToConnectPossibleLoopsOfNoloopsTest] @noloops
   testDummyField: Int
 }
 
 input _InputToCreatePossibleLoopEdgeFromNoloopsTest {
+  sourceID: ID!
+  targetID: ID!
+}
+
+input _InputToCreatePossibleLoopsEdgeFromNoloopsTest {
   sourceID: ID!
   targetID: ID!
 }
@@ -316,12 +364,18 @@ input _InputToCreateTargetEdgeFromUniqueForTargetTest {
   targetID: ID!
 }
 
+input _InputToCreateTargetsEdgeFromUniqueForTargetTest {
+  sourceID: ID!
+  targetID: ID!
+}
+
 input _InputToCreateUniqueForTargetTarget {
   testDummyField: Int
 }
 
 input _InputToCreateUniqueForTargetTest {
   target: _InputToConnectTargetOfUniqueForTargetTest @uniqueForTarget
+  targets: [_InputToConnectTargetsOfUniqueForTargetTest] @uniqueForTarget
 }
 
 input _InputToUpdateDistinctTest {
@@ -330,7 +384,8 @@ input _InputToUpdateDistinctTest {
 }
 
 input _InputToUpdateNoloopsTest {
-  possibleLoop: [_InputToConnectPossibleLoopOfNoloopsTest] @noloops
+  possibleLoop: _InputToConnectPossibleLoopOfNoloopsTest @noloops
+  possibleLoops: [_InputToConnectPossibleLoopsOfNoloopsTest] @noloops
   testDummyField: Int
 }
 
@@ -348,6 +403,7 @@ input _InputToUpdateUniqueForTargetTarget {
 
 input _InputToUpdateUniqueForTargetTest {
   target: _InputToConnectTargetOfUniqueForTargetTest @uniqueForTarget
+  targets: [_InputToConnectTargetsOfUniqueForTargetTest] @uniqueForTarget
 }
 
 input _IntFilter {
@@ -405,6 +461,14 @@ type _PossibleLoopEdgeFromNoloopsTest {
   _lastUpdateDate: DateTime
 }
 
+type _PossibleLoopsEdgeFromNoloopsTest {
+  id: ID!
+  source: NoloopsTest!
+  target: NoloopsTest!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
 type _ShouldBeDistinctEdgeFromDistinctTest {
   id: ID!
   source: DistinctTest!
@@ -437,6 +501,14 @@ type _TargetEdgeFromRequiredForTargetTest {
 }
 
 type _TargetEdgeFromUniqueForTargetTest {
+  id: ID!
+  source: UniqueForTargetTest!
+  target: UniqueForTargetTarget!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type _TargetsEdgeFromUniqueForTargetTest {
   id: ID!
   source: UniqueForTargetTest!
   target: UniqueForTargetTarget!

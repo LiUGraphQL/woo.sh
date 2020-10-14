@@ -28,7 +28,7 @@ let resolvers = {
 let testServer;
 let url;
 
-describe('Server', () => {
+describe('# basic server tests', () => {
     it('server should start without exceptions', (done) => {
         let options = {
             baseSchema,
@@ -42,6 +42,7 @@ describe('Server', () => {
             'debug': false
         };
 
+        console.info = function () {};
         makeServer(options).then(server => {
             server.listen(4000, done).then(server => {
                 testServer = server;

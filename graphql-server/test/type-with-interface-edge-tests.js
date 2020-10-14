@@ -11,8 +11,8 @@ let resolvers = require('./resources/starwars-resolvers.js'); // relative to tes
 
 let testServer;
 let url;
-
-describe('# interface tests', () => {
+1
+describe('# type with edge interface tests', () => {
     before((done) => {
         let options = {
             baseSchema,
@@ -26,6 +26,7 @@ describe('# interface tests', () => {
             'debug': false
         };
 
+        console.info = function () {};
         makeServer(options).then(server => {
             server.listen(4001, done).then(server => {
                 testServer = server;

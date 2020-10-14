@@ -27,6 +27,7 @@ describe('# directives tests', () => {
             'debug': false
         };
 
+        console.info = function () {};
         makeServer(options).then(server => {
             server.listen(4001, done).then(server => {
                 testServer = server;

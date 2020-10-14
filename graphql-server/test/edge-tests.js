@@ -272,6 +272,78 @@ describe('# edge tests', () => {
         });
     });
 
+    it('delete source of edge', async () => {
+        let edgeId;
+        let sourceId;
+        let targetId;
+
+        let mutation = `mutation {
+            createHuman(data: {
+                name: "John Doe"
+                appearsIn: []
+                friends: [{ createHuman: { name: "Jane Doe" appearsIn: [] } }]
+            }){
+                id
+                _outgoingFriendsEdgesFromHuman { id target { id } }
+            }
+        }`;
+
+        await request(url, mutation).then((data) => {
+            edgeId = data.createHuman._outgoingFriendsEdgesFromHuman[0].id;
+            sourceId = data.createHuman.id;
+            targetId = data.createHuman._outgoingFriendsEdgesFromHuman[0].target.id;
+        });
+
+        let getEdge = `query { _FriendsEdgeFromHuman(id:"${edgeId}"){ id } }`;
+        await request(url, getEdge).then((data) => expect(data._FriendsEdgeFromHuman).to.be.not.eq(null));
+
+        let reverseEdge = `query { human(id:"${targetId}"){ id _friendsFromHuman { id } } }`;
+        await request(url, reverseEdge).then((data) => expect(data.human._friendsFromHuman[0].id).to.be.eq(sourceId));
+
+        let deleteMutation = `mutation { deleteHuman(id:"${sourceId}"){ id } }`;
+        await request(url, deleteMutation).then(() => {});
+
+        // after delete source
+        await request(url, getEdge).then((data) => expect(data._FriendsEdgeFromHuman).to.be.eq(null));
+        await request(url, reverseEdge).then((data) => expect(data.human._friendsFromHuman.length).to.be.eq(0));
+    });
+
+    it('delete target of edge', async () => {
+        let edgeId;
+        let sourceId;
+        let targetId;
+
+        let mutation = `mutation {
+            createHuman(data: {
+                name: "Simon Doe"
+                appearsIn: []
+                friends: [{ createHuman: { name: "Jenny Doe" appearsIn: [] } }]
+            }){
+                id
+                _outgoingFriendsEdgesFromHuman { id target { id } }
+            }
+        }`;
+
+        await request(url, mutation).then((data) => {
+            edgeId = data.createHuman._outgoingFriendsEdgesFromHuman[0].id;
+            sourceId = data.createHuman.id;
+            targetId = data.createHuman._outgoingFriendsEdgesFromHuman[0].target.id;
+        });
+
+        let getEdge = `query { _FriendsEdgeFromHuman(id:"${edgeId}"){ id } }`;
+        await request(url, getEdge).then((data) => expect(data._FriendsEdgeFromHuman).to.be.not.eq(null));
+
+        let reverseEdge = `query { human(id:"${sourceId}"){ id friends { id } } }`;
+        await request(url, reverseEdge).then((data) => expect(data.human.friends[0].id).to.be.eq(targetId));
+
+        let deleteMutation = `mutation { deleteHuman(id:"${targetId}"){ id } }`;
+        await request(url, deleteMutation).then(() => {});
+
+        // after delete source
+        await request(url, getEdge).then((data) => expect(data._FriendsEdgeFromHuman).to.be.eq(null));
+        await request(url, reverseEdge).then((data) => expect(data.human.friends.length).to.be.eq(0));
+    });
+
     after((done) => {
         testServer.server.close(done);
     });

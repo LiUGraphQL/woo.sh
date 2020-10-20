@@ -44,7 +44,7 @@ describe('# basic server tests', () => {
 
         console.info = function () {};
         makeServer(options).then(server => {
-            server.listen(4000, done).then(server => {
+            server.listen(4001, done).then(server => {
                 testServer = server;
                 url = server.url;
             });

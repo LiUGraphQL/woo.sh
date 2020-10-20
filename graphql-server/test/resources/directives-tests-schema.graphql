@@ -17,7 +17,8 @@ type DistinctTest {
 }
 
 type NoloopsTest {
-    possibleLoop: [NoloopsTest] @noloops
+    possibleLoop: NoloopsTest @noloops
+    possibleLoops: [NoloopsTest] @noloops
     testDummyField: Int
 }
 
@@ -35,4 +36,5 @@ type UniqueForTargetTarget {
 
 type UniqueForTargetTest {
     target: UniqueForTargetTarget @uniqueForTarget
+    targets: [UniqueForTargetTarget] @uniqueForTarget
 }

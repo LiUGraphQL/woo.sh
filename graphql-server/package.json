@@ -1,0 +1,55 @@
+{
+  "name": "graphql-server",
+  "version": "1.0.0",
+  "description": "Woo.sh GraphQL Server",
+  "main": "app.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/LiUGraphQL/woo.sh.git"
+  },
+  "scripts": {
+    "postinstall": "rm -rf ./node_modules/*/.git/",
+    "start": "node app.js",
+    "test": "mocha",
+    "test-single": "mocha $1"
+  },
+  "keywords": [],
+  "author": "",
+  "contributors": [
+    {
+      "name": "Robin Keskisärkkä",
+      "email": "robin.keskisarkka@liu.se",
+      "url": ""
+    },
+    {
+      "name": "Riley Capshaw",
+      "email": "riley.capshaw@liu.se",
+      "url": ""
+    },
+    {
+      "name": "Leif Eriksson",
+      "email": "leif.eriksson@liu.se",
+      "url": ""
+    },
+    {
+      "name": "Olaf Hartig",
+      "email": "olaf.hartig@liu.se",
+      "url": ""
+    }
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "apollo-link-http": "1.5.17",
+    "apollo-server": "2.14.3",
+    "arangojs": "^6.14.1",
+    "dotenv": "^8.2.0",
+    "graphql": "LiUGraphQL/graphql-js.git#npm",
+    "graphql-tools": "^5.0.0",
+    "wait-on": "^5.0.0"
+  },
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "graphql-request": "^3.1.0",
+    "mocha": "^8.1.3"
+  }
+}

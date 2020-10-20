@@ -1,54 +1,25 @@
 const { ApolloServer, gql } = require('apollo-server');
-const { readFileSync } = require('fs');
-const driver = require('./driver.js');
-const graphqlResolvers = require('./resolvers.js');
-const graphqlCustomResolvers = require('./custom-resolvers.js');
 
-async function run(){
-    // parse API schema and extended schema
-    const baseSchema = readFileSync('api-schema/api-schema.graphql', 'utf8');
-    const customSchema = readFileSync('api-schema/custom-api-schema.graphql', 'utf8');
-    const typeDefs = gql`${baseSchema} ${customSchema}`;
+async function makeServer(options){
+    // Activate/deactivate debug mode
+    if(!options.debug) console.debug = function() {};
 
-    // Enable/disable debugging
-    if(process.env.DEBUG !== 'true'){
-        console.debug = function() {};
-    }
+    // Init driver
+    const driver = require(`./drivers/${options.driver}/driver.js`);
+    await driver.init(options);
 
-    // Driver options
-    // Use environment variables to customize settings when starting the server
-    let args = {
-        'typeDefs': gql`${baseSchema}`,
-        'dbName': process.env.DB_NAME || 'dev-db',
-        'url': process.env.URL || 'http://localhost:8529',
-        'drop': process.env.DROP === 'true',
-        'disableDirectivesChecking': process.env.DISABLE_DIRECTIVES_CHECKING === 'true',
-        'disableEdgeValidation': process.env.DISABLE_EDGE_VALIDATION === 'true'
-    };
-    await driver.init(args);
+    // Resolvers
+    let resolvers = options.resolvers.get({driver});
+    let customResolvers = options.customResolvers ? options.customResolvers.get({driver}) : '';
 
-    // Load base resolvers
-    const resolvers = await graphqlResolvers.get({
-        driver: driver
-    });
-    // Load custom resolvers
-    // Configure the get-request below if your custom resolvers require additional options
-    const customResolvers = await graphqlCustomResolvers.get({
-        driver: driver
-    });
-
-    // Create instance of server and start listening
+    // Create instance of server
     const server = new ApolloServer({
-        'typeDefs': typeDefs,
-        'resolvers': [
-            resolvers,
-            customResolvers
-        ]
+        'typeDefs': gql`${options.baseSchema} ${options.customSchema || ''}`,
+        'resolvers': [ resolvers, customResolvers ]
     });
-    server.listen().then(({ url }) => {
-        console.log(`GraphQL service ready at: ${url}`);
-    });
+
+    // Return server
+    return server;
 }
 
-// Run server
-run().then(() => { err => console.error(err); });
+module.exports = { makeServer };

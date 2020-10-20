@@ -35,7 +35,15 @@ const resolvers = {
 
     % for interface_name in data['interfaces']:
         % if interface_name[0] != '_':
-        listOf${interface_name}s: async (parent, args, context, info) => await driver.getList(args, info),
+        ${interface_name[0].lower() + interface_name[1:]}: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
+        % endif
+    % endfor
+
+    % for interface_name in data['interfaces']:
+        % if interface_name[0] != '_':
+        listOf${interface_name}s: async (parent, args, context, info) =>
+            await driver.getList(args, info),
         % endif
     % endfor
     },
@@ -134,6 +142,17 @@ const resolvers = {
     % endif
 % endfor
 
+% for interface_name in data['interfaces']:
+    % if interface_name[0] != '_':
+    _ListOf${interface_name}s: {
+        totalCount: async (parent, args, context, info) =>
+            await driver.getTotalCount(parent, args, info),
+        isEndOfWholeList: async (parent, args, context, info) =>
+            await driver.isEndOfList(parent, args, info),
+    },
+    % endif
+% endfor
+
 % for type in data['types']:
     % for field, field_type in type['edgeFieldEndpoints']:
     _${field}EdgeFrom${type['Name']}: {
@@ -144,6 +163,15 @@ const resolvers = {
             await driver.get(parent._to, info.schema.getType('${field_type.name}'), info.schema),
     },
     % endfor
+% endfor
+
+% for interface_name in data['interfaces']:
+    % if interface_name.startswith('_'):
+    ${interface_name}: {
+        __resolveType: (parent, args, context, info) =>
+            parent.__typename
+    },
+    % endif
 % endfor
 
 % for interface_name in data['interfaces']:

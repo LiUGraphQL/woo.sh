@@ -10,7 +10,7 @@
 #          --config <config-for-api-generation> \
 #          --driver <database-driver> \
 #          --custom-api-schema <my-custom-api-schema> \
-#          --custom-resolvers <my-custom-api-resolvers>
+#          --custom-resolvers <my-custom-resolvers>
 #
 # Based on a template by BASH3 Boilerplate v2.4.1
 # http://bash3boilerplate.sh/#authors
@@ -56,7 +56,8 @@ __base="$(basename "${__file}" .sh)"
 __invocation="$(printf %q "${__file}")$( (($#)) && printf ' %q' "$@" || true)"
 
 # Define the environment variables (and their defaults) that this script depends on
-LOG_LEVEL="${LOG_LEVEL:-0}" # 7 = debug -> 0 = emergency
+LOG_LEVEL="${LOG_LEVEL:-4}" # 7 = debug -> 0 = emergency
+echo ${LOG_LEVEL}
 NO_COLOR="${NO_COLOR:-}"    # true = disable color. otherwise autodetected
 
 
@@ -162,7 +163,7 @@ EOF
           --config <config-for-api-generation> \
           --driver <database-driver> \
           --custom-api-schema <my-custom-api-schema> \
-          --custom-resolvers <my-custom-api-resolvers>
+          --custom-resolvers <my-custom-resolvers>
 EOF
 
 # Translate usage string -> getopts arguments, and set $arg_<flag> defaults
@@ -418,58 +419,81 @@ echo "Now ready for GrahpQL server generation!"
 input="$(pwd)/${arg_i}"
 config_file="$(cd "$(dirname "${arg_c}")" && pwd)/$(basename "${arg_c}")"
 
-# Check if driver exists
-if [[ ! -d "${__dir}/graphql-server/drivers/${arg_d}" ]]; then
-  emergency "Could not locate the driver '${arg_d}' in ${__dir}/graphql-server/drivers/"
-  exit 1
-fi
-driver_dir=$(cd ${__dir}/graphql-server/drivers/${arg_d}; pwd)
+# Enable extglob to ignore some files when copying
+shopt -s extglob
 
-# Create output directory
-mkdir -p ${arg_o}/api-schema
+# Try to create output directory
+mkdir -p ${arg_o}/
 output_dir=$(cd ${arg_o}; pwd)
 
-# custom API schema
-if [[ -n "${arg_s}" ]]; then
-  custom_schema=${arg_s}
-else
-  custom_schema=${__dir}/graphql-server/empty_custom_api_schema.graphql
+# Check if output directory is empty
+if [[ "$(ls ${output_dir})" ]]; then
+  RED="\033[0;31m"
+  RESET="\033[0m" # No Color
+  echo "${RED}The output directory is not empty. Generating the server here may have unintended consequences.${RESET}"
+  # Prompt the user before continuing
+  while true; do
+    read -p "Do you wish wish to proceed with the setup? (y/n): " yn
+    case $yn in
+      [Yy]* ) break;;
+      [Nn]* ) exit;;
+    * ) echo "Please answer yes or no.";;
+    esac
+  done
 fi
 
-# custom API resolvers
-if [[ -n "${arg_r}" ]]; then
-  custom_resolvers=${arg_r}
-else
-  custom_resolvers=${__dir}/graphql-server/empty_custom_resolvers.js
+# Check if driver exists
+driver=${arg_d}
+driver_dir=$(cd ${__dir}/graphql-server/drivers/${driver}; pwd)
+if [[ ! -d "${driver_dir}" ]]; then
+  emergency "Could not locate the driver '${arg_d}' in ${driver_dir}"
+  exit 1
 fi
+
+# custom API schema
+custom_schema=${arg_s:-}
+# custom API resolvers
+custom_resolvers=${arg_r:-}
 
 echo "Input:            ${arg_i}"
 echo "Output:           ${output_dir}"
 echo "Config:           ${config_file}"
-echo "Driver:           ${driver_dir}"
-echo "Custom schema:    ${custom_schema}"
-echo "Custom resolvers: ${custom_resolvers}"
+echo "Driver:           ${driver}"
+if [[ -n ${custom_schema} ]]; then
+  echo "Custom schema:    ${custom_schema}"
+fi
+if [[ -n ${custom_resolvers} ]]; then 
+  echo "Custom resolvers: ${custom_resolvers}"
+fi
 
-# copy server files
-cp ${__dir}/graphql-server/server.js ${output_dir}
-cp ${driver_dir}/* ${output_dir}
-rm -rf ${output_dir}/node_modules
+# copy all server files
+rsync -qrv --exclude=node_modules --exclude=".*" ${__dir}/graphql-server/* ${output_dir}
+
+# Install npm dependencies
 (cd ${output_dir}; npm install)
-cp ${custom_schema} ${output_dir}/api-schema/custom-api-schema.graphql
-cp ${custom_resolvers} ${output_dir}/custom-resolvers.js
 
-# generate GraphQL API schema (for now, assume that arg_i is a relative path/file)
+# Copy custom schema and resolvers
+if [[ ! -z ${custom_schema} ]]; then
+  echo "Copy custom schema"
+  cp ${custom_schema} ${output_dir}/resources/custom-api-schema.graphql
+fi
+if [[ ! -z ${custom_resolvers} ]]; then
+  echo "Copy custom resolvers"
+  cp ${custom_resolvers} ${output_dir}/resources/custom-resolvers.js
+fi
+
+# Generate GraphQL API schema
 cd ${__dir}/graphql-api-generator
 python3 generator.py \
     --input ${input} \
-    --output ${output_dir}/api-schema/api-schema.graphql \
+    --output ${output_dir}/resources/api-schema.graphql \
     --config ${config_file}
 cd ..
 
-# generate resolvers
+# Generate resolvers
 cd ./graphql-resolver-generator
 python3 generator.py \
-    --input ${output_dir}/api-schema/api-schema.graphql \
-    --output ${output_dir} \
+    --input ${output_dir}/resources/api-schema.graphql \
+    --output ${output_dir}/resources \
     --config ${config_file}
 cd ..

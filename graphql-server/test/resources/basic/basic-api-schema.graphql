@@ -1,0 +1,167 @@
+scalar DateTime
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+type Mutation {
+  createPerson(data: _InputToCreatePerson!): Person
+  updatePerson(id: ID!, data: _InputToUpdatePerson!): Person
+  deletePerson(id: ID!): Person
+  createChildrenEdgeFromPerson(data: _InputToCreateChildrenEdgeFromPerson): _ChildrenEdgeFromPerson
+  deleteChildrenEdgeFromPerson(id: ID!): _ChildrenEdgeFromPerson
+}
+
+type Person {
+  name: String!
+  gender: Gender!
+  books: [String!]
+  children(filter: _FilterForPerson): [Person!]
+  id: ID!
+  _childrenFromPerson(filter: _FilterForPerson): [Person]
+  _outgoingChildrenEdgesFromPerson(filter: _FilterForChildrenEdgeFromPerson): [_ChildrenEdgeFromPerson!]
+  _incomingChildrenEdgeFromPerson(filter: _FilterForChildrenEdgeFromPerson): [_ChildrenEdgeFromPerson]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type Query {
+  person(id: ID!): Person
+  listOfPersons(first: Int=10, after: ID="", filter: _FilterForPerson): _ListOfPersons
+  _ChildrenEdgeFromPerson(id: ID!): _ChildrenEdgeFromPerson
+}
+
+input _BooleanFilter {
+  _eq: Boolean
+  _neq: Boolean
+}
+
+type _ChildrenEdgeFromPerson {
+  id: ID!
+  source: Person!
+  target: Person!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+input _DateTimeFilter {
+  _eq: DateTime
+  _neq: DateTime
+  _in: [DateTime]
+  _nin: [DateTime]
+  _gt: DateTime
+  _egt: DateTime
+  _lt: DateTime
+  _elt: DateTime
+}
+
+input _FilterForChildrenEdgeFromPerson {
+  _and: [_FilterForChildrenEdgeFromPerson]
+  _or: [_FilterForChildrenEdgeFromPerson]
+  _not: _FilterForChildrenEdgeFromPerson
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForPerson {
+  _and: [_FilterForPerson]
+  _or: [_FilterForPerson]
+  _not: _FilterForPerson
+  name: _StringFilter
+  gender: _GenderFilter
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FloatFilter {
+  _eq: Float
+  _neq: Float
+  _gt: Float
+  _egt: Float
+  _lt: Float
+  _elt: Float
+  _in: [Float]
+  _nin: [Float]
+}
+
+input _GenderFilter {
+  _eq: Gender
+  _neq: Gender
+  _in: [Gender]
+  _nin: [Gender]
+}
+
+input _IDFilter {
+  _eq: String
+  _neq: String
+  _gt: String
+  _egt: String
+  _lt: String
+  _elt: String
+  _in: [String]
+  _nin: [String]
+  _like: String
+  _ilike: String
+  _nlike: String
+  _nilike: String
+}
+
+input _InputToConnectChildrenOfPerson {
+  connect: ID
+  create: _InputToCreatePerson
+}
+
+input _InputToCreateChildrenEdgeFromPerson {
+  sourceID: ID!
+  targetID: ID!
+}
+
+input _InputToCreatePerson {
+  name: String!
+  gender: Gender!
+  books: [String!]
+  children: [_InputToConnectChildrenOfPerson!]
+}
+
+input _InputToUpdatePerson {
+  name: String
+  gender: Gender
+  books: [String!]
+  children: [_InputToConnectChildrenOfPerson!]
+}
+
+input _IntFilter {
+  _eq: Int
+  _neq: Int
+  _gt: Int
+  _egt: Int
+  _lt: Int
+  _elt: Int
+  _in: [Int]
+  _nin: [Int]
+}
+
+type _ListOfPersons {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [Person]!
+}
+
+input _StringFilter {
+  _eq: String
+  _neq: String
+  _gt: String
+  _egt: String
+  _lt: String
+  _elt: String
+  _in: [String]
+  _nin: [String]
+  _like: String
+  _ilike: String
+  _nlike: String
+  _nilike: String
+}
+

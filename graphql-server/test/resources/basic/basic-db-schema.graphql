@@ -1,0 +1,16 @@
+type Person {
+    name: String!
+    gender: Gender!
+    books: [String!]
+    children: [Person!]
+}
+
+enum Gender {
+    MALE
+    FEMALE
+}
+
+interface Character {
+    name: String!
+
+}

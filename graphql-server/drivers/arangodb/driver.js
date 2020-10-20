@@ -2,7 +2,7 @@ const graphql = require('graphql');
 const arangojs = require("arangojs");
 const aql = arangojs.aql;
 const { makeExecutableSchema } = require('graphql-tools');
-const { ApolloError } = require('apollo-server');
+const { ApolloError, gql } = require('apollo-server');
 const waitOn = require('wait-on');
 
 let db;
@@ -62,9 +62,9 @@ module.exports = {
 };
 
 async function init(args) {
-    let typeDefs = args.typeDefs;
+    let typeDefs = gql`${args.baseSchema}`;
     let dbName = args.dbName || 'dev-db';
-    let url = args.url || 'http://localhost:8529';
+    let url = args.dbUrl || 'http://localhost:8529';
     let drop = args.drop || false;
     disableDirectivesChecking = args['disableDirectivesChecking'] || false;
     disableEdgeValidation = args['disableEdgeValidation'] || false;
@@ -83,7 +83,7 @@ async function init(args) {
     console.info(`ArangoDB is now available at ${url}`);
 
     // if drop is set
-    dblist = await db.listDatabases();
+    let dblist = await db.listDatabases();
     if (drop && dblist.includes(dbName)) {
         await db.dropDatabase(dbName).then(
             () => console.info(`Database ${dbName} dropped.`),
@@ -324,11 +324,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     // prepare annotations
     if (annotations === null  || annotations === undefined) annotations = {};
     // substitute fields defined by exported variables
-    annotations = substituteExportedVariables(annotations, ctxt);
-    let annotationType = info.schema.getType(`_InputToAnnotate${collectionName}`);
-    if (annotationType) { // RK: Should we be able to skip this due to previous validation?
-        annotations = getScalarsAndEnums(annotations, info.schema.getType(annotationType));
-    }
+    const substitutedFields = substituteExportedVariables(annotations, ctxt);
 
     // create a new variable if resVar was not defined by the calling function
     resVar = resVar !== null ? resVar : createVar(ctxt);
@@ -355,7 +351,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     validateEdge(ctxt, source, sourceType, sourceField, target, targetType, info, validateSource, validateTarget);
 
     // insert edge
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, {'_from': ${source}, '_to': ${target} }) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, ${stringifyImportedFields(substitutedFields)}, {'_from': ${source}, '_to': ${target} }) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
     // add exported variables from selection fields for root only
     addExportedVariables(isRoot, resVar, info, ctxt);
@@ -475,13 +471,16 @@ function updateEdge(isRoot, ctxt, id, data, edgeName, inputToUpdateType, info, r
     const collectionVar = getCollectionVar(edgeName, ctxt, true);
     ctxt.trans.code.push(`\n\t/* update edge ${edgeName} */`);
 
+    // substitute fields defined by exported variables
+    const substitutedFields = substituteExportedVariables(data, ctxt);
+
     // define doc
     const doc = getScalarsAndEnums(data, info.schema.getType(inputToUpdateType));;
     doc['_lastUpdateDate'] = new Date().valueOf();
     const docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
     const idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
 
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH ${asAQLVar(docVar)} IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`UPDATE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key WITH MERGE(${asAQLVar(docVar)}, ${stringifyImportedFields(substitutedFields)}) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
 
     //directives handling is not needed for edge updates as they can not have directives as of current
 
@@ -581,7 +580,7 @@ function exportSelection(isRoot, resVar, selection, info, ctxt){
  */
 function substituteExportedVariables(data, ctxt){
     const substitutes = {};
-    Object.entries(data).forEach((entry) => {
+    for(let entry of Object.entries(data)) {
         const fieldName = entry[0];
         const value = entry[1];
         // if value is an object it must be a variable
@@ -597,7 +596,7 @@ function substituteExportedVariables(data, ctxt){
                 }
             }
         }
-    });
+    }
     return substitutes;
 }
 
@@ -827,7 +826,7 @@ function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) 
 async function get(id, returnType, schema) {
     let type = returnType;
     let query = [aql`FOR i IN`];
-    if (graphql.isInterfaceType(type)) {
+    if (graphql.isInterfaceType(type) || graphql.isUnionType(type)) {
         let possible_types = schema.getPossibleTypes(type);
         if (possible_types.length > 1) {
             query.push(aql`UNION(`);
@@ -866,7 +865,7 @@ async function get(id, returnType, schema) {
 }
 
 /**
- * Get the source/target an given edge field connected to parent.
+ * Get the source/target of a given edge field connected to parent.
  *
  * @param parent
  * @param args
@@ -1058,7 +1057,7 @@ async function getList(args, info) {
         const cursor = await db.query(q);
         let result = await cursor.all();
         let list = {
-            '_filter': queryFilters, // needed to resolve fields 'isEndOfList' and 'totalLength'
+            '_filter': queryFilters, // needed to resolve fields 'isEndOfList' and 'totalCount'
             'content': result
         };
         return list;
@@ -1531,13 +1530,12 @@ function getFilters(filterArg, type_to_filter, alias = 'x') {
 async function isEndOfList(parent, args, info) {
     let type = graphql.getNamedType(info.parentType.getFields()['content'].type);
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
-    addPossibleTypes(query, info.schema, type);
+    query.push(getPossibleTypes(type, info.schema));;
     query.push(aql`] RETURN i)`);
 
     // add filters
-    if (parent._filter) {
-        query = query.concat(parent._filter);
-    }
+    query.push(...parent._filter);
+
     // get last ID in parent content
     if (parent.content.length != 0) {
         const last = parent.content[parent.content.length - 1];
@@ -1546,6 +1544,7 @@ async function isEndOfList(parent, args, info) {
 
     query.push(aql`SORT x._id COLLECT WITH COUNT INTO length RETURN length`);
     try {
+        console.debug(aql.join(query));
         const cursor = await db.query(aql.join(query));
         const result = await cursor.next();
         return result == 0;
@@ -1567,16 +1566,15 @@ async function isEndOfList(parent, args, info) {
 async function getTotalCount(parent, args, info) {
     let type = graphql.getNamedType(info.parentType.getFields()['content'].type);
     let query = [aql`FOR x IN FLATTEN(FOR i IN [`];
-    addPossibleTypes(query, info.schema, type);
+    query.push(getPossibleTypes(type, info.schema));
     query.push(aql`] RETURN i)`);
 
     // add filters
-    if (parent._filter) {
-        query = query.concat(parent._filter);
-    }
+    query.push(...parent._filter);
 
     query.push(aql`COLLECT WITH COUNT INTO length RETURN length`);
     try {
+        console.debug(aql.join(query));
         const cursor = await db.query(aql.join(query));
         return await cursor.next();
     } catch (err) {
@@ -1619,6 +1617,31 @@ function createVar(ctxt) {
 function createParamVar(ctxt) {
     ctxt.paramVarCounter = ctxt.paramVarCounter === undefined ? 0 : ctxt.paramVarCounter + 1;
     return `_${ctxt.paramVarCounter}`;
+}
+
+/**
+ * Return an AQL query fragment listing all possible collections for the given type.
+ *
+ * If context is not null, collections are explicitly bound to AQL variables.
+ *
+ * @param type
+ * @param schema
+ * @param conext = null (optional)
+ */
+function getPossibleTypes(type, schema, ctxt = null) {
+    let collections = [];
+    let types = graphql.isUnionType(type) || graphql.isInterfaceType(type) ? schema.getPossibleTypes(type): [type];
+
+    for (let t of types) {
+        if (ctxt !== null) {
+            let collectionVar = asAQLVar(getCollectionVar(t.name, ctxt, true));
+            collections.push(collectionVar);
+        } else {
+            let collection = db.collection(t.name)
+            collections.push(aql`${collection}`);
+        }
+    }
+    return aql.join(collections, ',');
 }
 
 /**

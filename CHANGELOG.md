@@ -1,4 +1,4 @@
-**v0.1.5, to be released on ???**
+**v0.1.5, released on November 6, 2020**
 * New feature: Additional tests for API and driver functionality
 * Bug fix: Fix listOfX crashing for interfaces. See: https://github.com/LiUGraphQL/woo.sh/issues/122
 * Bug fix: Fix failing validation of union for edge. See: https://github.com/LiUGraphQL/woo.sh/issues/123

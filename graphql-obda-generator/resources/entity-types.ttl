@@ -1,0 +1,333 @@
+@prefix : <http://www.spirit-tools.com/ontologies/2020/6/entity-types#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xml: <http://www.w3.org/XML/1998/namespace> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix woosh: <https://github.com/LiUGraphQL/woo.sh/> .
+@base <http://www.spirit-tools.com/ontologies/2020/6/entity-types> .
+
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types> rdf:type owl:Ontology ;
+                                                              owl:versionIRI <http://www.spirit-tools.com/ontologies/2020/6/entity-types/0.1> ;
+                                                              rdfs:comment "Ontology describing an example class hierarchy to access groups of entity types in the underlying graph database." .
+
+#################################################################
+#    Annotation properties
+#################################################################
+
+###  https://github.com/LiUGraphQL/woo.sh/mapping
+woosh:mapping rdf:type owl:AnnotationProperty .
+
+
+#################################################################
+#    Object Properties
+#################################################################
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/hasPart
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/hasPart> rdf:type owl:ObjectProperty ;
+                                                                     owl:inverseOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/partOf> .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/partOf
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/partOf> rdf:type owl:ObjectProperty ,
+                                                                             owl:TransitiveProperty .
+
+
+#################################################################
+#    Classes
+#################################################################
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types#Mid
+:Mid rdf:type owl:Class ;
+     rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Person> .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Actor
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Actor> rdf:type owl:Class .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Address
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Address> rdf:type owl:Class ;
+                                                                     rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/GeopoliticalRegion> ,
+                                                                                     [ rdf:type owl:Restriction ;
+                                                                                       owl:onProperty <http://www.spirit-tools.com/ontologies/2020/6/entity-types/partOf> ;
+                                                                                       owl:someValuesFrom [ rdf:type owl:Class ;
+                                                                                                            owl:unionOf ( <http://www.spirit-tools.com/ontologies/2020/6/entity-types/City>
+                                                                                                                          <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Country>
+                                                                                                                        )
+                                                                                                          ]
+                                                                                     ] .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Cardinal
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Cardinal> rdf:type owl:Class ;
+                                                                      rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/MathematicalEntity> ;
+                                                                      rdfs:comment "CARDINAL" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/City
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/City> rdf:type owl:Class ;
+                                                                  rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/GeopoliticalRegion> ,
+                                                                                  [ rdf:type owl:Restriction ;
+                                                                                    owl:onProperty <http://www.spirit-tools.com/ontologies/2020/6/entity-types/partOf> ;
+                                                                                    owl:someValuesFrom [ rdf:type owl:Class ;
+                                                                                                         owl:unionOf ( <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Country>
+                                                                                                                       <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Region>
+                                                                                                                     )
+                                                                                                       ]
+                                                                                  ] .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Country
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Country> rdf:type owl:Class ;
+                                                                     rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/GeopoliticalRegion> .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Date
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Date> rdf:type owl:Class ;
+                                                                  rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/TimePoint> ;
+                                                                  rdfs:comment "part of DATE" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/DateInterval
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/DateInterval> rdf:type owl:Class ;
+                                                                          rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/TimeInterval> ;
+                                                                          rdfs:comment "part of DATE" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Event
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Event> rdf:type owl:Class ;
+                                                                   rdfs:comment "EVENT" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Face
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Face> rdf:type owl:Class ;
+                                                                  rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/PhysicalObject> ,
+                                                                                  [ rdf:type owl:Restriction ;
+                                                                                    owl:onProperty <http://www.spirit-tools.com/ontologies/2020/6/entity-types/partOf> ;
+                                                                                    owl:someValuesFrom <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Person>
+                                                                                  ] ;
+                                                                  rdfs:comment "Face" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Facility
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Facility> rdf:type owl:Class ;
+                                                                      rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/SpatialRegion> ,
+                                                                                      [ rdf:type owl:Restriction ;
+                                                                                        owl:onProperty <http://www.spirit-tools.com/ontologies/2020/6/entity-types/partOf> ;
+                                                                                        owl:someValuesFrom [ rdf:type owl:Class ;
+                                                                                                             owl:unionOf ( <http://www.spirit-tools.com/ontologies/2020/6/entity-types/City>
+                                                                                                                           <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Country>
+                                                                                                                           <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Region>
+                                                                                                                         )
+                                                                                                           ]
+                                                                                      ] ;
+                                                                      rdfs:comment "FAC" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/GeopoliticalRegion
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/GeopoliticalRegion> rdf:type owl:Class ;
+                                                                                rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/SpatialRegion> ;
+                                                                                rdfs:comment "GPE (except address)" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Language
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Language> rdf:type owl:Class ;
+                                                                      owl:equivalentClass [ rdf:type owl:Class ;
+                                                                                            owl:oneOf ( <http://www.spirit-tools.com/ontologies/2020/6/entity-types/English>
+                                                                                                        <http://www.spirit-tools.com/ontologies/2020/6/entity-types/French>
+                                                                                                        <http://www.spirit-tools.com/ontologies/2020/6/entity-types/German>
+                                                                                                        <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Italian>
+                                                                                                        <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Spanish>
+                                                                                                      )
+                                                                                          ] ;
+                                                                      rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/NonPhysicalObject> ;
+                                                                      rdfs:comment "LANGUAGE" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Law
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Law> rdf:type owl:Class ;
+                                                                 rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/NonPhysicalObject> ;
+                                                                 rdfs:comment "LAW" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/MathematicalEntity
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/MathematicalEntity> rdf:type owl:Class ;
+                                                                                rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/NonPhysicalObject> .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/MeasurementQuantity
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/MeasurementQuantity> rdf:type owl:Class ;
+                                                                                 rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/MathematicalEntity> ;
+                                                                                 rdfs:comment "QUANTITY" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/MonetaryQuantity
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/MonetaryQuantity> rdf:type owl:Class ;
+                                                                              rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/MathematicalEntity> ;
+                                                                              rdfs:comment "MONEY" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/NatureFormation
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/NatureFormation> rdf:type owl:Class ;
+                                                                             rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/NonGeopoliticalLocation> .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/NonGeopoliticalLocation
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/NonGeopoliticalLocation> rdf:type owl:Class ;
+                                                                                     rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/SpatialRegion> ;
+                                                                                     rdfs:comment "LOC" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/NonPhysicalObject
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/NonPhysicalObject> rdf:type owl:Class .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Ordinal
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Ordinal> rdf:type owl:Class ;
+                                                                     rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/MathematicalEntity> ;
+                                                                     rdfs:comment "ORDINAL" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Organisation
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Organisation> rdf:type owl:Class ;
+                                                                          rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Actor> ;
+                                                                          rdfs:comment "ORG" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Percentage
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Percentage> rdf:type owl:Class ;
+                                                                        rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/MathematicalEntity> ;
+                                                                        rdfs:comment "PERCENT" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Person
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Person> rdf:type owl:Class ;
+                                                                    rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Actor> ,
+                                                                                    [ rdf:type owl:Restriction ;
+                                                                                      owl:onProperty <http://www.spirit-tools.com/ontologies/2020/6/entity-types/hasPart> ;
+                                                                                      owl:someValuesFrom <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Face>
+                                                                                    ] ;
+                                                                    rdfs:comment "PERSON" ;
+                                                                    woosh:mapping """{
+  \"type\": \"Person\",
+  \"mapping\": [
+    {
+      \"type\": \"NamedEntity\",
+      \"filter\": [
+        {
+          \"field\": \"type\",
+          \"type\": \"enum\",
+          \"value\": \"PERSON\"
+        }
+      ]
+    }
+  ]
+}""" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/PhysicalObject
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/PhysicalObject> rdf:type owl:Class .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Product
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Product> rdf:type owl:Class ;
+                                                                     rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/PhysicalObject> ;
+                                                                     rdfs:comment "PRODUCT" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Region
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Region> rdf:type owl:Class ;
+                                                                    rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/GeopoliticalRegion> .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/SocialGroup
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/SocialGroup> rdf:type owl:Class ;
+                                                                         rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Actor> ,
+                                                                                         [ rdf:type owl:Restriction ;
+                                                                                           owl:onProperty <http://www.spirit-tools.com/ontologies/2020/6/entity-types/hasPart> ;
+                                                                                           owl:someValuesFrom <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Person>
+                                                                                         ] ;
+                                                                         rdfs:comment "NORP" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/SpatialRegion
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/SpatialRegion> rdf:type owl:Class ;
+                                                                           rdfs:label "spatial region" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Speaker
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Speaker> rdf:type owl:Class ;
+                                                                     rdfs:subClassOf :Mid ;
+                                                                     rdfs:comment "Speaker" ;
+                                                                     woosh:mapping """{
+  \"type\": \"Speaker\",
+  \"mapping\": [
+    {
+      \"type\": \"Speaker\"
+    }
+  ]
+}""" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/TemporalRegion
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/TemporalRegion> rdf:type owl:Class .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/TimeInterval
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/TimeInterval> rdf:type owl:Class ;
+                                                                          rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/TemporalRegion> .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/TimePeriodInDay
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/TimePeriodInDay> rdf:type owl:Class ;
+                                                                             rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/TimeInterval> ;
+                                                                             rdfs:comment "TIME" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/TimePoint
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/TimePoint> rdf:type owl:Class ;
+                                                                       rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/TemporalRegion> .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Work
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Work> rdf:type owl:Class ;
+                                                                  rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/NonPhysicalObject> .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/WorkOfArt
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/WorkOfArt> rdf:type owl:Class ;
+                                                                       rdfs:subClassOf <http://www.spirit-tools.com/ontologies/2020/6/entity-types/Work> ;
+                                                                       rdfs:comment "WORK_OF_ART" .
+
+
+#################################################################
+#    Individuals
+#################################################################
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/English
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/English> rdf:type owl:NamedIndividual ;
+                                                                     rdfs:comment "ENGLISH" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/French
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/French> rdf:type owl:NamedIndividual ;
+                                                                    rdfs:comment "FRENCH" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/German
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/German> rdf:type owl:NamedIndividual ;
+                                                                    rdfs:comment "GERMAN" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Italian
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Italian> rdf:type owl:NamedIndividual ;
+                                                                     rdfs:comment "ITALIAN" .
+
+
+###  http://www.spirit-tools.com/ontologies/2020/6/entity-types/Spanish
+<http://www.spirit-tools.com/ontologies/2020/6/entity-types/Spanish> rdf:type owl:NamedIndividual ;
+                                                                     rdfs:comment "SPANISH" .
+
+
+###  Generated by the OWL API (version 4.5.9.2019-02-01T07:24:44Z) https://github.com/owlcs/owlapi

@@ -1,0 +1,36 @@
+let driver;
+
+module.exports = {
+  get: function(options) {
+    driver = options.driver;
+    return resolvers;
+  }
+};
+
+const resolvers = {
+    Query: {
+    % for type, definition in data.items():
+        listOf${type}s: async (parent, args, context, info) => await getList(args, info, ${definition}),
+    % endfor
+    },
+% for type, definition in data.items():
+    % if type != definition["types"][0]:
+    ${type}: {
+        __resolveType: (parent) => parent.__typename
+    },
+    % endif
+% endfor
+}
+
+async function getList(args, info, definition){
+  for(let d of definition["mappings"]){
+      for(let mapping of d["mapping"]){
+        console.log(mapping)
+        
+        let listType = mapping["type"]
+        console.log(listType)
+      }
+  }
+  info.returnType = info.schema['_typeMap']['_ListOfSpeakers'];
+  return await driver.getList(args, info);
+}

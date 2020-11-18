@@ -1,0 +1,23 @@
+extend type Query {
+% for type, definition in data.items():
+    % if type != definition["types"][0]:
+    listOf${type}s(first: Int=10, after: ID=""): _ListOf${type}s
+    % endif
+% endfor
+}
+
+% for type, definition in data.items():
+    % if type != definition["types"][0]:
+union ${type} = ${" | ".join(definition["types"])}
+    % endif
+% endfor
+
+% for type, definition in data.items():
+    % if type != definition["types"][0]:
+type _ListOf${type}s {
+    totalCount: Int!
+    isEndOfWholeList: Boolean!
+    content: [${type}]!
+}
+    % endif
+% endfor

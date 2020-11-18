@@ -1,0 +1,25 @@
+extend type Query {
+    listOfMids(first: Int=10, after: ID=""): _ListOfMids
+    listOfActors(first: Int=10, after: ID=""): _ListOfActors
+    listOfPersons(first: Int=10, after: ID=""): _ListOfPersons
+}
+
+union Mid = Speaker
+union Actor = NamedEntity | Speaker
+union Person = NamedEntity | Speaker
+
+type _ListOfMids {
+    totalCount: Int!
+    isEndOfWholeList: Boolean!
+    content: [Mid]!
+}
+type _ListOfActors {
+    totalCount: Int!
+    isEndOfWholeList: Boolean!
+    content: [Actor]!
+}
+type _ListOfPersons {
+    totalCount: Int!
+    isEndOfWholeList: Boolean!
+    content: [Person]!
+}

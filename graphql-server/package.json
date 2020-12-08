@@ -10,7 +10,7 @@
   "scripts": {
     "postinstall": "rm -rf ./node_modules/*/.git/",
     "start": "node app.js",
-    "test": "mocha",
+    "test": "mocha --timeout 30s",
     "test-single": "mocha $1"
   },
   "keywords": [],

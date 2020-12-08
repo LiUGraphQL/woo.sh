@@ -253,11 +253,12 @@ describe('# directives tests', () => {
             let mutation = `mutation {
                 deleteTargetEdgeFromRequiredForTargetTest(id: "${edgeId2}") { id }
             }`;
-            await request(url, mutation)
-                .then(() => {
-                    throw new Error(`@requiredForTarget directive should yield an error since no requiredForTarget edge will exist`);
-                })
+            let result = await request(url, mutation)
+                .then(() => new Error(`@requiredForTarget directive should yield an error since no requiredForTarget edge will exist`))
                 .catch(() => null);
+            if(result){
+                throw result;
+            }
         });
 
         it('delete source of edge connecting to target', async () => {
@@ -265,22 +266,24 @@ describe('# directives tests', () => {
             let mutation = `mutation {
                 deleteRequiredForTargetTest(id: "${id2}") { id }
             }`;
-            await request(url, mutation)
-                .then(() => {
-                    throw new Error(`@requiredForTarget directive should yield an error since the source of edge (and edge) will cease to exist`);
-                })
-                .catch(() => null);
+            let result = await request(url, mutation)
+                .then(() => new Error(`@requiredForTarget directive should yield an error since the source of edge (and edge) will cease to exist`))
+                .catch((err) => null);
+            if(result){
+                throw result;
+            }
         });
 
         it('create only target', async () => {
             let mutation = `mutation {
                 createRequiredForTargetTarget(data:{ }) { id }
             }`;
-            await request(url, mutation)
-                .then(() => {
-                    throw new Error(`@requiredForTarget directive should yield an error when attempting to create objects out of order`);
-                })
+            let result = await request(url, mutation)
+                .then(() => new Error(`@requiredForTarget directive should yield an error when attempting to create objects out of order`))
                 .catch(() => null);
+            if(result){
+                throw result;
+            }
         });
 
         it('create object and target using dependent mutations', async () => {

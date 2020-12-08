@@ -29,7 +29,7 @@ let testServer;
 let url;
 
 describe('# basic server tests', () => {
-    it('server should start without exceptions', (done) => {
+    before((done) => {
         let options = {
             baseSchema,
             resolvers,

@@ -53,24 +53,24 @@ describe('# directives tests', () => {
                 id3 = data.m3.id;
             });
 
-
             let mutation = `mutation {
                 createDistinctTest(data:{ shouldBeDistinct: [ { connect: "${id1}"}, { connect: "${id2}" } ]}) { id }
             }`;
 
-            await request(url, mutation)
-                .catch(() => {
-                    throw new Error(`@distinct directive should not yield error for when connecting two different objects`)
-                });
+            let err = await request(url, mutation)
+                .then(() => null)
+                .catch(() => new Error(`@distinct directive should not yield error for when connecting two different objects`));
+            if(err != null) throw err;
         });
 
         it('non-distinct connects should fail', async () => {
             let mutation = `mutation {
                 createDistinctTest(data:{ shouldBeDistinct: [ { connect: "${id1}"}, { connect: "${id1}" } ]}) { id }
             }`;
-            await request(url, mutation)
-                .then(() => { throw new Error(`@distinct directive should yield error when connecting two the same object twice`) })
-                .catch(() => null);
+            let err = await request(url, mutation)
+                .then(() => new Error(`@distinct directive should yield error when connecting two the same object twice`))
+                .catch((err) => null);
+            if(err != null) throw err;
         });
 
         it('add distinct edge', async () => {
@@ -78,18 +78,22 @@ describe('# directives tests', () => {
                 m1: createShouldBeDistinctEdgeFromDistinctTest(data:{ sourceID: "${id1}" targetID: "${id2}"}) { id }
                 m2: createShouldBeDistinctEdgeFromDistinctTest(data:{ sourceID: "${id1}" targetID: "${id3}"}) { id }
             }`;
-            await request(url, mutation)
-                .catch(() => { throw new Error(`@distinct directive should not yield an error when adding two edges to different objects`) });
+            let err = await request(url, mutation)
+                .then(() => null)
+                .catch(() => new Error(`@distinct directive should not yield an error when adding two edges to different objects`));
+            if(err != null) throw err;
         });
 
+        // This is the case where the distinct directive of an edge is violated when adding an edge
         it('add non-distinct edge should fail', async () => {
             let mutation = `mutation {
                 m1: createShouldBeDistinctEdgeFromDistinctTest(data:{ sourceID: "${id2}" targetID: "${id3}"}) { id }
                 m2: createShouldBeDistinctEdgeFromDistinctTest(data:{ sourceID: "${id2}" targetID: "${id3}"}) { id }
             }`;
-            await request(url, mutation)
-                .then(() => { throw new Error(`@distinct directive should yield an error for when adding an edge to the same object twice`) })
+            let err = await request(url, mutation)
+                .then(() => new Error(`@distinct directive should yield an error for when adding an edge to the same object twice`))
                 .catch(() => null);
+            if(err != null) throw err;
         });
     });
 

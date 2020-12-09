@@ -1774,3 +1774,13 @@ function checkRequiredDirective(ctxt, typeName, fieldName, id){
     const check = `if(!db._query(aql\`${query}\`).next()){\n\t\tthrow "${error}";\n\t}`;
     ctxt.trans.finalConstraintChecks.push(check);
 }
+
+function checkUniqueForTargetDirective(ctxt, typeName, fieldName, id){
+    const collectionName = getEdgeCollectionName(typeName, fieldName);
+    const collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
+    // The constraint is violated if the number of returning edges is greater than 1.
+    const query = `RETURN COUNT(FOR v1 IN 1..1 OUTBOUND ${id} ${collectionVar} FOR v2 IN 1..1 INBOUND v1._id ${collectionVar} COLLECT ids = v2._id RETURN ids)`;
+    const error = `Field ${fieldName} in ${typeName} is breaking a @uniqueForTarget directive!`;
+    const check = `if(db._query(aql\`${query}\`).next() > 1){\n\t\tthrow "${error}";\n\t}`;
+    ctxt.trans.finalConstraintChecks.push(check);
+}

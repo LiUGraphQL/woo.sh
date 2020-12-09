@@ -212,6 +212,15 @@ function getEdgeCollectionName(type, field) {
 function capitalizeFirstLetter(string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
 }
+/**
+ * Convenience method for lowercasing the first letter of a string.
+ *
+ * @param string
+ * @returns {string}
+ */
+function lowercaseFirstLetter(string) {
+    return string.charAt(0).toLowerCase() + string.slice(1);
+}
 
 /**
  * Extract the type definition map from a given schema, optionally limiting the returned types to a given kind.
@@ -356,8 +365,8 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     // add exported variables from selection fields for root only
     addExportedVariables(isRoot, resVar, info, ctxt);
 
-    // directives handling
-    addFinalDirectiveChecksForType(ctxt, sourceType, asAQLVar(sourceVar), info.schema);
+    // directives handling (check with respect to source and target)
+    addFinalDirectiveChecksForType(ctxt, info.schema, "addEdge", sourceType, asAQLVar(sourceVar), collectionName, targetType, asAQLVar(targetVar));
 
     // return promises for roots and null for nested result
     return isRoot ? getResult(ctxt, info, resVar) : null;
@@ -440,11 +449,12 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
 
     // validate key
     validateKey(ctxt, resVar, returnType, info);
+    
     // add final directives check
     let resVarId = isVar(resVar) ? resVar : addParameterVar(ctxt, createParamVar(ctxt), {'_id': resVar});
-    addFinalDirectiveChecksForType(ctxt, returnType, asAQLVar(resVarId), info.schema);
-    // return promises for roots and null for nested result
+    addFinalDirectiveChecksForType(ctxt, info.schema, "addObject", returnType, asAQLVar(resVarId));
 
+    // return promises for roots and null for nested result
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
@@ -1712,112 +1722,40 @@ function addPossibleEdgeTypes(query, ctxt, schema, type_name, field_name) {
  * @param schema
  * @param operation = null (optional)
  */
-function addFinalDirectiveChecksForType(ctxt, type, id, schema) {
+function addFinalDirectiveChecksForType(ctxt, schema, operation, sourceType, sourceVar, edgeCollectionName=null, targetType=null, targetVar=null) {
     if (disableDirectivesChecking) {
         console.debug('Directives checking disabled');
         return;
     }
 
-    for (let f in type.getFields()) {
-        let field = type.getFields()[f];
-        for (let dir of field.astNode.directives) {
-            if (dir.name.value == 'noloops') {
-                let collectionName = getEdgeCollectionName(type.name, field.name);
-                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-                ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR v, e, p IN 1..1 OUTBOUND ${id} ${collectionVar} FILTER p.vertices[0]._id == v._id RETURN v\`).next()){`);
-                ctxt.trans.finalConstraintChecks.push(`   throw "Field ${f} in ${type.name} is breaking a @noloops directive!";`);
-                ctxt.trans.finalConstraintChecks.push(`}`);
+    if(operation == 'addObject'){
+        const fields = Object.values(sourceType.getFields());
+        for (const field of fields){
+            const directives = field.astNode.directives.map(d => d.name.value);
+            for (const directive of directives) {
+                if(directive == 'distinct') {
+                    checkDistinctDirective(ctxt, sourceType.name, field.name, sourceVar);
+                }
             }
-            else if (dir.name.value == 'distinct') {
-                let collectionName = getEdgeCollectionName(type.name, field.name);
-                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-                ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR v, e IN 1..1 OUTBOUND ${id} ${collectionVar} FOR v2, e2 IN 1..1 OUTBOUND ${id} ${collectionVar} FILTER v._id == v2._id AND e._id != e2._id RETURN v\`).next()){`);
-                ctxt.trans.finalConstraintChecks.push(`   throw "Field ${f} in ${type.name} is breaking a @distinct directive!";`);
-                ctxt.trans.finalConstraintChecks.push(`}`);
-            }
-            else if (dir.name.value == 'uniqueForTarget') {
-                // The direct variant of @uniqueForTarget
-                // edge is named after current type etc.
-                let collectionName = getEdgeCollectionName(type.name, field.name);
-                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-                ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR v, e IN 1..1 OUTBOUND ${id} ${collectionVar} FOR v2, e2 IN 1..1 INBOUND v._id ${collectionVar} FILTER e._id != e2._id RETURN v\`).next()){`);
-                ctxt.trans.finalConstraintChecks.push(`   throw "Field ${f} in ${type.name} is breaking a @uniqueForTarget directive!";`);
-                ctxt.trans.finalConstraintChecks.push(`}`);
-            }
-            else if (dir.name.value == '_uniqueForTarget_AccordingToInterface') {
-                // The inherited/implemented variant of @uniqueForTarget
-                // The target does not only require at most one edge of this type, but at most one of any type implementing the interface
-                // Thankfully we got the name of the interface as a mandatory argument and can hence use this to get all types implementing it
-
-                let interfaceName = dir.arguments[0].value.value; // If we add more arguments to the directive this will fail horrible.
-                // But that should not happen (and it is quite easy to fix)
-
-                ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR v, e IN 1..1 OUTBOUND ${id}`);
-                addPossibleEdgeTypes(ctxt.trans.finalConstraintChecks, ctxt, schema, interfaceName, field.name);
-                ctxt.trans.finalConstraintChecks.push(`FOR v2, e2 IN 1..1 INBOUND v._id`);
-                addPossibleEdgeTypes(ctxt.trans.finalConstraintChecks, ctxt, schema, interfaceName, field.name);
-                ctxt.trans.finalConstraintChecks.push(`FILTER e._id != e2._id RETURN v\`).next()){`);
-                ctxt.trans.finalConstraintChecks.push(`   throw "Field ${f} in ${type.name} is breaking a @_uniqueForTarget_AccordingToInterface directive!";`);
-                ctxt.trans.finalConstraintChecks.push(`}`);
-            }
-            else if (dir.name.value == 'requiredForTarget') {
-                // The direct variant of @requiredForTarget
-                // edge is named after current type etc.
-
-                let collectionName = getEdgeCollectionName(type.name, field.name);
-                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-
-                // The target type might be an interface, giving us slightly more to keep track of
-                // First, find the right collections to check
-                ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR x IN FLATTEN(FOR i IN [`);
-                addPossibleTypes(ctxt.trans.finalConstraintChecks, schema, graphql.getNamedType(field.type), ctxt);
-                // Second, count all edges ending at objects in these collections
-                ctxt.trans.finalConstraintChecks.push(`] RETURN i) LET endpoints = ( FOR v IN 1..1 INBOUND x ${collectionVar} RETURN v)`);
-                // If the count returns 0, we have an object breaking the directive
-                ctxt.trans.finalConstraintChecks.push(`FILTER LENGTH(endpoints) == 0 RETURN x\`).next()){`);
-                ctxt.trans.finalConstraintChecks.push(`   throw "There are object(s) breaking the @requiredForTarget directive of Field ${f} in ${type.name}!";`);
-                ctxt.trans.finalConstraintChecks.push(`}`);
-            }
-            else if (dir.name.value == '_requiredForTarget_AccordingToInterface') {
-                // The inherited/implemented variant of @requiredForTarget
-                // The target does not directly require an edge of this type, but at least one of any type implementing the interface
-                // Thankfully we got the name of the interface as a mandatory argument and can hence use this to get all types implementing it
-
-                let interfaceName = dir.arguments[0].value.value; // If we add more arguments to the directive this will fail horrible.
-                // But that should not happen (and it is quite easy to fix)
-
-                // The target type might be an interface, giving us slightly more to keep track of
-                // First, find the right collections to check
-                ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR x IN FLATTEN(FOR i IN [`);
-                addPossibleTypes(ctxt.trans.finalConstraintChecks, schema, graphql.getNamedType(field.type), ctxt);
-                // Second, count all edges ending at objects in these collections
-                ctxt.trans.finalConstraintChecks.push(`] RETURN i) LET endpoints = ( FOR v IN 1..1 INBOUND x `);
-                addPossibleEdgeTypes(ctxt.trans.finalConstraintChecks, ctxt, schema, interfaceName, field.name);
-                ctxt.trans.finalConstraintChecks.push(` RETURN v)`);
-                // If the count returns 0, we have an object breaking the directive
-                ctxt.trans.finalConstraintChecks.push(`FILTER LENGTH(endpoints) == 0 RETURN x\`).next()){`);
-                ctxt.trans.finalConstraintChecks.push(`   throw "There are object(s) breaking the inherited @_requiredForTarget_AccordingToInterface directive of Field ${f} in ${type.name}!";`);
-                ctxt.trans.finalConstraintChecks.push(`}`);
-            }
-            else if (dir.name.value == 'required' && field.name[0] == '_') {
-                // This is actually the reverse edge of a @requiredForTarget directive
-
-                let type_name = graphql.getNamedType(field.type).name
-                let pattern_string = `^_(.+?)From${type_name}$`; // get the non-reversed edge name
-                let re = new RegExp(pattern_string);
-                let field_name = re.exec(field.name)[1];
-
-                // First make sure the documment actually still exists in the collection
-                let collectionVar = asAQLVar(getCollectionVar(type.name, ctxt, true));
-                ctxt.trans.finalConstraintChecks.push(`if(db._query(aql\`FOR x IN ${collectionVar} FILTER x._id == ${id}._id RETURN x\`).next()){`);
-                // If it does exists, make sure there is at least one edge to it
-                ctxt.trans.finalConstraintChecks.push(`if(!db._query(aql\`FOR x IN 1..1 INBOUND ${id}`);
-                addPossibleEdgeTypes(ctxt.trans.finalConstraintChecks, ctxt, schema, graphql.getNamedType(field.type), field_name);
-                ctxt.trans.finalConstraintChecks.push(`RETURN x\`).next()){`);
-                ctxt.trans.finalConstraintChecks.push(`throw "Field ${f} in ${type.name} is breaking a @requiredForTarget directive (in reverse)!";`);
-                ctxt.trans.finalConstraintChecks.push(`}`);
-                ctxt.trans.finalConstraintChecks.push(`}`);
+        }
+    } else if(operation == 'addEdge'){
+        const sourceFieldName = lowercaseFirstLetter(edgeCollectionName.split(`EdgeFrom`)[0]);
+        const sourceField = sourceType.getFields()[sourceFieldName];
+        const sourceFieldDirectives = sourceField.astNode.directives.map(d => d.name.value);
+        for (const directive of sourceFieldDirectives) {
+            if(directive == 'distinct') {
+                checkDistinctDirective(ctxt, sourceType.name, sourceFieldName, sourceVar);
             }
         }
     }
+}
+
+function checkDistinctDirective(ctxt, typeName, fieldName, id){
+    const collectionName = getEdgeCollectionName(typeName, fieldName);
+    const collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
+    // The constraint is violated if the number of edges is different from the number of distinct edges.
+    const query = `LET ids = (FOR v IN 1..1 OUTBOUND ${id} ${collectionVar} RETURN v._id) RETURN COUNT_DISTINCT(ids) != COUNT(ids)`;
+    const error = `Field ${fieldName} in ${typeName} is breaking a @distinct directive!`;
+    const check = `if(db._query(aql\`${query}\`).next()){\n\t\tthrow "${error}";\n\t}`;
+    ctxt.trans.finalConstraintChecks.push(check);
 }

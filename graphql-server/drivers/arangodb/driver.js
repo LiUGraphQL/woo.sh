@@ -819,6 +819,7 @@ function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) 
 
     // directives handling
     addFinalDirectiveChecksForType(ctxt, typeToDelete, aql`${asAQLVar(resVar)}._id`, info.schema);
+
     // return promises for roots and null for nested result
     ctxt.trans.code.push(`}`);
     return isRoot ? getResult(ctxt, info, resVar) : null;
@@ -1735,6 +1736,10 @@ function addFinalDirectiveChecksForType(ctxt, schema, operation, sourceType, sou
             for (const directive of directives) {
                 if(directive == 'distinct') {
                     checkDistinctDirective(ctxt, sourceType.name, field.name, sourceVar);
+                } else if(directive == 'required') {
+                    checkRequiredDirective(ctxt, sourceType.name, field.name, sourceVar);
+                } else if(directive == 'uniqueForTarget') {
+                    checkUniqueForTargetDirective(ctxt, sourceType.name, field.name, sourceVar);
                 }
             }
         }
@@ -1747,7 +1752,7 @@ function addFinalDirectiveChecksForType(ctxt, schema, operation, sourceType, sou
                 checkDistinctDirective(ctxt, sourceType.name, sourceFieldName, sourceVar);
             }
         }
-    }
+    } 
 }
 
 function checkDistinctDirective(ctxt, typeName, fieldName, id){
@@ -1757,5 +1762,15 @@ function checkDistinctDirective(ctxt, typeName, fieldName, id){
     const query = `LET ids = (FOR v IN 1..1 OUTBOUND ${id} ${collectionVar} RETURN v._id) RETURN COUNT_DISTINCT(ids) != COUNT(ids)`;
     const error = `Field ${fieldName} in ${typeName} is breaking a @distinct directive!`;
     const check = `if(db._query(aql\`${query}\`).next()){\n\t\tthrow "${error}";\n\t}`;
+    ctxt.trans.finalConstraintChecks.push(check);
+}
+
+function checkRequiredDirective(ctxt, typeName, fieldName, id){
+    const collectionName = getEdgeCollectionName(typeName, fieldName);
+    const collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
+    // The constraint is violated if the number of edges is different from the number of distinct edges.
+    const query = `FOR v IN 1..1 OUTBOUND ${id} ${collectionVar} RETURN v._id`;
+    const error = `Field ${fieldName} in ${typeName} is breaking a @required directive!`;
+    const check = `if(!db._query(aql\`${query}\`).next()){\n\t\tthrow "${error}";\n\t}`;
     ctxt.trans.finalConstraintChecks.push(check);
 }

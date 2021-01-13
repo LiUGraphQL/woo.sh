@@ -22,12 +22,29 @@ type NoloopsTest {
     testDummyField: Int
 }
 
-type RequiredForTargetTarget {
+type RequiredTest {
+    required: RequiredField @required
+    requiredList: [RequiredField] @required
+}
+
+type RequiredField {
     testDummyField: Int
 }
 
 type RequiredForTargetTest {
     target: RequiredForTargetTarget @requiredForTarget
+}
+
+type RequiredForTargetTarget {
+    testDummyField: Int
+}
+
+type RequiredForTargetsTest {
+    targets: [RequiredForTargetsTarget] @requiredForTarget
+}
+
+type RequiredForTargetsTarget {
+    testDummyField: Int
 }
 
 type UniqueForTargetTarget {

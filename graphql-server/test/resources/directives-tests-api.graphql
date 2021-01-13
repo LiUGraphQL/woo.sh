@@ -32,32 +32,50 @@ type DistinctTest {
 type Mutation {
   createDistinctTest(data: _InputToCreateDistinctTest!): DistinctTest
   createNoloopsTest(data: _InputToCreateNoloopsTest!): NoloopsTest
-  createRequiredForTargetTarget(data: _InputToCreateRequiredForTargetTarget!): RequiredForTargetTarget
+  createRequiredTest(data: _InputToCreateRequiredTest!): RequiredTest
+  createRequiredField(data: _InputToCreateRequiredField!): RequiredField
   createRequiredForTargetTest(data: _InputToCreateRequiredForTargetTest!): RequiredForTargetTest
+  createRequiredForTargetTarget(data: _InputToCreateRequiredForTargetTarget!): RequiredForTargetTarget
+  createRequiredForTargetsTest(data: _InputToCreateRequiredForTargetsTest!): RequiredForTargetsTest
+  createRequiredForTargetsTarget(data: _InputToCreateRequiredForTargetsTarget!): RequiredForTargetsTarget
   createUniqueForTargetTarget(data: _InputToCreateUniqueForTargetTarget!): UniqueForTargetTarget
   createUniqueForTargetTest(data: _InputToCreateUniqueForTargetTest!): UniqueForTargetTest
   updateDistinctTest(id: ID!, data: _InputToUpdateDistinctTest!): DistinctTest
   updateNoloopsTest(id: ID!, data: _InputToUpdateNoloopsTest!): NoloopsTest
-  updateRequiredForTargetTarget(id: ID!, data: _InputToUpdateRequiredForTargetTarget!): RequiredForTargetTarget
+  updateRequiredTest(id: ID!, data: _InputToUpdateRequiredTest!): RequiredTest
+  updateRequiredField(id: ID!, data: _InputToUpdateRequiredField!): RequiredField
   updateRequiredForTargetTest(id: ID!, data: _InputToUpdateRequiredForTargetTest!): RequiredForTargetTest
+  updateRequiredForTargetTarget(id: ID!, data: _InputToUpdateRequiredForTargetTarget!): RequiredForTargetTarget
+  updateRequiredForTargetsTest(id: ID!, data: _InputToUpdateRequiredForTargetsTest!): RequiredForTargetsTest
+  updateRequiredForTargetsTarget(id: ID!, data: _InputToUpdateRequiredForTargetsTarget!): RequiredForTargetsTarget
   updateUniqueForTargetTarget(id: ID!, data: _InputToUpdateUniqueForTargetTarget!): UniqueForTargetTarget
   updateUniqueForTargetTest(id: ID!, data: _InputToUpdateUniqueForTargetTest!): UniqueForTargetTest
   deleteDistinctTest(id: ID!): DistinctTest
   deleteNoloopsTest(id: ID!): NoloopsTest
-  deleteRequiredForTargetTarget(id: ID!): RequiredForTargetTarget
+  deleteRequiredTest(id: ID!): RequiredTest
+  deleteRequiredField(id: ID!): RequiredField
   deleteRequiredForTargetTest(id: ID!): RequiredForTargetTest
+  deleteRequiredForTargetTarget(id: ID!): RequiredForTargetTarget
+  deleteRequiredForTargetsTest(id: ID!): RequiredForTargetsTest
+  deleteRequiredForTargetsTarget(id: ID!): RequiredForTargetsTarget
   deleteUniqueForTargetTarget(id: ID!): UniqueForTargetTarget
   deleteUniqueForTargetTest(id: ID!): UniqueForTargetTest
   createShouldBeDistinctEdgeFromDistinctTest(data: _InputToCreateShouldBeDistinctEdgeFromDistinctTest): _ShouldBeDistinctEdgeFromDistinctTest
   createPossibleLoopEdgeFromNoloopsTest(data: _InputToCreatePossibleLoopEdgeFromNoloopsTest): _PossibleLoopEdgeFromNoloopsTest
   createPossibleLoopsEdgeFromNoloopsTest(data: _InputToCreatePossibleLoopsEdgeFromNoloopsTest): _PossibleLoopsEdgeFromNoloopsTest
+  createRequiredEdgeFromRequiredTest(data: _InputToCreateRequiredEdgeFromRequiredTest): _RequiredEdgeFromRequiredTest
+  createRequiredListEdgeFromRequiredTest(data: _InputToCreateRequiredListEdgeFromRequiredTest): _RequiredListEdgeFromRequiredTest
   createTargetEdgeFromRequiredForTargetTest(data: _InputToCreateTargetEdgeFromRequiredForTargetTest): _TargetEdgeFromRequiredForTargetTest
+  createTargetsEdgeFromRequiredForTargetsTest(data: _InputToCreateTargetsEdgeFromRequiredForTargetsTest): _TargetsEdgeFromRequiredForTargetsTest
   createTargetEdgeFromUniqueForTargetTest(data: _InputToCreateTargetEdgeFromUniqueForTargetTest): _TargetEdgeFromUniqueForTargetTest
   createTargetsEdgeFromUniqueForTargetTest(data: _InputToCreateTargetsEdgeFromUniqueForTargetTest): _TargetsEdgeFromUniqueForTargetTest
   deleteShouldBeDistinctEdgeFromDistinctTest(id: ID!): _ShouldBeDistinctEdgeFromDistinctTest
   deletePossibleLoopEdgeFromNoloopsTest(id: ID!): _PossibleLoopEdgeFromNoloopsTest
   deletePossibleLoopsEdgeFromNoloopsTest(id: ID!): _PossibleLoopsEdgeFromNoloopsTest
+  deleteRequiredEdgeFromRequiredTest(id: ID!): _RequiredEdgeFromRequiredTest
+  deleteRequiredListEdgeFromRequiredTest(id: ID!): _RequiredListEdgeFromRequiredTest
   deleteTargetEdgeFromRequiredForTargetTest(id: ID!): _TargetEdgeFromRequiredForTargetTest
+  deleteTargetsEdgeFromRequiredForTargetsTest(id: ID!): _TargetsEdgeFromRequiredForTargetsTest
   deleteTargetEdgeFromUniqueForTargetTest(id: ID!): _TargetEdgeFromUniqueForTargetTest
   deleteTargetsEdgeFromUniqueForTargetTest(id: ID!): _TargetsEdgeFromUniqueForTargetTest
 }
@@ -80,22 +98,44 @@ type NoloopsTest {
 type Query {
   distinctTest(id: ID!): DistinctTest
   noloopsTest(id: ID!): NoloopsTest
-  requiredForTargetTarget(id: ID!): RequiredForTargetTarget
+  requiredTest(id: ID!): RequiredTest
+  requiredField(id: ID!): RequiredField
   requiredForTargetTest(id: ID!): RequiredForTargetTest
+  requiredForTargetTarget(id: ID!): RequiredForTargetTarget
+  requiredForTargetsTest(id: ID!): RequiredForTargetsTest
+  requiredForTargetsTarget(id: ID!): RequiredForTargetsTarget
   uniqueForTargetTarget(id: ID!): UniqueForTargetTarget
   uniqueForTargetTest(id: ID!): UniqueForTargetTest
   listOfDistinctTests(first: Int=10, after: ID="", filter: _FilterForDistinctTest): _ListOfDistinctTests
   listOfNoloopsTests(first: Int=10, after: ID="", filter: _FilterForNoloopsTest): _ListOfNoloopsTests
-  listOfRequiredForTargetTargets(first: Int=10, after: ID="", filter: _FilterForRequiredForTargetTarget): _ListOfRequiredForTargetTargets
+  listOfRequiredTests(first: Int=10, after: ID="", filter: _FilterForRequiredTest): _ListOfRequiredTests
+  listOfRequiredFields(first: Int=10, after: ID="", filter: _FilterForRequiredField): _ListOfRequiredFields
   listOfRequiredForTargetTests(first: Int=10, after: ID="", filter: _FilterForRequiredForTargetTest): _ListOfRequiredForTargetTests
+  listOfRequiredForTargetTargets(first: Int=10, after: ID="", filter: _FilterForRequiredForTargetTarget): _ListOfRequiredForTargetTargets
+  listOfRequiredForTargetsTests(first: Int=10, after: ID="", filter: _FilterForRequiredForTargetsTest): _ListOfRequiredForTargetsTests
+  listOfRequiredForTargetsTargets(first: Int=10, after: ID="", filter: _FilterForRequiredForTargetsTarget): _ListOfRequiredForTargetsTargets
   listOfUniqueForTargetTargets(first: Int=10, after: ID="", filter: _FilterForUniqueForTargetTarget): _ListOfUniqueForTargetTargets
   listOfUniqueForTargetTests(first: Int=10, after: ID="", filter: _FilterForUniqueForTargetTest): _ListOfUniqueForTargetTests
   _ShouldBeDistinctEdgeFromDistinctTest(id: ID!): _ShouldBeDistinctEdgeFromDistinctTest
   _PossibleLoopEdgeFromNoloopsTest(id: ID!): _PossibleLoopEdgeFromNoloopsTest
   _PossibleLoopsEdgeFromNoloopsTest(id: ID!): _PossibleLoopsEdgeFromNoloopsTest
+  _RequiredEdgeFromRequiredTest(id: ID!): _RequiredEdgeFromRequiredTest
+  _RequiredListEdgeFromRequiredTest(id: ID!): _RequiredListEdgeFromRequiredTest
   _TargetEdgeFromRequiredForTargetTest(id: ID!): _TargetEdgeFromRequiredForTargetTest
+  _TargetsEdgeFromRequiredForTargetsTest(id: ID!): _TargetsEdgeFromRequiredForTargetsTest
   _TargetEdgeFromUniqueForTargetTest(id: ID!): _TargetEdgeFromUniqueForTargetTest
   _TargetsEdgeFromUniqueForTargetTest(id: ID!): _TargetsEdgeFromUniqueForTargetTest
+}
+
+type RequiredField {
+  testDummyField: Int
+  id: ID!
+  _requiredFromRequiredTest(filter: _FilterForRequiredTest): [RequiredTest]
+  _requiredListFromRequiredTest(filter: _FilterForRequiredTest): [RequiredTest]
+  _incomingRequiredEdgeFromRequiredTest(filter: _FilterForRequiredEdgeFromRequiredTest): [_RequiredEdgeFromRequiredTest]
+  _incomingRequiredListEdgeFromRequiredTest(filter: _FilterForRequiredListEdgeFromRequiredTest): [_RequiredListEdgeFromRequiredTest]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
 }
 
 type RequiredForTargetTarget {
@@ -111,6 +151,33 @@ type RequiredForTargetTest {
   target: RequiredForTargetTarget @requiredForTarget
   id: ID!
   _outgoingTargetEdgesFromRequiredForTargetTest: _TargetEdgeFromRequiredForTargetTest
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type RequiredForTargetsTarget {
+  testDummyField: Int
+  id: ID!
+  _targetsFromRequiredForTargetsTest(filter: _FilterForRequiredForTargetsTest): [RequiredForTargetsTest] @required
+  _incomingTargetsEdgeFromRequiredForTargetsTest(filter: _FilterForTargetsEdgeFromRequiredForTargetsTest): [_TargetsEdgeFromRequiredForTargetsTest]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type RequiredForTargetsTest {
+  targets(filter: _FilterForRequiredForTargetsTarget): [RequiredForTargetsTarget] @requiredForTarget
+  id: ID!
+  _outgoingTargetsEdgesFromRequiredForTargetsTest(filter: _FilterForTargetsEdgeFromRequiredForTargetsTest): [_TargetsEdgeFromRequiredForTargetsTest]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type RequiredTest {
+  required: RequiredField @required
+  requiredList(filter: _FilterForRequiredField): [RequiredField] @required
+  id: ID!
+  _outgoingRequiredEdgesFromRequiredTest: _RequiredEdgeFromRequiredTest
+  _outgoingRequiredListEdgesFromRequiredTest(filter: _FilterForRequiredListEdgeFromRequiredTest): [_RequiredListEdgeFromRequiredTest]
   _creationDate: DateTime!
   _lastUpdateDate: DateTime
 }
@@ -190,6 +257,25 @@ input _FilterForPossibleLoopsEdgeFromNoloopsTest {
   _lastUpdateDate: _DateTimeFilter
 }
 
+input _FilterForRequiredEdgeFromRequiredTest {
+  _and: [_FilterForRequiredEdgeFromRequiredTest]
+  _or: [_FilterForRequiredEdgeFromRequiredTest]
+  _not: _FilterForRequiredEdgeFromRequiredTest
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForRequiredField {
+  _and: [_FilterForRequiredField]
+  _or: [_FilterForRequiredField]
+  _not: _FilterForRequiredField
+  testDummyField: _IntFilter
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
 input _FilterForRequiredForTargetTarget {
   _and: [_FilterForRequiredForTargetTarget]
   _or: [_FilterForRequiredForTargetTarget]
@@ -204,6 +290,43 @@ input _FilterForRequiredForTargetTest {
   _and: [_FilterForRequiredForTargetTest]
   _or: [_FilterForRequiredForTargetTest]
   _not: _FilterForRequiredForTargetTest
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForRequiredForTargetsTarget {
+  _and: [_FilterForRequiredForTargetsTarget]
+  _or: [_FilterForRequiredForTargetsTarget]
+  _not: _FilterForRequiredForTargetsTarget
+  testDummyField: _IntFilter
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForRequiredForTargetsTest {
+  _and: [_FilterForRequiredForTargetsTest]
+  _or: [_FilterForRequiredForTargetsTest]
+  _not: _FilterForRequiredForTargetsTest
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForRequiredListEdgeFromRequiredTest {
+  _and: [_FilterForRequiredListEdgeFromRequiredTest]
+  _or: [_FilterForRequiredListEdgeFromRequiredTest]
+  _not: _FilterForRequiredListEdgeFromRequiredTest
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForRequiredTest {
+  _and: [_FilterForRequiredTest]
+  _or: [_FilterForRequiredTest]
+  _not: _FilterForRequiredTest
   id: _IDFilter
   _creationDate: _DateTimeFilter
   _lastUpdateDate: _DateTimeFilter
@@ -231,6 +354,15 @@ input _FilterForTargetEdgeFromUniqueForTargetTest {
   _and: [_FilterForTargetEdgeFromUniqueForTargetTest]
   _or: [_FilterForTargetEdgeFromUniqueForTargetTest]
   _not: _FilterForTargetEdgeFromUniqueForTargetTest
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForTargetsEdgeFromRequiredForTargetsTest {
+  _and: [_FilterForTargetsEdgeFromRequiredForTargetsTest]
+  _or: [_FilterForTargetsEdgeFromRequiredForTargetsTest]
+  _not: _FilterForTargetsEdgeFromRequiredForTargetsTest
   id: _IDFilter
   _creationDate: _DateTimeFilter
   _lastUpdateDate: _DateTimeFilter
@@ -300,6 +432,16 @@ input _InputToConnectPossibleLoopsOfNoloopsTest {
   create: _InputToCreateNoloopsTest
 }
 
+input _InputToConnectRequiredListOfRequiredTest {
+  connect: ID
+  create: _InputToCreateRequiredField
+}
+
+input _InputToConnectRequiredOfRequiredTest {
+  connect: ID
+  create: _InputToCreateRequiredField
+}
+
 input _InputToConnectShouldBeDistinctOfDistinctTest {
   connect: ID
   create: _InputToCreateDistinctTest
@@ -313,6 +455,11 @@ input _InputToConnectTargetOfRequiredForTargetTest {
 input _InputToConnectTargetOfUniqueForTargetTest {
   connect: ID
   create: _InputToCreateUniqueForTargetTarget
+}
+
+input _InputToConnectTargetsOfRequiredForTargetsTest {
+  connect: ID
+  create: _InputToCreateRequiredForTargetsTarget
 }
 
 input _InputToConnectTargetsOfUniqueForTargetTest {
@@ -341,12 +488,39 @@ input _InputToCreatePossibleLoopsEdgeFromNoloopsTest {
   targetID: ID!
 }
 
+input _InputToCreateRequiredEdgeFromRequiredTest {
+  sourceID: ID!
+  targetID: ID!
+}
+
+input _InputToCreateRequiredField {
+  testDummyField: Int
+}
+
 input _InputToCreateRequiredForTargetTarget {
   testDummyField: Int
 }
 
 input _InputToCreateRequiredForTargetTest {
   target: _InputToConnectTargetOfRequiredForTargetTest @requiredForTarget
+}
+
+input _InputToCreateRequiredForTargetsTarget {
+  testDummyField: Int
+}
+
+input _InputToCreateRequiredForTargetsTest {
+  targets: [_InputToConnectTargetsOfRequiredForTargetsTest] @requiredForTarget
+}
+
+input _InputToCreateRequiredListEdgeFromRequiredTest {
+  sourceID: ID!
+  targetID: ID!
+}
+
+input _InputToCreateRequiredTest {
+  required: _InputToConnectRequiredOfRequiredTest
+  requiredList: [_InputToConnectRequiredListOfRequiredTest]
 }
 
 input _InputToCreateShouldBeDistinctEdgeFromDistinctTest {
@@ -360,6 +534,11 @@ input _InputToCreateTargetEdgeFromRequiredForTargetTest {
 }
 
 input _InputToCreateTargetEdgeFromUniqueForTargetTest {
+  sourceID: ID!
+  targetID: ID!
+}
+
+input _InputToCreateTargetsEdgeFromRequiredForTargetsTest {
   sourceID: ID!
   targetID: ID!
 }
@@ -389,12 +568,29 @@ input _InputToUpdateNoloopsTest {
   testDummyField: Int
 }
 
+input _InputToUpdateRequiredField {
+  testDummyField: Int
+}
+
 input _InputToUpdateRequiredForTargetTarget {
   testDummyField: Int
 }
 
 input _InputToUpdateRequiredForTargetTest {
   target: _InputToConnectTargetOfRequiredForTargetTest @requiredForTarget
+}
+
+input _InputToUpdateRequiredForTargetsTarget {
+  testDummyField: Int
+}
+
+input _InputToUpdateRequiredForTargetsTest {
+  targets: [_InputToConnectTargetsOfRequiredForTargetsTest] @requiredForTarget
+}
+
+input _InputToUpdateRequiredTest {
+  required: _InputToConnectRequiredOfRequiredTest
+  requiredList: [_InputToConnectRequiredListOfRequiredTest]
 }
 
 input _InputToUpdateUniqueForTargetTarget {
@@ -429,6 +625,12 @@ type _ListOfNoloopsTests {
   content: [NoloopsTest]!
 }
 
+type _ListOfRequiredFields {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [RequiredField]!
+}
+
 type _ListOfRequiredForTargetTargets {
   totalCount: Int!
   isEndOfWholeList: Boolean!
@@ -439,6 +641,24 @@ type _ListOfRequiredForTargetTests {
   totalCount: Int!
   isEndOfWholeList: Boolean!
   content: [RequiredForTargetTest]!
+}
+
+type _ListOfRequiredForTargetsTargets {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [RequiredForTargetsTarget]!
+}
+
+type _ListOfRequiredForTargetsTests {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [RequiredForTargetsTest]!
+}
+
+type _ListOfRequiredTests {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [RequiredTest]!
 }
 
 type _ListOfUniqueForTargetTargets {
@@ -465,6 +685,22 @@ type _PossibleLoopsEdgeFromNoloopsTest {
   id: ID!
   source: NoloopsTest!
   target: NoloopsTest!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type _RequiredEdgeFromRequiredTest {
+  id: ID!
+  source: RequiredTest!
+  target: RequiredField!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type _RequiredListEdgeFromRequiredTest {
+  id: ID!
+  source: RequiredTest!
+  target: RequiredField!
   _creationDate: DateTime!
   _lastUpdateDate: DateTime
 }
@@ -504,6 +740,14 @@ type _TargetEdgeFromUniqueForTargetTest {
   id: ID!
   source: UniqueForTargetTest!
   target: UniqueForTargetTarget!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type _TargetsEdgeFromRequiredForTargetsTest {
+  id: ID!
+  source: RequiredForTargetsTest!
+  target: RequiredForTargetsTarget!
   _creationDate: DateTime!
   _lastUpdateDate: DateTime
 }

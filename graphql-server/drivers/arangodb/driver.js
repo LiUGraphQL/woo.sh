@@ -323,10 +323,10 @@ function getObjectOrInterfaceFields(type) {
  * @param validateTarget = true (optional)
  * @returns {null|Promise<any>}
  */
-function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrTargetID, targetType, annotations, info, resVar = null, validateSource = true, validateTarget = true) {
+function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceFieldName, varOrTargetID, targetType, annotations, info, resVar = null, validateSource = true, validateTarget = true) {
     // init transaction (if not already defined)
     initTransaction(ctxt);
-    const collectionName = getEdgeCollectionName(sourceType.name, sourceField);
+    const collectionName = getEdgeCollectionName(sourceType.name, sourceFieldName);
     const collectionVar = getCollectionVar(collectionName, ctxt, true);
     ctxt.trans.code.push(`\n\t/* createEdge ${collectionName} */`);
 
@@ -357,7 +357,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     const docVar = addParameterVar(ctxt, createParamVar(ctxt), doc);
 
     // validate edge
-    validateEdge(ctxt, source, sourceType, sourceField, target, targetType, info, validateSource, validateTarget);
+    validateEdge(ctxt, source, sourceType, sourceFieldName, target, targetType, info, validateSource, validateTarget);
 
     // insert edge
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`INSERT MERGE(${asAQLVar(docVar)}, ${stringifyImportedFields(substitutedFields)}, {'_from': ${source}, '_to': ${target} }) IN ${asAQLVar(collectionVar)} RETURN NEW\`).next();`);
@@ -365,8 +365,8 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
     // add exported variables from selection fields for root only
     addExportedVariables(isRoot, resVar, info, ctxt);
 
-    // directives handling (check with respect to source and target)
-    addFinalDirectiveChecksForType(ctxt, info.schema, "addEdge", sourceType, asAQLVar(sourceVar), collectionName, targetType, asAQLVar(targetVar));
+    // directives handling
+    addDirectiveChecks(ctxt, info, 'addEdge', source, sourceType, target, targetType, sourceFieldName);
 
     // return promises for roots and null for nested result
     return isRoot ? getResult(ctxt, info, resVar) : null;
@@ -383,7 +383,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceField, varOrT
  * @param resVar
  * @returns {null|Promise<any>}
  */
-function create(isRoot, ctxt, data, returnType, info, resVar = null) {
+function create(isRoot, ctxt, data, returnType, info, resVar=null) {
     // init transaction
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* create ${returnType.name} */`);
@@ -450,14 +450,12 @@ function create(isRoot, ctxt, data, returnType, info, resVar = null) {
     // validate key
     validateKey(ctxt, resVar, returnType, info);
     
-    // add final directives check
-    let resVarId = isVar(resVar) ? resVar : addParameterVar(ctxt, createParamVar(ctxt), {'_id': resVar});
-    addFinalDirectiveChecksForType(ctxt, info.schema, "addObject", returnType, asAQLVar(resVarId));
+    // add directives checks
+    addDirectiveChecks(ctxt, info, 'addObject', asAQLVar(resVar + '._id'), returnType);
 
     // return promises for roots and null for nested result
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
-
 
 /**
  * Update an edge.
@@ -719,7 +717,7 @@ function update(isRoot, ctxt, varOrID, data, returnType, info, resVar = null) {
     validateKey(ctxt, resVar, returnType, info);
     // directives handling
     let resVarId = isVar(resVar) ? resVar : addParameterVar(ctxt, createParamVar(ctxt), { '_id': resVar });
-    addFinalDirectiveChecksForType(ctxt, returnType, asAQLVar(resVarId), info.schema);
+    //addFinalDirectiveChecksForType(ctxt, returnType, asAQLVar(resVarId), info.schema);
     // return promises for roots and null for nested result
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
@@ -736,11 +734,15 @@ function update(isRoot, ctxt, varOrID, data, returnType, info, resVar = null) {
  * @param resVar
  * @returns {null|Promise<any>}
  */
-function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null) {
+function deleteEdge(isRoot, ctxt, varOrID, edgeName, sourceType, info, resVar = null) {
     // init transaction
     initTransaction(ctxt);
     ctxt.trans.code.push(`\n\t/* delete edge ${edgeName} */`);
-    let idVar = addParameterVar(ctxt, createParamVar(ctxt), id);
+
+    // inject variable value
+    varOrID = getExportedValue(varOrID, ctxt);
+    // define as AQL var
+    const idVar = isVar(varOrID) ? varOrID : addParameterVar(ctxt, createParamVar(ctxt), varOrID);
 
     // create a new resVar if not defined by the calling function, resVar is the source vertex for all edges
     resVar = resVar !== null ? resVar : createVar(ctxt);
@@ -748,12 +750,15 @@ function deleteEdge(isRoot, ctxt, id, edgeName, sourceType, info, resVar = null)
 
     // return null if the key does not exists in the collection (i.e., don't throw error)
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next();`);
-    ctxt.trans.code.push(`if(${resVar}){`);
 
     // directives handling
-    addFinalDirectiveChecksForType(ctxt, sourceType, aql`${asAQLVar(resVar)}._source`, info.schema);
+    let source = `${asAQLVar(resVar)}._from`;
+    let fieldName = lowercaseFirstLetter(edgeName.split(`EdgeFrom`)[0]);
+    let target = `${asAQLVar(resVar)}._to`;
+    let targetType = sourceType.getFields()[fieldName].type;
+    addDirectiveChecks(ctxt, info, 'deleteEdge', source, sourceType, target, targetType, fieldName);
+
     // return promises for roots and null for nested result
-    ctxt.trans.code.push(`}`);
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
@@ -800,25 +805,27 @@ function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) 
         // delete edges
         if (graphql.isObjectType(t)) {
             if (field.name[0] == '_') {
-                // delete return edge
-                let type_name = graphql.getNamedType(field.type).name
-                let pattern_string = `^_(.+?)From${type_name}$`; // get the non-reversed edge name
-                let re = new RegExp(pattern_string);
-                let field_name = re.exec(field.name)[1];
-                let collectionName = getEdgeCollectionName(type_name, field_name);
-                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x._from == ${asAQLVar(resVar)}._id OR x._to == ${asAQLVar(resVar)}._id REMOVE x IN ${collectionVar}\`);`);
+                // delete incoming edge
+                let targetType = graphql.getNamedType(field.type);
+                //let pattern_string = `^_(.+?)From${type_name}$`; // get the non-reversed edge name
+                //let re = new RegExp(pattern_string);
+                //let field_name = re.exec(field.name)[1];
+                let fieldName = field.name.split('From')[0].substr(1);
+                let edgeCollectionName = getEdgeCollectionName(targetType.name, fieldName);
+                let edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true));
+                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${edgeCollectionVar} FILTER x._to == ${asAQLVar(resVar)}._id REMOVE x IN ${edgeCollectionVar}\`);`);
             } else {
-                // delete normal edge
-                let collectionName = getEdgeCollectionName(typeToDelete.name, field.name);
-                let collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x._from == ${asAQLVar(resVar)}._id OR x._to == ${asAQLVar(resVar)}._id REMOVE x IN ${collectionVar}\`);`);
+                // delete outgoing edge
+                let edgeCollectionName = getEdgeCollectionName(typeToDelete.name, field.name);
+                let edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true));
+                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${edgeCollectionVar} FILTER x._from == ${asAQLVar(resVar)}._id REMOVE x IN ${edgeCollectionVar}\`);`);
+                //ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x._from == ${asAQLVar(resVar)}._id OR x._to == ${asAQLVar(resVar)}._id REMOVE x IN ${collectionVar}\`);`);
             }
         }
     }
 
     // directives handling
-    addFinalDirectiveChecksForType(ctxt, typeToDelete, aql`${asAQLVar(resVar)}._id`, info.schema);
+    //addFinalDirectiveChecksForType(ctxt, typeToDelete, aql`${asAQLVar(resVar)}._id`, info.schema);
 
     // return promises for roots and null for nested result
     ctxt.trans.code.push(`}`);
@@ -1317,6 +1324,7 @@ async function executeTransaction(ctxt) {
     ctxt.trans.open = false;
 
     // add all finalConstraintChecks to code before executing
+    ctxt.trans.code.push('\n\t/* add directive checks */');
     for (const row of ctxt.trans.finalConstraintChecks) {
         ctxt.trans.code.push(row);
     }
@@ -1716,71 +1724,183 @@ function addPossibleEdgeTypes(query, ctxt, schema, type_name, field_name) {
 }
 
 /**
- * Append finalConstraintChecks to ctxt for all directives of all fields in input type
- * @param ctxt (modifies)
- * @param type
- * @param resVar
- * @param schema
- * @param operation = null (optional)
+ * Add directive checks.
+ * 
+ * @param {*} ctxt 
+ * @param {*} info 
+ * @param {*} opType 
+ * @param {*} source Var or ID
+ * @param {*} sourceType
+ * @param {*} target Var or ID
+ * @param {*} targetType
+ * @param {*} fieldName
  */
-function addFinalDirectiveChecksForType(ctxt, schema, operation, sourceType, sourceVar, edgeCollectionName=null, targetType=null, targetVar=null) {
-    if (disableDirectivesChecking) {
-        console.debug('Directives checking disabled');
-        return;
-    }
+function addDirectiveChecks(ctxt, info, opType, source, sourceType, target=null, targetType=null, fieldName=null){
+    // get the inner types for source and target
+    sourceType = graphql.getNamedType(sourceType);
+    targetType = targetType != null ? graphql.getNamedType(targetType): null;
 
-    if(operation == 'addObject'){
+    if(opType == 'addObject'){
+        const fields = Object.values(sourceType.getFields());
+        for (const field of fields){
+            const sourceFieldDirectives = field.astNode.directives.map(d => d.name.value);
+            // check @distinct (for source field)
+            if(sourceFieldDirectives.includes('distinct')) {
+                checkDistinctDirective(ctxt, source, sourceType, field.name);
+            }
+            // check @required (for source field)
+            if(sourceFieldDirectives.includes('required')) {
+                if(field.name.startsWith('_')) {
+                    // check as @requiredForTarget
+                    let reverseFieldName = field.name.split('From')[0].substr(1);
+                    let reverseSourceType = info.schema.getTypeMap()[field.name.split('From')[1]];
+                    checkRequiredForTargetDirective(ctxt, source, sourceType, reverseSourceType, reverseFieldName);
+                } else {
+                    checkRequiredDirective(ctxt, source, sourceType, field.name);
+                }
+            }
+            // check @uniqueForTarget (for source field)
+            // TODO: uniqueForTarget
+        }
+    } else if(opType == 'deleteObject') {
+        // deleting an object removes it's edges, which means that directives are covered by 'deleteEdge'
+    } else if(opType == 'addEdge'){
+        // check @distinct (for source field)
+        const sourceField = sourceType.getFields()[fieldName];
+        const sourceFieldDirectives = sourceField.astNode.directives.map(d => d.name.value);
+        if(sourceFieldDirectives.includes('distinct')) {
+            checkDistinctDirective(ctxt, source, sourceType, fieldName);
+        }
+        // check @uniqueForTarget (for target field)
+        if(sourceFieldDirectives.includes('uniqueForTarget')) {
+            checkUniqueForTargetDirective(ctxt, target, sourceType, fieldName);
+        }
+        // check @noloops (for target field)
+        if(sourceFieldDirectives.includes('noloops')) {
+            checkNoloopsDirective(ctxt, source, sourceType, fieldName);
+        }
+    } else if(opType == 'deleteEdge'){
+        // check @required (for source field)
+        const sourceField = sourceType.getFields()[fieldName];
+        const sourceFieldDirectives = sourceField.astNode.directives.map(d => d.name.value);
+        if(sourceFieldDirectives.includes('required')) {
+            checkRequiredDirective(ctxt, source, sourceType, fieldName);
+        }
+
+        // check @requiredForTarget (for target)
+        if(sourceFieldDirectives.includes('requiredForTarget')) {
+            checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, fieldName);
+        }
+
+        // check @requiredForTarget (for target field)
+        //if(sourceFieldDirectives.includes('requiredForTarget')) {
+        //    checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, fieldName);
+        //}
+    } else {
         const fields = Object.values(sourceType.getFields());
         for (const field of fields){
             const directives = field.astNode.directives.map(d => d.name.value);
             for (const directive of directives) {
-                if(directive == 'distinct') {
-                    checkDistinctDirective(ctxt, sourceType.name, field.name, sourceVar);
-                } else if(directive == 'required') {
-                    checkRequiredDirective(ctxt, sourceType.name, field.name, sourceVar);
-                } else if(directive == 'uniqueForTarget') {
-                    checkUniqueForTargetDirective(ctxt, sourceType.name, field.name, sourceVar);
-                }
+                        
             }
         }
-    } else if(operation == 'addEdge'){
-        const sourceFieldName = lowercaseFirstLetter(edgeCollectionName.split(`EdgeFrom`)[0]);
-        const sourceField = sourceType.getFields()[sourceFieldName];
-        const sourceFieldDirectives = sourceField.astNode.directives.map(d => d.name.value);
-        for (const directive of sourceFieldDirectives) {
-            if(directive == 'distinct') {
-                checkDistinctDirective(ctxt, sourceType.name, sourceFieldName, sourceVar);
-            }
-        }
-    } 
+    }
 }
 
-function checkDistinctDirective(ctxt, typeName, fieldName, id){
-    const collectionName = getEdgeCollectionName(typeName, fieldName);
+/**
+ * Check @distinct directive.
+ * @param {*} ctxt 
+ * @param {*} sourceId 
+ * @param {*} type 
+ * @param {*} fieldName 
+ */
+function checkDistinctDirective(ctxt, sourceId, sourceType, fieldName){
+    const collectionName = getEdgeCollectionName(sourceType.name, fieldName);
     const collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
     // The constraint is violated if the number of edges is different from the number of distinct edges.
-    const query = `LET ids = (FOR v IN 1..1 OUTBOUND ${id} ${collectionVar} RETURN v._id) RETURN COUNT_DISTINCT(ids) != COUNT(ids)`;
-    const error = `Field ${fieldName} in ${typeName} is breaking a @distinct directive!`;
+    const query = `LET ids = (FOR v IN 1..1 OUTBOUND ${sourceId} ${collectionVar} RETURN v._id) RETURN COUNT_DISTINCT(ids) != COUNT(ids)`;
+    const error = `Field ${fieldName} in ${sourceType.name} is breaking a @distinct directive!`;
     const check = `if(db._query(aql\`${query}\`).next()){\n\t\tthrow "${error}";\n\t}`;
     ctxt.trans.finalConstraintChecks.push(check);
 }
 
-function checkRequiredDirective(ctxt, typeName, fieldName, id){
-    const collectionName = getEdgeCollectionName(typeName, fieldName);
-    const collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-    // The constraint is violated if the number of edges is different from the number of distinct edges.
-    const query = `FOR v IN 1..1 OUTBOUND ${id} ${collectionVar} RETURN v._id`;
-    const error = `Field ${fieldName} in ${typeName} is breaking a @required directive!`;
-    const check = `if(!db._query(aql\`${query}\`).next()){\n\t\tthrow "${error}";\n\t}`;
+/**
+ * Check @required directive.
+ * @param {*} ctxt 
+ * @param {*} id 
+ * @param {*} type 
+ * @param {*} fieldName
+ */                          
+function checkRequiredDirective(ctxt, sourceId, sourceType, fieldName){
+    const sourceCollectionVar = asAQLVar(getCollectionVar(sourceType.name, ctxt, true));
+    const edgeCollectionName = getEdgeCollectionName(sourceType.name, fieldName);
+    const edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true));
+    // The constraint is violated if the object exists and the number of outgoing edges is 0
+    let exists = `FOR d IN ${sourceCollectionVar} FILTER d._id == ${sourceId} LIMIT 1 RETURN d`;
+    let getEdges = `FOR v IN 1..1 OUTBOUND ${sourceId} ${edgeCollectionVar} RETURN v._id`;
+    let error = `Field ${fieldName} in ${sourceType.name} is breaking a @required directive!`;
+    //const check = `if(!db._query(aql\`${query}\`).next()){\n\t\tthrow "${error}";\n\t}`;
+    let check =`if(db._query(aql\`${exists}\`).hasNext()){
+            if(!db._query(aql\`${getEdges}\`).hasNext()){
+                throw "${error}";
+            }
+        }`;
     ctxt.trans.finalConstraintChecks.push(check);
 }
 
-function checkUniqueForTargetDirective(ctxt, typeName, fieldName, id){
-    const collectionName = getEdgeCollectionName(typeName, fieldName);
+/**
+ * Check @requiredForTarget directive.
+ * @param {*} ctxt 
+ * @param {*} targetId
+ * @param {*} sourceType
+ * @param {*} fieldName
+ */
+function checkRequiredForTargetDirective(ctxt, targetId, targetType, sourceType, fieldName){
+    const edgeCollectionName = getEdgeCollectionName(sourceType.name, fieldName);
+    const edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true));
+    const targetCollectionVar = asAQLVar(getCollectionVar(targetType.name, ctxt, true));
+    
+    // The constraint is not violated if the object does exists AND has zero incoming edges
+    let exists = `FOR d IN ${targetCollectionVar} FILTER d._id == ${targetId} LIMIT 1 RETURN d`;
+    let getEdges = `FOR v IN 1..1 INBOUND ${targetId} ${edgeCollectionVar} LIMIT 1 RETURN v`;
+    let error = `Field ${fieldName} in ${sourceType.name} is breaking a @requiredForTarget directive!`;
+    let check =`if(db._query(aql\`${exists}\`).hasNext()){
+                if(!db._query(aql\`${getEdges}\`).hasNext()){
+                    throw "${error}";
+                }
+            }`;
+    ctxt.trans.finalConstraintChecks.push(check);
+}
+
+/**
+ * Check @uniqueForRequired directive.
+ * @param {*} ctxt 
+ * @param {*} targetId 
+ * @param {*} sourceType 
+ * @param {*} fieldName 
+ */
+function checkUniqueForTargetDirective(ctxt, targetId, sourceType, fieldName){
+    const collectionName = getEdgeCollectionName(sourceType.name, fieldName);
     const collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
     // The constraint is violated if the number of returning edges is greater than 1.
-    const query = `RETURN COUNT(FOR v1 IN 1..1 OUTBOUND ${id} ${collectionVar} FOR v2 IN 1..1 INBOUND v1._id ${collectionVar} COLLECT ids = v2._id RETURN ids)`;
-    const error = `Field ${fieldName} in ${typeName} is breaking a @uniqueForTarget directive!`;
+    const query = `RETURN COUNT(FOR v1 IN 1..1 OUTBOUND ${targetId} ${collectionVar} FOR v2 IN 1..1 INBOUND v1._id ${collectionVar} COLLECT ids = v2._id RETURN ids)`;
+    const error = `Field ${fieldName} in ${sourceType.name} is breaking a @uniqueForTarget directive!`;
     const check = `if(db._query(aql\`${query}\`).next() > 1){\n\t\tthrow "${error}";\n\t}`;
+    ctxt.trans.finalConstraintChecks.push(check);
+}
+
+/**
+ * Check @noloops directive.
+ * @param {*} ctxt 
+ * @param {*} sourceId 
+ * @param {*} sourceType 
+ * @param {*} fieldName 
+ */
+function checkNoloopsDirective(ctxt, sourceId, sourceType, fieldName){
+    const collectionName = getEdgeCollectionName(sourceType.name, fieldName);
+    const collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
+    const query = `FOR v IN 1..1 OUTBOUND ${sourceId} ${collectionVar} FILTER v._id == ${sourceId} RETURN v`;
+    const error = `Field ${fieldName} in ${sourceType.name} is breaking a @noloops directive!`;
+    const check = `if(db._query(aql\`${query}\`).next()){ throw "${error}" }`;
     ctxt.trans.finalConstraintChecks.push(check);
 }

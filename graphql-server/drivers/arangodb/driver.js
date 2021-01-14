@@ -749,7 +749,7 @@ function deleteEdge(isRoot, ctxt, varOrID, edgeName, sourceType, info, resVar = 
     let collectionVar = getCollectionVar(edgeName, ctxt, true);
 
     // return null if the key does not exists in the collection (i.e., don't throw error)
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next();`);
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next() || {};`);
 
     // directives handling
     let source = `${asAQLVar(resVar)}._from`;
@@ -790,45 +790,51 @@ function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) 
     // delete document
     // return null if the key does not exists in the collection (i.e., don't throw error)
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next();`);
-    ctxt.trans.code.push(`if(${resVar}){`);
+
+    //ctxt.trans.code.push(`if(${resVar}){`);
 
     // delete every edge either targeting, or originating from id
     for (let i in typeToDelete.getFields()) {
         let field = typeToDelete.getFields()[i];
-        let t = graphql.getNamedType(field.type);
-
+        let fieldType = graphql.getNamedType(field.type);
+        
         // deleted by default behavior, ignore
-        if (field.name.startsWith('_incoming') || field.name.startsWith('_outgoing') || (field.name.startsWith('_') && graphql.isInterfaceType(t))) {
+        if (field.name.startsWith('_incoming') || field.name.startsWith('_outgoing')) { //|| (field.name.startsWith('_'))) { // && graphql.isInterfaceType(fieldType)
             continue;
         }
-
+        
         // delete edges
-        if (graphql.isObjectType(t)) {
+        if (graphql.isObjectType(fieldType)) {
+            let fieldName = field.name;
+            let sourceType = typeToDelete;
+            let targetType = fieldType;
+            let deleteVar = createVar(ctxt);
+
             if (field.name[0] == '_') {
+                // flip fields
+                fieldName = field.name.split('From')[0].substr(1);
+                sourceType = fieldType;
+                targetType = typeToDelete;
+
                 // delete incoming edge
-                let targetType = graphql.getNamedType(field.type);
-                //let pattern_string = `^_(.+?)From${type_name}$`; // get the non-reversed edge name
-                //let re = new RegExp(pattern_string);
-                //let field_name = re.exec(field.name)[1];
-                let fieldName = field.name.split('From')[0].substr(1);
-                let edgeCollectionName = getEdgeCollectionName(targetType.name, fieldName);
+                let edgeCollectionName = getEdgeCollectionName(fieldType.name, fieldName);
                 let edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true));
-                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${edgeCollectionVar} FILTER x._to == ${asAQLVar(resVar)}._id REMOVE x IN ${edgeCollectionVar}\`);`);
+                ctxt.trans.code.push(`let ${deleteVar} = db._query(aql\`FOR x IN ${edgeCollectionVar} FILTER x._to == ${asAQLVar(resVar)}._id REMOVE x IN ${edgeCollectionVar} RETURN OLD\`).next() || {};`);
             } else {
                 // delete outgoing edge
                 let edgeCollectionName = getEdgeCollectionName(typeToDelete.name, field.name);
                 let edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true));
-                ctxt.trans.code.push(`db._query(aql\`FOR x IN ${edgeCollectionVar} FILTER x._from == ${asAQLVar(resVar)}._id REMOVE x IN ${edgeCollectionVar}\`);`);
-                //ctxt.trans.code.push(`db._query(aql\`FOR x IN ${collectionVar} FILTER x._from == ${asAQLVar(resVar)}._id OR x._to == ${asAQLVar(resVar)}._id REMOVE x IN ${collectionVar}\`);`);
+                ctxt.trans.code.push(`let ${deleteVar} = db._query(aql\`FOR x IN ${edgeCollectionVar} FILTER x._from == ${asAQLVar(resVar)}._id REMOVE x IN ${edgeCollectionVar} RETURN OLD\`).next() || {};`);
             }
+            // add directives checks
+            let source = `${asAQLVar(deleteVar)}._from`;
+            let target = `${asAQLVar(deleteVar)}._to`;
+            addDirectiveChecks(ctxt, info, 'deleteEdge', source, sourceType, target, targetType, fieldName);
         }
     }
 
-    // directives handling
-    //addFinalDirectiveChecksForType(ctxt, typeToDelete, aql`${asAQLVar(resVar)}._id`, info.schema);
-
     // return promises for roots and null for nested result
-    ctxt.trans.code.push(`}`);
+    //ctxt.trans.code.push(`}`);
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
@@ -1208,6 +1214,7 @@ function getResultPromise(ctxt, key) {
                 return null;
             }
             if (ctxt.trans.results !== undefined) {
+                //console.log("extra: ", resolve(ctxt.trans.results["extra"]));
                 return resolve(ctxt.trans.results[key]);
             }
             setTimeout(waitForResult, 10);
@@ -1752,9 +1759,9 @@ function addDirectiveChecks(ctxt, info, opType, source, sourceType, target=null,
             if(sourceFieldDirectives.includes('required')) {
                 if(field.name.startsWith('_')) {
                     // check as @requiredForTarget
-                    let reverseFieldName = field.name.split('From')[0].substr(1);
-                    let reverseSourceType = info.schema.getTypeMap()[field.name.split('From')[1]];
-                    checkRequiredForTargetDirective(ctxt, source, sourceType, reverseSourceType, reverseFieldName);
+                    //let reverseFieldName = field.name.split('From')[0].substr(1);
+                    //let reverseSourceType = info.schema.getTypeMap()[field.name.split('From')[1]];
+                    //checkRequiredForTargetDirective(ctxt, source, sourceType, reverseSourceType, reverseFieldName);
                 } else {
                     checkRequiredDirective(ctxt, source, sourceType, field.name);
                 }
@@ -1762,8 +1769,27 @@ function addDirectiveChecks(ctxt, info, opType, source, sourceType, target=null,
             // check @uniqueForTarget (for source field)
             // TODO: uniqueForTarget
         }
-    } else if(opType == 'deleteObject') {
-        // deleting an object removes it's edges, which means that directives are covered by 'deleteEdge'
+    } else if(opType == 'deleteObject') { // not used, see deleteEdge
+
+        // An edge may be @required in any direction (since @requiredForTarget annotates reverse edges with required)
+        if(fieldName.startsWith('_')){
+            let reversedFieldName = fieldName.split('From')[0].substr(1);
+            const targetField = targetType.getFields()[reversedFieldName];
+            const targetFieldDirectives = targetField.astNode.directives.map(d => d.name.value);
+            // This must be related to a @requiredForTarget directive
+            if(targetFieldDirectives.includes('required')) {
+                console.log("@required from target:", reversedFieldName)
+                checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, reversedFieldName)
+                //checkRequiredDirectiveReversed(ctxt, source, sourceType, targetType, reversedFieldName);
+            }
+        } else {
+            const sourceField = sourceType.getFields()[fieldName];
+            const sourceFieldDirectives = sourceField.astNode.directives.map(d => d.name.value);
+            if(sourceFieldDirectives.includes('required')) {
+                console.log("@required from source")
+                checkRequiredDirective(ctxt, source, sourceType, fieldName);
+            }
+        }
     } else if(opType == 'addEdge'){
         // check @distinct (for source field)
         const sourceField = sourceType.getFields()[fieldName];
@@ -1780,22 +1806,14 @@ function addDirectiveChecks(ctxt, info, opType, source, sourceType, target=null,
             checkNoloopsDirective(ctxt, source, sourceType, fieldName);
         }
     } else if(opType == 'deleteEdge'){
-        // check @required (for source field)
         const sourceField = sourceType.getFields()[fieldName];
         const sourceFieldDirectives = sourceField.astNode.directives.map(d => d.name.value);
         if(sourceFieldDirectives.includes('required')) {
             checkRequiredDirective(ctxt, source, sourceType, fieldName);
         }
-
-        // check @requiredForTarget (for target)
         if(sourceFieldDirectives.includes('requiredForTarget')) {
-            checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, fieldName);
+            checkRequiredForTargetDirective(ctxt, target, targetType, source, sourceType, fieldName);
         }
-
-        // check @requiredForTarget (for target field)
-        //if(sourceFieldDirectives.includes('requiredForTarget')) {
-        //    checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, fieldName);
-        //}
     } else {
         const fields = Object.values(sourceType.getFields());
         for (const field of fields){
@@ -1849,26 +1867,55 @@ function checkRequiredDirective(ctxt, sourceId, sourceType, fieldName){
 }
 
 /**
- * Check @requiredForTarget directive.
+ * Is this really reversed? Write it out on the board.
+ * 
+ * Check @required directive in reverse.
  * @param {*} ctxt 
- * @param {*} targetId
+ * @param {*} target
  * @param {*} sourceType
  * @param {*} fieldName
  */
-function checkRequiredForTargetDirective(ctxt, targetId, targetType, sourceType, fieldName){
+function checkRequiredDirectiveReversed(ctxt, target, targetType, source, sourceType, fieldName){
     const edgeCollectionName = getEdgeCollectionName(sourceType.name, fieldName);
     const edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true));
     const targetCollectionVar = asAQLVar(getCollectionVar(targetType.name, ctxt, true));
     
-    // The constraint is not violated if the object does exists AND has zero incoming edges
-    let exists = `FOR d IN ${targetCollectionVar} FILTER d._id == ${targetId} LIMIT 1 RETURN d`;
-    let getEdges = `FOR v IN 1..1 INBOUND ${targetId} ${edgeCollectionVar} LIMIT 1 RETURN v`;
+    // The constraint is not violated if the object exists AND has no incoming edges
+    let exists = `FOR d IN ${targetCollectionVar} FILTER d._id == ${target} LIMIT 1 RETURN d`;
+    let getEdges = `FOR v IN 1..1 INBOUND ${target} ${edgeCollectionVar} LIMIT 1 RETURN v`;
+    let error = `Field ${fieldName} in ${targetType.name} is breaking a @required directive!`;
+    let check =`if(db._query(aql\`${exists}\`).hasNext()){
+            if(!db._query(aql\`${getEdges}\`).hasNext()){
+                throw "${error}";
+            }
+        }`;
+    ctxt.trans.finalConstraintChecks.push(check);
+}
+
+
+/**
+ * Check @requiredForTarget directive.
+ * @param {*} ctxt 
+ * @param {*} target
+ * @param {*} targetType
+ * @param {*} sourceType
+ * @param {*} fieldName
+ */
+function checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, fieldName){
+    console.log(target, targetType.name, sourceType.name, fieldName)
+    const edgeCollectionName = getEdgeCollectionName(sourceType.name, fieldName);
+    const edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true));
+    const targetCollectionVar = asAQLVar(getCollectionVar(targetType.name, ctxt, true));
+    
+    // The constraint is not violated if the object exists AND has no incoming edges
+    let exists = `FOR d IN ${targetCollectionVar} FILTER d._id == ${target} LIMIT 1 RETURN d`;
+    let getEdges = `FOR v IN 1..1 INBOUND ${target} ${edgeCollectionVar} LIMIT 1 RETURN v`;
     let error = `Field ${fieldName} in ${sourceType.name} is breaking a @requiredForTarget directive!`;
     let check =`if(db._query(aql\`${exists}\`).hasNext()){
-                if(!db._query(aql\`${getEdges}\`).hasNext()){
-                    throw "${error}";
-                }
-            }`;
+            if(!db._query(aql\`${getEdges}\`).hasNext()){
+                throw "${error}";
+            }
+        }`;
     ctxt.trans.finalConstraintChecks.push(check);
 }
 

@@ -788,10 +788,8 @@ function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) 
     let collectionVar = getCollectionVar(typeToDelete, ctxt, true);
 
     // delete document
-    // return null if the key does not exists in the collection (i.e., don't throw error)
-    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next();`);
-
-    //ctxt.trans.code.push(`if(${resVar}){`);
+    // return {}} if the key does not exists in the collection
+    ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next() || {};`);
 
     // delete every edge either targeting, or originating from id
     for (let i in typeToDelete.getFields()) {
@@ -834,7 +832,6 @@ function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) 
     }
 
     // return promises for roots and null for nested result
-    //ctxt.trans.code.push(`}`);
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
@@ -1755,40 +1752,19 @@ function addDirectiveChecks(ctxt, info, opType, source, sourceType, target=null,
             if(sourceFieldDirectives.includes('distinct')) {
                 checkDistinctDirective(ctxt, source, sourceType, field.name);
             }
-            // check @required (for source field)
+            // check @required and @requiredForTarget
             if(sourceFieldDirectives.includes('required')) {
                 if(field.name.startsWith('_')) {
-                    // check as @requiredForTarget
-                    //let reverseFieldName = field.name.split('From')[0].substr(1);
-                    //let reverseSourceType = info.schema.getTypeMap()[field.name.split('From')[1]];
-                    //checkRequiredForTargetDirective(ctxt, source, sourceType, reverseSourceType, reverseFieldName);
+                    // must be in reverse @requiredForTarget
+                    let reverseFieldName = field.name.split('From')[0].substr(1);
+                    let reverseSourceType = info.schema.getTypeMap()[field.name.split('From')[1]];
+                    checkRequiredForTargetDirective(ctxt, source, sourceType, reverseSourceType, reverseFieldName);
                 } else {
                     checkRequiredDirective(ctxt, source, sourceType, field.name);
                 }
             }
             // check @uniqueForTarget (for source field)
             // TODO: uniqueForTarget
-        }
-    } else if(opType == 'deleteObject') { // not used, see deleteEdge
-
-        // An edge may be @required in any direction (since @requiredForTarget annotates reverse edges with required)
-        if(fieldName.startsWith('_')){
-            let reversedFieldName = fieldName.split('From')[0].substr(1);
-            const targetField = targetType.getFields()[reversedFieldName];
-            const targetFieldDirectives = targetField.astNode.directives.map(d => d.name.value);
-            // This must be related to a @requiredForTarget directive
-            if(targetFieldDirectives.includes('required')) {
-                console.log("@required from target:", reversedFieldName)
-                checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, reversedFieldName)
-                //checkRequiredDirectiveReversed(ctxt, source, sourceType, targetType, reversedFieldName);
-            }
-        } else {
-            const sourceField = sourceType.getFields()[fieldName];
-            const sourceFieldDirectives = sourceField.astNode.directives.map(d => d.name.value);
-            if(sourceFieldDirectives.includes('required')) {
-                console.log("@required from source")
-                checkRequiredDirective(ctxt, source, sourceType, fieldName);
-            }
         }
     } else if(opType == 'addEdge'){
         // check @distinct (for source field)
@@ -1812,7 +1788,7 @@ function addDirectiveChecks(ctxt, info, opType, source, sourceType, target=null,
             checkRequiredDirective(ctxt, source, sourceType, fieldName);
         }
         if(sourceFieldDirectives.includes('requiredForTarget')) {
-            checkRequiredForTargetDirective(ctxt, target, targetType, source, sourceType, fieldName);
+            checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, fieldName);
         }
     } else {
         const fields = Object.values(sourceType.getFields());
@@ -1857,7 +1833,6 @@ function checkRequiredDirective(ctxt, sourceId, sourceType, fieldName){
     let exists = `FOR d IN ${sourceCollectionVar} FILTER d._id == ${sourceId} LIMIT 1 RETURN d`;
     let getEdges = `FOR v IN 1..1 OUTBOUND ${sourceId} ${edgeCollectionVar} RETURN v._id`;
     let error = `Field ${fieldName} in ${sourceType.name} is breaking a @required directive!`;
-    //const check = `if(!db._query(aql\`${query}\`).next()){\n\t\tthrow "${error}";\n\t}`;
     let check =`if(db._query(aql\`${exists}\`).hasNext()){
             if(!db._query(aql\`${getEdges}\`).hasNext()){
                 throw "${error}";
@@ -1865,33 +1840,6 @@ function checkRequiredDirective(ctxt, sourceId, sourceType, fieldName){
         }`;
     ctxt.trans.finalConstraintChecks.push(check);
 }
-
-/**
- * Is this really reversed? Write it out on the board.
- * 
- * Check @required directive in reverse.
- * @param {*} ctxt 
- * @param {*} target
- * @param {*} sourceType
- * @param {*} fieldName
- */
-function checkRequiredDirectiveReversed(ctxt, target, targetType, source, sourceType, fieldName){
-    const edgeCollectionName = getEdgeCollectionName(sourceType.name, fieldName);
-    const edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true));
-    const targetCollectionVar = asAQLVar(getCollectionVar(targetType.name, ctxt, true));
-    
-    // The constraint is not violated if the object exists AND has no incoming edges
-    let exists = `FOR d IN ${targetCollectionVar} FILTER d._id == ${target} LIMIT 1 RETURN d`;
-    let getEdges = `FOR v IN 1..1 INBOUND ${target} ${edgeCollectionVar} LIMIT 1 RETURN v`;
-    let error = `Field ${fieldName} in ${targetType.name} is breaking a @required directive!`;
-    let check =`if(db._query(aql\`${exists}\`).hasNext()){
-            if(!db._query(aql\`${getEdges}\`).hasNext()){
-                throw "${error}";
-            }
-        }`;
-    ctxt.trans.finalConstraintChecks.push(check);
-}
-
 
 /**
  * Check @requiredForTarget directive.
@@ -1902,7 +1850,6 @@ function checkRequiredDirectiveReversed(ctxt, target, targetType, source, source
  * @param {*} fieldName
  */
 function checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, fieldName){
-    console.log(target, targetType.name, sourceType.name, fieldName)
     const edgeCollectionName = getEdgeCollectionName(sourceType.name, fieldName);
     const edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true));
     const targetCollectionVar = asAQLVar(getCollectionVar(targetType.name, ctxt, true));

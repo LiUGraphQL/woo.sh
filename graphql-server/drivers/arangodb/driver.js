@@ -328,7 +328,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceFieldName, va
     initTransaction(ctxt);
     const collectionName = getEdgeCollectionName(sourceType.name, sourceFieldName);
     const collectionVar = getCollectionVar(collectionName, ctxt, true);
-    ctxt.trans.code.push(`\n\t/* createEdge ${collectionName} */`);
+    ctxt.trans.code.push(`\n/* createEdge ${collectionName} */`);
 
     // prepare annotations
     if (annotations === null  || annotations === undefined) annotations = {};
@@ -386,7 +386,7 @@ function createEdge(isRoot, ctxt, varOrSourceID, sourceType, sourceFieldName, va
 function create(isRoot, ctxt, data, returnType, info, resVar=null) {
     // init transaction
     initTransaction(ctxt);
-    ctxt.trans.code.push(`\n\t/* create ${returnType.name} */`);
+    ctxt.trans.code.push(`\n/* create ${returnType.name} */`);
 
     // substitute fields defined by exported variables
     const substitutedFields = substituteExportedVariables(data, ctxt);
@@ -477,7 +477,7 @@ function updateEdge(isRoot, ctxt, id, data, edgeName, inputToUpdateType, info, r
     // create a new variable if resVar was not defined by the calling function
     resVar = resVar !== null ? resVar : createVar(ctxt);
     const collectionVar = getCollectionVar(edgeName, ctxt, true);
-    ctxt.trans.code.push(`\n\t/* update edge ${edgeName} */`);
+    ctxt.trans.code.push(`\n/* update edge ${edgeName} */`);
 
     // substitute fields defined by exported variables
     const substitutedFields = substituteExportedVariables(data, ctxt);
@@ -638,7 +638,7 @@ function getExportedValue(value, ctxt){
 function update(isRoot, ctxt, varOrID, data, returnType, info, resVar = null) {
     // init transaction
     initTransaction(ctxt);
-    ctxt.trans.code.push(`\n\t/* update ${returnType.name} */`);
+    ctxt.trans.code.push(`\n/* update ${returnType.name} */`);
 
     // inject variable value
     varOrID = getExportedValue(varOrID, ctxt);
@@ -670,7 +670,7 @@ function update(isRoot, ctxt, varOrID, data, returnType, info, resVar = null) {
         // remove old edges	
         let edgeCollectionName = getEdgeCollectionName(returnType.name, fieldName);
         let edgeCollectionVar = getCollectionVar(edgeCollectionName, ctxt, true);
-        ctxt.trans.code.push(`\n\t/* drop edges from ${edgeCollectionName} */`);
+        ctxt.trans.code.push(`\n/* drop edges from ${edgeCollectionName} */`);
         ctxt.trans.code.push(`db._query(aql\`FOR v IN ${asAQLVar(edgeCollectionVar)} FILTER(v._from == ${asAQLVar(idVar)}) REMOVE v IN ${asAQLVar(edgeCollectionVar)}\`);`);
 
         // add all values for edge	
@@ -736,7 +736,7 @@ function update(isRoot, ctxt, varOrID, data, returnType, info, resVar = null) {
 function deleteEdge(isRoot, ctxt, varOrID, edgeName, sourceType, info, resVar = null) {
     // init transaction
     initTransaction(ctxt);
-    ctxt.trans.code.push(`\n\t/* delete edge ${edgeName} */`);
+    ctxt.trans.code.push(`\n/* delete edge ${edgeName} */`);
 
     // inject variable value
     varOrID = getExportedValue(varOrID, ctxt);
@@ -775,7 +775,7 @@ function deleteEdge(isRoot, ctxt, varOrID, edgeName, sourceType, info, resVar = 
 function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) {
     // init transaction
     initTransaction(ctxt);
-    ctxt.trans.code.push(`\n\t/* delete ${typeToDelete} */`);
+    ctxt.trans.code.push(`\n/* delete ${typeToDelete} */`);
 
     // inject variable value
     varOrID = getExportedValue(varOrID, ctxt);
@@ -786,8 +786,7 @@ function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) 
     resVar = resVar !== null ? resVar : createVar(ctxt);
     let collectionVar = getCollectionVar(typeToDelete, ctxt, true);
 
-    // delete document
-    // return {}} if the key does not exists in the collection
+    // delete document, return {} if the key does not exists in the collection
     ctxt.trans.code.push(`let ${resVar} = db._query(aql\`REMOVE PARSE_IDENTIFIER(${asAQLVar(idVar)}).key IN ${asAQLVar(collectionVar)} OPTIONS { ignoreErrors: true } RETURN OLD\`).next() || {};`);
 
     // delete every edge either targeting, or originating from id
@@ -796,33 +795,41 @@ function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) 
         let fieldType = graphql.getNamedType(field.type);
         
         // deleted by default behavior, ignore
-        if (field.name.startsWith('_incoming') || field.name.startsWith('_outgoing')) { //|| (field.name.startsWith('_'))) { // && graphql.isInterfaceType(fieldType)
+        if (field.name.startsWith('_incoming') || field.name.startsWith('_outgoing')) {
             continue;
         }
         
         // delete edges
-        if (graphql.isObjectType(fieldType)) {
+        if (graphql.isObjectType(fieldType) || graphql.isInterfaceType(fieldType)) {
             let fieldName = field.name;
             let sourceType = typeToDelete;
             let targetType = fieldType;
             let deleteVar = createVar(ctxt);
+            let origin = '_from';
 
+            // if field is a reverse field, flip source and target
             if (field.name[0] == '_') {
-                // flip fields
                 fieldName = field.name.split('From')[0].substr(1);
                 sourceType = fieldType;
                 targetType = typeToDelete;
-
-                // delete incoming edge
-                let edgeCollectionName = getEdgeCollectionName(fieldType.name, fieldName);
-                let edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true));
-                ctxt.trans.code.push(`let ${deleteVar} = db._query(aql\`FOR x IN ${edgeCollectionVar} FILTER x._to == ${asAQLVar(resVar)}._id REMOVE x IN ${edgeCollectionVar} RETURN OLD\`).next() || {};`);
-            } else {
-                // delete outgoing edge
-                let edgeCollectionName = getEdgeCollectionName(typeToDelete.name, field.name);
-                let edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true));
-                ctxt.trans.code.push(`let ${deleteVar} = db._query(aql\`FOR x IN ${edgeCollectionVar} FILTER x._from == ${asAQLVar(resVar)}._id REMOVE x IN ${edgeCollectionVar} RETURN OLD\`).next() || {};`);
+                origin = '_to';
             }
+
+            // delete incoming and outgoing edges
+            let edgeCollectionVars = getPossibleEdgeCollectionVars(ctxt, info, sourceType, fieldName);
+            let query = '';
+            if(graphql.isInterfaceType(sourceType)){
+                // build union query
+                let queryParts = [];
+                for(let edgeCollectionVar of edgeCollectionVars){
+                    queryParts.push(`FOR x IN ${edgeCollectionVar} FILTER x.${origin} == ${asAQLVar(resVar)}._id REMOVE x IN ${edgeCollectionVar} RETURN x`);
+                }
+                query = `FOR x IN UNION(\n\t${queryParts.join(',\n\t')}\n) RETURN x`;
+            } else {
+                query = `FOR x IN ${edgeCollectionVars[0]} FILTER x.${origin} == ${asAQLVar(resVar)}._id REMOVE x IN ${edgeCollectionVars[0]} RETURN x`;
+            }
+            ctxt.trans.code.push(`let ${deleteVar} = db._query(aql\`${query}\`).next() || {};`);
+
             // add directives checks
             let source = `${asAQLVar(deleteVar)}._from`;
             let target = `${asAQLVar(deleteVar)}._to`;
@@ -1177,7 +1184,7 @@ function getCollectionVar(collection, ctxt = null, writeLock = false) {
  * @param resVar
  */
 function getResult(ctxt, info, resVar) {
-    ctxt.trans.code.push('\n\t/* bind result for mutation field */');
+    ctxt.trans.code.push('\n/* bind result for mutation field */');
     ctxt.trans.code.push(`result['${info.path.key}'] = ${resVar};`);
 
     // remove field from pending response fields
@@ -1326,13 +1333,13 @@ async function executeTransaction(ctxt) {
     ctxt.trans.open = false;
 
     // add all finalConstraintChecks to code before executing
-    ctxt.trans.code.push('\n\t/* add directive checks */');
+    ctxt.trans.code.push('\n/* add directive checks */');
     for (const row of ctxt.trans.finalConstraintChecks) {
         ctxt.trans.code.push(row);
     }
 
     try {
-        let action = `function(params){\n\t${ctxt.trans.code.join('\n\t')}\n\treturn result;\n}`;
+        let action = `function(params){\n${ctxt.trans.code.join('\n')}\nreturn result;\n}`;
         console.debug(action);
         console.debug(ctxt.trans.params);
         ctxt.trans.results = await db.transaction(
@@ -1726,6 +1733,26 @@ function addPossibleEdgeTypes(query, ctxt, schema, type_name, field_name) {
 }
 
 /**
+ * Get all possible edge collection vars for a given source type and field.
+ * @param {*} sourceType GraphQL type or interface
+ * @param {*} fieldName 
+ */
+function getPossibleEdgeCollectionVars(ctxt, info, sourceType, fieldName) {
+    let edgeCollectionVars = [];
+    if (graphql.isInterfaceType(sourceType)) {
+        for (let typeName of info.schema.getPossibleTypes(sourceType)) {
+            const edgeCollectionName = getEdgeCollectionName(typeName.name, fieldName);
+            edgeCollectionVars.push(asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true)));
+        }
+    } else {
+        const edgeCollectionName = getEdgeCollectionName(sourceType.name, fieldName);
+        edgeCollectionVars.push(asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true)));
+    }
+    return edgeCollectionVars;
+}
+
+
+/**
  * Add directive checks.
  * 
  * @param {*} ctxt 
@@ -1819,10 +1846,9 @@ function checkRequiredDirective(ctxt, sourceId, sourceType, fieldName){
     let getEdges = `FOR v IN 1..1 OUTBOUND ${sourceId} ${edgeCollectionVar} RETURN v._id`;
     let error = `Field ${fieldName} in ${sourceType.name} is breaking a @required directive!`;
     let check =`if(db._query(aql\`${exists}\`).hasNext()){
-            if(!db._query(aql\`${getEdges}\`).hasNext()){
-                throw "${error}";
-            }
-        }`;
+    if(!db._query(aql\`${getEdges}\`).hasNext()){
+        throw "${error}";
+    }\n}`;
     ctxt.trans.finalConstraintChecks.push(check);
 }
 
@@ -1844,10 +1870,9 @@ function checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, f
     let getEdges = `FOR v IN 1..1 INBOUND ${target} ${edgeCollectionVar} LIMIT 1 RETURN v`;
     let error = `Field ${fieldName} in ${sourceType.name} is breaking a @requiredForTarget directive!`;
     let check =`if(db._query(aql\`${exists}\`).hasNext()){
-            if(!db._query(aql\`${getEdges}\`).hasNext()){
-                throw "${error}";
-            }
-        }`;
+    if(!db._query(aql\`${getEdges}\`).hasNext()){
+        throw "${error}";
+    }\n}`;
     ctxt.trans.finalConstraintChecks.push(check);
 }
 
@@ -1865,7 +1890,7 @@ function checkUniqueForTargetDirective(ctxt, source, sourceType, fieldName){
     // The constraint is violated if the number of returning edges is greater than 1.
     const query = `RETURN COUNT(FOR v1 IN 1..1 OUTBOUND ${source} ${collectionVar} FOR v2, e IN 1..1 INBOUND v1._id ${collectionVar} COLLECT ids = e._id RETURN ids)`;
     const error = `Field ${fieldName} in ${sourceType.name} is breaking a @uniqueForTarget directive!`;
-    let check = `if(db._query(aql\`${query}\`).next() > 1){\n\t\tthrow "${error}";\n\t}`;
+    let check = `if(db._query(aql\`${query}\`).next() > 1){\n\tthrow "${error}";\n}`;
     ctxt.trans.finalConstraintChecks.push(check);
 }
 

@@ -573,7 +573,6 @@ function exportSelection(isRoot, resVar, selection, info, ctxt){
             // rename id field
             if(fieldName === 'id') fieldName = '_id';
             ctxt.trans.exportedVariables[varName] = `${resVar}.${fieldName}`;
-            ctxt.trans.code.push(`let ${varName} = ${resVar}.${fieldName};`);
         }
     }
 }

@@ -9,6 +9,7 @@ const { readFileSync } = require('fs');
 let baseSchema = readFileSync('./test/resources/directives-tests-api.graphql', 'utf8'); // relative to root
 let resolvers = require('./resources/directives-tests-resolvers.js'); // relative to test file
 const { isBuffer } = require('util');
+const { concatAST } = require('graphql');
 
 let testServer;
 let url;
@@ -197,7 +198,6 @@ describe('# directives tests', () => {
             await request(url, mutation)
                 .then(data => null)
                 .catch(err => {
-                    console.log(err)
                     throw new Error(`@distinct directive should not yield an error when non-distinct edge is deleted within the same mutation`);
                 });
         });
@@ -380,10 +380,7 @@ describe('# directives tests', () => {
                 .catch((err) => {
                     expect(err.response.errors[0].message).to.eq("Field requiredList in RequiredTest is breaking a @required directive!");
                 });
-            if(err != null) {
-                console.log(err);
-                throw err;
-            }
+            if(err != null) throw err;
         });
 
         it('required add edge', async () => {
@@ -422,7 +419,7 @@ describe('# directives tests', () => {
                 deleteRequiredField(id: $requiredFieldId) { id }
             }`;
             let err = await request(url, mutation)
-                .then(() => null)
+                .then(() => new Error(`@required directive should yield error when required field is deleted`))
                 .catch((err) =>  {
                     expect(err.response.errors[0].message).to.eq("Field required in RequiredTest is breaking a @required directive!");
                 });
@@ -441,19 +438,10 @@ describe('# directives tests', () => {
                 }
             }`;
 
-            let id;
-            await request(url, mutation)
-                .then(data => {
-                    id = data['createRequiredTest']['required']['id'];
-                });
-            
-            let m = `
-            mutation {
-                deleteRequiredField(id: "${id}") { id }
-            }`;
-
+            let id = await request(url, mutation).then(data => data['createRequiredTest']['required']['id']);
+            let m = `mutation { deleteRequiredField(id: "${id}") { id } }`;
             let err = await request(url, m)
-                .then(() => null)
+                .then(() => new Error(`@required directive should yield error when required field is deleted`))
                 .catch((err) =>  {
                     expect(err.response.errors[0].message).to.eq("Field required in RequiredTest is breaking a @required directive!");
                 });
@@ -470,7 +458,7 @@ describe('# directives tests', () => {
                 deleteRequiredField(id: $requiredFieldId) { id }
             }`;
             let err = await request(url, mutation)
-                .then(() => null)
+                .then(() => new Error(`@required directive should yield error when required list field is deleted`))
                 .catch((err) =>  {
                     expect(err.response.errors[0].message).to.eq("Field requiredList in RequiredTest is breaking a @required directive!");
                 });
@@ -489,21 +477,12 @@ describe('# directives tests', () => {
                 }
             }`;
 
-            let id;
-            await request(url, mutation)
-                .then(data => {
-                    id = data['createRequiredTest']['requiredList']['id'];
-                });
-            
-            let m = `
-            mutation {
-                deleteRequiredField(id: "${id}") { id }
-            }`;
-
+            let id = await request(url, mutation).then(data => data['createRequiredTest']['requiredList'][0]['id']);
+            let m = `mutation { deleteRequiredField(id: "${id}") { id } }`;
             let err = await request(url, m)
-                .then(() => null)
+                .then(() => new Error(`@required directive should yield error when required list field is deleted`))
                 .catch((err) =>  {
-                    expect(err.response.errors[0].message).to.eq("Field required in RequiredTest is breaking a @required directive!");
+                    expect(err.response.errors[0].message).to.eq("Field requiredList in RequiredTest is breaking a @required directive!");
                 });
             if(err != null) throw err;
         });
@@ -533,17 +512,9 @@ describe('# directives tests', () => {
                 createRequiredEdgeFromRequiredTest(data: { sourceID: $requiredTestId, targetID: $requiredFieldId }) { id }
             }`;
 
-            let edgeId;
-            await request(url, mutation)
-                .then(data => {
-                    edgeId = data['createRequiredEdgeFromRequiredTest']['id'];
-                });
+            let edgeId = await request(url, mutation).then(data => data['createRequiredEdgeFromRequiredTest']['id']);
             
-            let m = `
-            mutation {
-                deleteRequiredEdgeFromRequiredTest(id: "${edgeId}"){ id }
-            }
-            `;
+            let m = `mutation { deleteRequiredEdgeFromRequiredTest(id: "${edgeId}"){ id } }`;
             let err = await request(url, m)
                 .then(() => new Error(`@required directive should yield an error when deleting a required field`))
                 .catch((err) => {
@@ -1069,213 +1040,373 @@ describe('# directives tests', () => {
             let mutation = `mutation { createRequiredForTargetTest(data:{ target: { create: {} } }){ id } }`;
             let id = await request(url, mutation).then(data => data['createRequiredForTargetTest']['id']);
             let m = `mutation { deleteRequiredForTargetTest(id:"${id}"){ id } }`;
-            console.log(m)
             let err = await request(url, m)
-                .then(data => new Error(`@requiredForTarget directive should yield an error when deleting source`))
-                .catch((err) => {
-                    console.log(err)
-                    expect(err.response.errors[0].message).to.eq("Field target in RequiredForTargetTest is breaking a @requiredForTarget directive!");
-                });
-            if(err) throw err;
-        });
-
-        /*
-        it('delete source of field should fail', async () => {
-            let mutation = `mutation($sourceId:ID!) {
-                createRequiredForTargetTest(data:{
-                    target: { create: {} }
-                }){ id @export(as:"sourceId")}
-                deleteRequiredForTargetTest(id:$sourceId){ id }
-            }`;
-            let err = await request(url, mutation)
-                .then(data => new Error(`@requiredForTarget directive should yield an error when deleting source`))
+                .then(data =>  new Error(`@requiredForTarget directive should yield an error when deleting source`))
                 .catch((err) => {
                     expect(err.response.errors[0].message).to.eq("Field target in RequiredForTargetTest is breaking a @requiredForTarget directive!");
                 });
             if(err) throw err;
         });
 
-        it('delete source of list field should fail', async () => {
-            let mutation = `mutation($sourceId:ID!) {
-                createRequiredForTargetsTest(data:{
-                    targets: { create: {} }
-                }){ id @export(as:"sourceId")}
-                deleteRequiredForTargetsTest(id:$sourceId){ id }
-            }`;
-            let err = await request(url, mutation)
-                .then(data => new Error(`@requiredForTarget directive should yield an error when deleting source`))
-                .catch((err) => {
-                    expect(err.response.errors[0].message).to.eq("Field targets in RequiredForTargetsTest is breaking a @requiredForTarget directive!");
-                });
-            if(err) throw err;
-        });
-
-        it('delete target of field #test', async () => {
-            let mutation = `mutation($targetId:ID!) {
+        it('requiredForTarget delete and restore field', async () => {
+            let mutation = `mutation($targetId: ID!, $sourceId:ID!) {
                 createRequiredForTargetTarget(data:{}){ id @export(as:"targetId") }
-                createRequiredForTargetTest(data:{ target: { connect: $targetId } }){ id }
-                deleteRequiredForTargetTarget(id:$targetId){ id }
+                m1:createRequiredForTargetTest(data:{ target: { connect: $targetId } }){ id @export(as:"sourceId")}
+                deleteRequiredForTargetTest(id:$sourceId){ id }
+                m2:createRequiredForTargetTest(data:{ target: { connect: $targetId } }){ id }
             }`;
-            let err = await request(url, mutation)
-                .then(data => null)
+            await request(url, mutation)
                 .catch((err) => {
-                    console.log(err)
-                    return new Error(`@requiredForTarget directive should not yield an error when deleting target`)
+                    return new Error(`@requiredForTarget directive should not yield an error when deleting and restoring edge within same transaction`);
                 });
-            if(err) throw err;
         });
-        */
     });
 
-    /*
-    describe("@uniqueForTarget tests #test", () => {
-        it('create object with target', async () => {
+    describe("@uniqueForTarget tests", () => {
+        it('uniqueForTarget create object with no target(s)', async () => {
+            let mutation = `mutation { createUniqueForTargetTest(data:{}) { id } }`;
+            await request(url, mutation)
+                .catch(err => {
+                    throw new Error(`@uniqueForTarget directive should not yield an error when not connecting to any object`);
+                });
+        });
+
+        it('uniqueForTarget create target', async () => {
+            let mutation = `mutation { createUniqueForTargetTarget(data:{}) { id } }`;
+            await request(url, mutation)
+                .catch(err => {
+                    throw new Error(`@uniqueForTarget directive should not yield an error when creating target`);
+                });
+        });
+        
+        // non-list field
+        it('uniqueForTarget create object with target #1', async () => {
             let mutation = `mutation {
-                createUniqueForTargetTest(data:{
-                    target: { create: { testDummyField: 0 } }
-                }) { id }
+                createUniqueForTargetTest(data:{ target: { create: { } } }) { id }
             }`;
             await request(url, mutation)
-                .then(() => {})
                 .catch(err => {
-                    console.log(err);
-                    throw new Error(`@uniqueForTarget directive should not yield an error when creating nested target object`);
+                    throw new Error(`@uniqueForTarget directive should not yield an error when connecting to unique target`);
                 });
         });
 
-        it('create object with targets', async () => {
-            let mutation = `mutation {
-                createUniqueForTargetTest(data:{
-                    targets: [
-                        { create: { testDummyField: 0 } },
-                        { create: { testDummyField: 0 } }
-                    ]
-                }) { id }
+        it('uniqueForTarget create object with target #2', async () => {
+            let mutation = `mutation($targetId: ID!) {
+                createUniqueForTargetTarget(data: {}) { id @export(as:"targetId")}
+                createUniqueForTargetTest(data:{ target: { connect: $targetId } }) { id }
             }`;
             await request(url, mutation)
-                .then(() => {})
                 .catch(err => {
-                    console.log(err);
-                    throw new Error(`@uniqueForTarget directive should not yield an error when creating nested target objects`);
+                    throw new Error(`@uniqueForTarget directive should not yield an error when connecting to unique target`);
                 });
         });
 
-        it('create object and connect to target', async () => {
+        it('uniqueForTarget create object with target #3', async () => {
+            let mutation = `mutation { createUniqueForTargetTarget(data: {}) { id } }`;
+            let id = await request(url, mutation).then(data => data['createUniqueForTargetTarget']['id']);
+            let m = `mutation {
+                createUniqueForTargetTest(data:{ target: { connect: "${id}" } }) { id }
+            }`;
+            await request(url, m)
+                .catch(err => {
+                    throw new Error(`@uniqueForTarget directive should not yield an error when connecting to unique target`);
+                });
+        });
+
+        it('uniqueForTarget connect to non-unique target should fail #1', async () => {
             let mutation = `mutation($id: ID!) {
-                createUniqueForTargetTarget(data:{ testDummyField: 0 }) { id @export(as:"id") }
-                createUniqueForTargetTest(data:{ target: { connect: $id } }) { id }
-            }`;
-            await request(url, mutation)
-                .then(() => {})
-                .catch(err => {
-                    console.log(err);
-                    throw new Error(`@uniqueForTarget directive should not yield an error when connecting to new target`);
-                });
-        });
-
-        it('connecting to target twice should fail', async () => {
-            let mutation = `mutation($id: ID!) {
-                createUniqueForTargetTarget(data:{ testDummyField: 0 }) { id @export(as:"id") }
+                createUniqueForTargetTarget(data:{}) { id @export(as:"id") }
                 m1:createUniqueForTargetTest(data:{ target: { connect: $id } }) { id }
                 m2:createUniqueForTargetTest(data:{ target: { connect: $id } }) { id }
             }`;
             let err = await request(url, mutation)
-                .then(() => new Error(`@uniqueForTarget directive should yield an error when connecting twice to target object`))
+                .then((data) => new Error(`@uniqueForTarget directive should yield an error when connecting to non-unique target`))
                 .catch(err => {
                     expect(err.response.errors[0].message).to.eq("Field target in UniqueForTargetTest is breaking a @uniqueForTarget directive!")
                 });
-            if(err != null){
-                console.log(err);
-                throw err;
-            }
+            if(err != null) throw err;
         });
 
-        it('connecting to targets twice should fail', async () => {
+        it('uniqueForTarget connect to non-unique target should fail #2', async () => {
+            let mutation = `mutation { createUniqueForTargetTarget(data:{}) { id } }`;
+            let id = await request(url, mutation).then(data => data['createUniqueForTargetTarget']['id']);
+            let m = `mutation {
+                m1:createUniqueForTargetTest(data:{ target: { connect: "${id}" } }) { id }
+                m2:createUniqueForTargetTest(data:{ target: { connect: "${id}" } }) { id }
+            }`;
+            let err = await request(url, m)
+                .then(data => new Error(`@uniqueForTarget directive should yield an error when connecting to non-unique target`))
+                .catch(err => {
+                    expect(err.response.errors[0].message).to.eq("Field target in UniqueForTargetTest is breaking a @uniqueForTarget directive!")
+                });
+            if(err != null) throw err;
+        });
+
+        it('uniqueForTarget delete violating target #1', async () => {
+            let mutation = `mutation { createUniqueForTargetTarget(data:{}) { id } }`;
+            let targetId = await request(url, mutation).then(data => data['createUniqueForTargetTarget']['id']);
+            let m = `mutation($id: ID!) {
+                m1:createUniqueForTargetTest(data:{ target: { connect: "${targetId}" } }) { id @export(as:"id") }
+                deleteUniqueForTargetTest(id: $id) { id }
+                m2:createUniqueForTargetTest(data:{ target: { connect: "${targetId}" } }) { id }
+            }`;
+            await request(url, m)
+                .catch(err => {
+                    throw new Error(`@uniqueForTarget directive should not yield an error when deleting violating source`);
+                })
+        });
+
+        it('uniqueForTarget delete violating target #2', async () => {
+            let mutation = `mutation($targetId: ID!) {
+                createUniqueForTargetTarget(data:{}) { id @export(as:"targetId") }
+                createUniqueForTargetTest(data:{ target: { connect: $targetId } }) { id }
+            }`;
+            let id, targetId;
+            await request(url, mutation).then(data => {
+                targetId = data['createUniqueForTargetTarget']['id'];
+                id = data['createUniqueForTargetTest']['id'];
+            });
+            let m = `mutation {
+                m1:createUniqueForTargetTest(data:{ target: { connect: "${targetId}" } }) { id }
+                deleteUniqueForTargetTest(id: "${id}") { id }
+            }`;
+            await request(url, m)
+                .catch(err => {
+                    throw new Error(`@uniqueForTarget directive should not yield an error when deleting violating source`);
+                })
+        });
+
+        it('uniqueForTarget delete violating edge for target #1', async () => {
+            let mutation = `mutation($id1: ID!, $id2: ID!,$targetId: ID!, $edgeId: ID!) {
+                createUniqueForTargetTarget(data:{}) { id @export(as:"targetId") }
+                m1:createUniqueForTargetTest(data:{}) { id @export(as:"id1") }
+                m2:createUniqueForTargetTest(data:{}) { id @export(as:"id2")}
+                m3:createTargetEdgeFromUniqueForTargetTest(data: { sourceID: $id1, targetID: $targetId }) { id @export(as:"edgeId") }
+                m4:createTargetEdgeFromUniqueForTargetTest(data: { sourceID: $id2, targetID: $targetId }) { id }
+                deleteTargetEdgeFromUniqueForTargetTest(id: $edgeId) { id }
+            }`;
+            await request(url, mutation)
+                .catch(err => {
+                    throw new Error(`@uniqueForTarget directive should not yield an error when deleting violating edge`);
+                })
+        });
+
+        it('uniqueForTarget delete violating edge for target #2', async () => {
+            let mutation = `mutation {
+                createUniqueForTargetTest(data:{ target: { create: {}}}) {
+                    id
+                    _outgoingTargetEdgesFromUniqueForTargetTest { id }
+                    target { id }
+                }
+            }`;
+            let edgeId, targetId;
+            await request(url, mutation).then(data => {
+                edgeId = data['createUniqueForTargetTest']['_outgoingTargetEdgesFromUniqueForTargetTest']['id'];
+                targetId = data['createUniqueForTargetTest']['target']['id'];
+            });
+            let m1 = `mutation { deleteTargetEdgeFromUniqueForTargetTest(id: "${edgeId}") { id } }`;
+            await request(url, m1);
+
+            let m2 = `mutation { createUniqueForTargetTest(data:{ target: { connect: "${targetId}" } }) { id } }`;
+            await request(url, m2)
+                .catch(err => {
+                    throw new Error(`@uniqueForTarget directive should not yield an error when deleting violating edge`);
+                })
+        });
+
+        // list fields
+        // Note: Don't really make sense for unique for target, since only one target can be connected at a time
+        it('uniqueForTarget create object with targets #1', async () => {
+            let mutation = `mutation {
+                createUniqueForTargetTest(data:{ targets: [{ create: { } }] }) { id }
+            }`;
+            await request(url, mutation)
+                .catch(err =>  new Error(`@uniqueForTarget directive should not yield an error when connecting to one target`));
+        });
+
+        it('uniqueForTarget create object with targets #2', async () => {
+            let mutation = `mutation($targetId: ID!) {
+                m1:createUniqueForTargetTarget(data: {}) { id @export(as:"targetId")}
+                createUniqueForTargetTest(data:{ targets: [{ connect: $targetId }] }) { id }
+            }`;
+            await request(url, mutation)
+                .catch(err =>  new Error(`@uniqueForTarget directive should not yield an error when connecting to one target`));
+        });
+
+        it('uniqueForTarget create object with targets #3', async () => {
+            let mutation = `mutation {
+                createUniqueForTargetTarget(data: {}) { id }
+            }`;
+            let id = await request(url, mutation).then(data =>  data['createUniqueForTargetTarget']['id']);
+            let m = `mutation {
+                createUniqueForTargetTest(data:{ targets: [{ connect: "${id}" }] }) { id }
+            }`;
+            await request(url, m)
+                .catch(err =>  new Error(`@uniqueForTarget directive should not yield an error when connecting to one target`));
+        });
+        
+        it('uniqueForTarget create object with targets should fail #1', async () => {
+            let mutation = `mutation {
+                createUniqueForTargetTest(data:{ targets: [{ create: { } }, { create: { } }] }) { id }
+            }`;
+            await request(url, mutation)
+                .then(data =>  new Error(`@uniqueForTarget directive should yield an error when connecting to two targets`))
+                .catch(err => {
+                    expect(err.response.errors[0].message).to.eq("Field targets in UniqueForTargetTest is breaking a @uniqueForTarget directive!")
+                });
+        });
+
+        it('uniqueForTarget create object with targets should fail #2', async () => {
+            let mutation = `mutation($targetId1: ID!, $targetId2: ID!) {
+                m1:createUniqueForTargetTarget(data: {}) { id @export(as:"targetId1")}
+                m2:createUniqueForTargetTarget(data: {}) { id @export(as:"targetId2")}
+                createUniqueForTargetTest(data:{ targets: [{ connect: $targetId1 }, { connect: $targetId2 }] }) { id }
+            }`;
+            await request(url, mutation)
+                .then((data) => new Error(`@uniqueForTarget directive should yield an error when connecting to two targets`))
+                .catch(err => {
+                    expect(err.response.errors[0].message).to.eq("Field targets in UniqueForTargetTest is breaking a @uniqueForTarget directive!")
+                });
+        });
+
+        it('uniqueForTarget create object with targets should fail #3', async () => {
+            let mutation = `mutation {
+                m1:createUniqueForTargetTarget(data: {}) { id }
+                m2:createUniqueForTargetTarget(data: {}) { id }
+            }`;
+            let id1, id2;
+            await request(url, mutation).then(data => {
+                id1 = data['m1']['id'];
+                id2 = data['m2']['id'];
+            });
+            let m = `mutation {
+                createUniqueForTargetTest(data:{ targets: [{ connect: "${id1}" }, { connect: "${id2}" }] }) { id }
+            }`;
+            await request(url, m)
+                .then((data) => new Error(`@uniqueForTarget directive should yield an error when connecting to two targets`))
+                .catch(err => {
+                    expect(err.response.errors[0].message).to.eq("Field targets in UniqueForTargetTest is breaking a @uniqueForTarget directive!")
+                });
+        });
+
+        it('uniqueForTarget connect to non-unique targets should fail #1', async () => {
             let mutation = `mutation($id: ID!) {
-                createUniqueForTargetTarget(data:{ testDummyField: 0 }) { id @export(as:"id") }
+                createUniqueForTargetTarget(data:{}) { id @export(as:"id") }
                 m1:createUniqueForTargetTest(data:{ targets: [{ connect: $id }] }) { id }
                 m2:createUniqueForTargetTest(data:{ targets: [{ connect: $id }] }) { id }
             }`;
             let err = await request(url, mutation)
-                .then(() => new Error(`@uniqueForTarget directive should yield an error when connecting twice to target object`))
-                .catch((err) => {
-                    expect(err.response.errors[0].message).to.eq("Field targets in UniqueForTargetTest is breaking a @uniqueForTarget directive!")
-                });
-            if(err != null){
-                console.log(err);
-                throw err;
-            }
-        });
-
-        it('add edge to target', async () => {
-            let mutation = `mutation($source: ID!, $target: ID!) {
-                createUniqueForTargetTest(data:{}) { id @export(as:"source")}
-                createUniqueForTargetTarget(data:{ testDummyField: 0 }) { id @export(as:"target") }
-                createTargetEdgeFromUniqueForTargetTest(data:{ sourceID: $source, targetID: $target }) { id }
-            }`;
-            await request(url, mutation)
-                .then(() => null)
-                .catch(err => {
-                    console.log(err);
-                    throw new Error("@uniqueForTarget directive should not yield an error when creating an edge between source and target")
-                });
-        });
-
-        it('add edges to targets', async () => {
-            let mutation = `mutation($source: ID!, $target1: ID!, $target2: ID!) {
-                createUniqueForTargetTest(data:{}) { id @export(as:"source")}
-                m1:createUniqueForTargetTarget(data:{ testDummyField: 0 }) { id @export(as:"target1") }
-                m2:createUniqueForTargetTarget(data:{ testDummyField: 0 }) { id @export(as:"target2") }
-                m3:createTargetsEdgeFromUniqueForTargetTest(data:{ sourceID: $source, targetID: $target1 }) { id }
-                m4:createTargetsEdgeFromUniqueForTargetTest(data:{ sourceID: $source, targetID: $target2 }) { id }
-            }`;
-            await request(url, mutation)
-                .then(() => null)
-                .catch(err => {
-                    console.log(err);
-                    throw new Error("@uniqueForTarget directive should not yield an error when creating edges between source and targets")
-                });
-        });
-
-        it('add extra edge to target should fail', async () => {
-            let mutation = `mutation($source1: ID!, $source2: ID!, $target: ID!) {
-                m1:createUniqueForTargetTest(data:{}) { id @export(as:"source1") }
-                m2:createUniqueForTargetTest(data:{}) { id @export(as:"source2") }
-                createUniqueForTargetTarget(data:{ testDummyField: 0 }) { id @export(as:"target") }
-                m3:createTargetEdgeFromUniqueForTargetTest(data:{ sourceID: $source1, targetID: $target }) { id }
-                m4:createTargetEdgeFromUniqueForTargetTest(data:{ sourceID: $source2, targetID: $target }) { id }
-            }`;
-            let err = await request(url, mutation)
-                .then(() => new Error("@uniqueForTarget directive should not yield an error when creating an edge between source and target"))
-                .catch(err => {
-                    expect(err.response.errors[0].message).to.eq("Field target in UniqueForTargetTest is breaking a @uniqueForTarget directive!")
-                });
-            if(err != null){
-                console.log(err);
-                throw err;
-            }
-        });
-
-        it('add extra edge to targets should fail', async () => {
-            let mutation = `mutation($source1: ID!, $source2: ID!, $target: ID!) {
-                m1:createUniqueForTargetTest(data:{}) { id @export(as:"source1") }
-                m2:createUniqueForTargetTest(data:{}) { id @export(as:"source2") }
-                createUniqueForTargetTarget(data:{ testDummyField: 0 }) { id @export(as:"target") }
-                m3:createTargetsEdgeFromUniqueForTargetTest(data:{ sourceID: $source1, targetID: $target }) { id }
-                m4:createTargetsEdgeFromUniqueForTargetTest(data:{ sourceID: $source2, targetID: $target }) { id }
-            }`;
-            let err = await request(url, mutation)
-                .then(() => new Error("@uniqueForTarget directive should not yield an error when creating an edge between source and target"))
+                .then((data) => new Error(`@uniqueForTarget directive should yield an error when connecting to non-unique targets`))
                 .catch(err => {
                     expect(err.response.errors[0].message).to.eq("Field targets in UniqueForTargetTest is breaking a @uniqueForTarget directive!")
                 });
-            if(err != null){
-                console.log(err);
-                throw err;
-            }
+            if(err != null) throw err;
         });
+
+        it('uniqueForTarget connect to non-unique targets should fail #2', async () => {
+            let mutation = `mutation { createUniqueForTargetTarget(data:{}) { id } }`;
+            let id = await request(url, mutation).then(data => data['createUniqueForTargetTarget']['id']);
+            let m = `mutation {
+                m1:createUniqueForTargetTest(data:{ targets: [{ connect: "${id}" } ]}) { id }
+                m2:createUniqueForTargetTest(data:{ targets: [{ connect: "${id}" } ]}) { id }
+            }`;
+            let err = await request(url, m)
+                .then(data => new Error(`@uniqueForTarget directive should yield an error when connecting to non-unique targets`))
+                .catch(err => {
+                    expect(err.response.errors[0].message).to.eq("Field targets in UniqueForTargetTest is breaking a @uniqueForTarget directive!")
+                });
+            if(err != null) throw err;
+        });
+
+        it('uniqueForTarget creating same edge twice should fail', async () => {
+            let mutation = `mutation { createUniqueForTargetTarget(data:{}) { id } }`;
+            let id = await request(url, mutation).then(data => data['createUniqueForTargetTarget']['id']);
+            let m = `mutation {
+                createUniqueForTargetTest(data:{ targets: [{ connect: "${id}" }, { connect: "${id}" }] }) { id }
+            }`;
+            let err = await request(url, m)
+                .then(data => {
+                    return new Error(`@uniqueForTarget directive should yield an error when creating the same edge multiple times`);
+                })
+                .catch(err => {
+                    expect(err.response.errors[0].message).to.eq("Field targets in UniqueForTargetTest is breaking a @uniqueForTarget directive!")
+                });
+            if(err != null) throw err;
+        });
+
+        it('uniqueForTarget delete violating targets #1', async () => {
+            let mutation = `mutation { createUniqueForTargetTarget(data:{}) { id } }`;
+            let targetId = await request(url, mutation).then(data => data['createUniqueForTargetTarget']['id']);
+            let m = `mutation($id: ID!) {
+                m1:createUniqueForTargetTest(data:{ targets: [{ connect: "${targetId}" }] }) { id @export(as:"id") }
+                deleteUniqueForTargetTest(id: $id) { id }
+                m2:createUniqueForTargetTest(data:{ targets: [{ connect: "${targetId}" }] }) { id }
+            }`;
+            await request(url, m)
+                .catch(err => {
+                    throw new Error(`@uniqueForTarget directive should not yield an error when deleting violating source`);
+                })
+        });
+
+        it('uniqueForTarget delete violating targets #2', async () => {
+            let mutation = `mutation($targetId: ID!) {
+                createUniqueForTargetTarget(data:{}) { id @export(as:"targetId") }
+                createUniqueForTargetTest(data:{ targets: [{ connect: $targetId }] }) { id }
+            }`;
+            let id, targetId;
+            await request(url, mutation).then(data => {
+                targetId = data['createUniqueForTargetTarget']['id'];
+                id = data['createUniqueForTargetTest']['id'];
+            });
+            let m = `mutation {
+                m1:createUniqueForTargetTest(data:{ targets: [{ connect: "${targetId}" }] }) { id }
+                deleteUniqueForTargetTest(id: "${id}") { id }
+            }`;
+            await request(url, m)
+                .catch(err => {
+                    throw new Error(`@uniqueForTarget directive should not yield an error when deleting violating source`);
+                })
+        });
+
+        it('uniqueForTarget delete violating edge #1', async () => {
+            let mutation = `mutation($id1: ID!, $id2: ID!,$targetId: ID!, $edgeId: ID!) {
+                createUniqueForTargetTarget(data:{}) { id @export(as:"targetId") }
+                m1:createUniqueForTargetTest(data:{}) { id @export(as:"id1") }
+                m2:createUniqueForTargetTest(data:{}) { id @export(as:"id2")}
+                m3:createTargetsEdgeFromUniqueForTargetTest(data: { sourceID: $id1, targetID: $targetId }) { id @export(as:"edgeId") }
+                m4:createTargetsEdgeFromUniqueForTargetTest(data: { sourceID: $id2, targetID: $targetId }) { id }
+                deleteTargetsEdgeFromUniqueForTargetTest(id: $edgeId) { id }
+            }`;
+            await request(url, mutation)
+                .catch(err => {
+                    throw new Error(`@uniqueForTarget directive should not yield an error when deleting violating edge`);
+                })
+        });
+
+        it('uniqueForTarget delete violating edge #2', async () => {
+            let mutation = `mutation {
+                createUniqueForTargetTest(data:{ targets: [{ create: {} }] }) {
+                    id
+                    _outgoingTargetsEdgesFromUniqueForTargetTest { id }
+                    targets { id }
+                }
+            }`;
+            let edgeId, targetId;
+            await request(url, mutation).then(data => {
+                edgeId = data['createUniqueForTargetTest']['_outgoingTargetsEdgesFromUniqueForTargetTest'][0]['id'];
+                targetId = data['createUniqueForTargetTest']['targets'][0]['id'];
+            });
+            let m1 = `mutation { deleteTargetsEdgeFromUniqueForTargetTest(id: "${edgeId}") { id } }`;
+            await request(url, m1);
+
+            let m2 = `mutation { createUniqueForTargetTest(data:{ targets: [{ connect: "${targetId}" }] }) { id } }`;
+            await request(url, m2)
+                .catch(err => {
+                    throw new Error(`@uniqueForTarget directive should not yield an error when deleting violating edge`);
+                })
+        });
+
     });
-        */
 
     after((done) => {
         testServer.server.close(done);

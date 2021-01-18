@@ -1211,7 +1211,6 @@ function getResultPromise(ctxt, key) {
                 return null;
             }
             if (ctxt.trans.results !== undefined) {
-                //console.log("extra: ", resolve(ctxt.trans.results["extra"]));
                 return resolve(ctxt.trans.results[key]);
             }
             setTimeout(waitForResult, 10);
@@ -1748,14 +1747,12 @@ function addDirectiveChecks(ctxt, info, opType, source, sourceType, target=null,
         const fields = Object.values(sourceType.getFields());
         for (const field of fields){
             const sourceFieldDirectives = field.astNode.directives.map(d => d.name.value);
-            // check @distinct (for source field)
             if(sourceFieldDirectives.includes('distinct')) {
                 checkDistinctDirective(ctxt, source, sourceType, field.name);
             }
-            // check @required and @requiredForTarget
             if(sourceFieldDirectives.includes('required')) {
                 if(field.name.startsWith('_')) {
-                    // must be in reverse @requiredForTarget
+                    // must be reverse of @requiredForTarget
                     let reverseFieldName = field.name.split('From')[0].substr(1);
                     let reverseSourceType = info.schema.getTypeMap()[field.name.split('From')[1]];
                     checkRequiredForTargetDirective(ctxt, source, sourceType, reverseSourceType, reverseFieldName);
@@ -1763,21 +1760,16 @@ function addDirectiveChecks(ctxt, info, opType, source, sourceType, target=null,
                     checkRequiredDirective(ctxt, source, sourceType, field.name);
                 }
             }
-            // check @uniqueForTarget (for source field)
-            // TODO: uniqueForTarget
         }
     } else if(opType == 'addEdge'){
-        // check @distinct (for source field)
         const sourceField = sourceType.getFields()[fieldName];
         const sourceFieldDirectives = sourceField.astNode.directives.map(d => d.name.value);
         if(sourceFieldDirectives.includes('distinct')) {
             checkDistinctDirective(ctxt, source, sourceType, fieldName);
         }
-        // check @uniqueForTarget (for target field)
         if(sourceFieldDirectives.includes('uniqueForTarget')) {
-            checkUniqueForTargetDirective(ctxt, target, sourceType, fieldName);
+            checkUniqueForTargetDirective(ctxt, source, sourceType, fieldName);
         }
-        // check @noloops (for target field)
         if(sourceFieldDirectives.includes('noloops')) {
             checkNoloopsDirective(ctxt, source, sourceType, fieldName);
         }
@@ -1789,14 +1781,6 @@ function addDirectiveChecks(ctxt, info, opType, source, sourceType, target=null,
         }
         if(sourceFieldDirectives.includes('requiredForTarget')) {
             checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, fieldName);
-        }
-    } else {
-        const fields = Object.values(sourceType.getFields());
-        for (const field of fields){
-            const directives = field.astNode.directives.map(d => d.name.value);
-            for (const directive of directives) {
-                        
-            }
         }
     }
 }
@@ -1814,7 +1798,9 @@ function checkDistinctDirective(ctxt, sourceId, sourceType, fieldName){
     // The constraint is violated if the number of edges is different from the number of distinct edges.
     const query = `LET ids = (FOR v IN 1..1 OUTBOUND ${sourceId} ${collectionVar} RETURN v._id) RETURN COUNT_DISTINCT(ids) != COUNT(ids)`;
     const error = `Field ${fieldName} in ${sourceType.name} is breaking a @distinct directive!`;
-    const check = `if(db._query(aql\`${query}\`).next()){\n\t\tthrow "${error}";\n\t}`;
+    const check = `if(db._query(aql\`${query}\`).next()){
+            throw "${error}";
+        }`;
     ctxt.trans.finalConstraintChecks.push(check);
 }
 
@@ -1869,31 +1855,32 @@ function checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, f
 /**
  * Check @uniqueForRequired directive.
  * @param {*} ctxt 
- * @param {*} targetId 
+ * @param {*} source 
  * @param {*} sourceType 
  * @param {*} fieldName 
  */
-function checkUniqueForTargetDirective(ctxt, targetId, sourceType, fieldName){
+function checkUniqueForTargetDirective(ctxt, source, sourceType, fieldName){
     const collectionName = getEdgeCollectionName(sourceType.name, fieldName);
     const collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
+
     // The constraint is violated if the number of returning edges is greater than 1.
-    const query = `RETURN COUNT(FOR v1 IN 1..1 OUTBOUND ${targetId} ${collectionVar} FOR v2 IN 1..1 INBOUND v1._id ${collectionVar} COLLECT ids = v2._id RETURN ids)`;
+    const query = `RETURN COUNT(FOR v1 IN 1..1 OUTBOUND ${source} ${collectionVar} FOR v2, e IN 1..1 INBOUND v1._id ${collectionVar} COLLECT ids = e._id RETURN ids)`;
     const error = `Field ${fieldName} in ${sourceType.name} is breaking a @uniqueForTarget directive!`;
-    const check = `if(db._query(aql\`${query}\`).next() > 1){\n\t\tthrow "${error}";\n\t}`;
+    let check = `if(db._query(aql\`${query}\`).next() > 1){\n\t\tthrow "${error}";\n\t}`;
     ctxt.trans.finalConstraintChecks.push(check);
 }
 
 /**
  * Check @noloops directive.
  * @param {*} ctxt 
- * @param {*} sourceId 
+ * @param {*} source 
  * @param {*} sourceType 
  * @param {*} fieldName 
  */
-function checkNoloopsDirective(ctxt, sourceId, sourceType, fieldName){
+function checkNoloopsDirective(ctxt, source, sourceType, fieldName){
     const collectionName = getEdgeCollectionName(sourceType.name, fieldName);
     const collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
-    const query = `FOR v IN 1..1 OUTBOUND ${sourceId} ${collectionVar} FILTER v._id == ${sourceId} RETURN v`;
+    const query = `FOR v IN 1..1 OUTBOUND ${source} ${collectionVar} FILTER v._id == ${source} RETURN v`;
     const error = `Field ${fieldName} in ${sourceType.name} is breaking a @noloops directive!`;
     const check = `if(db._query(aql\`${query}\`).next()){ throw "${error}" }`;
     ctxt.trans.finalConstraintChecks.push(check);

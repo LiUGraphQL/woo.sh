@@ -1887,8 +1887,8 @@ function checkUniqueForTargetDirective(ctxt, source, sourceType, fieldName){
     const collectionName = getEdgeCollectionName(sourceType.name, fieldName);
     const collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
 
-    // The constraint is violated if the number of returning edges is greater than 1.
-    const query = `RETURN COUNT(FOR v1 IN 1..1 OUTBOUND ${source} ${collectionVar} FOR v2, e IN 1..1 INBOUND v1._id ${collectionVar} COLLECT ids = e._id RETURN ids)`;
+    // The constraint is violated if an edge exists and the number of returning edges is greater than 1.
+    const query = `RETURN MAX(FOR v1 IN 1..1 OUTBOUND ${source} ${collectionVar} FOR v2 IN 1..1 INBOUND v1._id ${collectionVar} COLLECT ids = v1._id WITH COUNT INTO length RETURN length)`;
     const error = `Field ${fieldName} in ${sourceType.name} is breaking a @uniqueForTarget directive!`;
     let check = `if(db._query(aql\`${query}\`).next() > 1){\n\tthrow "${error}";\n}`;
     ctxt.trans.finalConstraintChecks.push(check);

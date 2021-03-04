@@ -59,7 +59,15 @@ type RequiredForTargetTest {
     target: RequiredForTargetTarget @requiredForTarget
 }
 
-type RequiredForTargetTarget {
+interface RequiredForTargetTarget {
+    testDummyField: Int
+}
+
+type RequiredForTargetTarget1 implements  RequiredForTargetTarget {
+    testDummyField: Int
+}
+
+type RequiredForTargetTarget2 implements  RequiredForTargetTarget {
     testDummyField: Int
 }
 
@@ -67,9 +75,18 @@ type RequiredForTargetsTest {
     targets: [RequiredForTargetsTarget] @requiredForTarget
 }
 
-type RequiredForTargetsTarget {
+interface RequiredForTargetsTarget {
     testDummyField: Int
 }
+
+type RequiredForTargetsTarget1 implements RequiredForTargetsTarget {
+    testDummyField: Int
+}
+
+type RequiredForTargetsTarget2 implements RequiredForTargetsTarget {
+    testDummyField: Int
+}
+
 
 type UniqueForTargetTarget {
     testDummyField: Int

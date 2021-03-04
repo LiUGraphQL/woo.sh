@@ -21,11 +21,15 @@ const resolvers = {
             await driver.get(args.id, info.returnType, info.schema),
         requiredField2: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
-        requiredForTargetTarget: async (parent, args, context, info) =>
+        requiredForTargetTarget1: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
+        requiredForTargetTarget2: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
         requiredForTargetTest: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
-        requiredForTargetsTarget: async (parent, args, context, info) =>
+        requiredForTargetsTarget1: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
+        requiredForTargetsTarget2: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
         requiredForTargetsTest: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
@@ -49,11 +53,15 @@ const resolvers = {
             await driver.getList(args, info),
         listOfRequiredField2s: async (parent, args, context, info) =>
             await driver.getList(args, info),
-        listOfRequiredForTargetTargets: async (parent, args, context, info) =>
+        listOfRequiredForTargetTarget1s: async (parent, args, context, info) =>
+            await driver.getList(args, info),
+        listOfRequiredForTargetTarget2s: async (parent, args, context, info) =>
             await driver.getList(args, info),
         listOfRequiredForTargetTests: async (parent, args, context, info) =>
             await driver.getList(args, info),
-        listOfRequiredForTargetsTargets: async (parent, args, context, info) =>
+        listOfRequiredForTargetsTarget1s: async (parent, args, context, info) =>
+            await driver.getList(args, info),
+        listOfRequiredForTargetsTarget2s: async (parent, args, context, info) =>
             await driver.getList(args, info),
         listOfRequiredForTargetsTests: async (parent, args, context, info) =>
             await driver.getList(args, info),
@@ -101,12 +109,20 @@ const resolvers = {
             await driver.get(args.id, info.returnType, info.schema),
         requiredField: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
+        requiredForTargetTarget: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
+        requiredForTargetsTarget: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
 
         listOfDistinctTests: async (parent, args, context, info) =>
             await driver.getList(args, info),
         listOfNoloopsTests: async (parent, args, context, info) =>
             await driver.getList(args, info),
         listOfRequiredFields: async (parent, args, context, info) =>
+            await driver.getList(args, info),
+        listOfRequiredForTargetTargets: async (parent, args, context, info) =>
+            await driver.getList(args, info),
+        listOfRequiredForTargetsTargets: async (parent, args, context, info) =>
             await driver.getList(args, info),
     },
 
@@ -123,12 +139,16 @@ const resolvers = {
             driver.create(true, context, args.data, info.schema.getType('RequiredField1'), info),
         createRequiredField2: (parent, args, context, info) =>
             driver.create(true, context, args.data, info.schema.getType('RequiredField2'), info),
-        createRequiredForTargetTarget: (parent, args, context, info) =>
-            driver.create(true, context, args.data, info.schema.getType('RequiredForTargetTarget'), info),
+        createRequiredForTargetTarget1: (parent, args, context, info) =>
+            driver.create(true, context, args.data, info.schema.getType('RequiredForTargetTarget1'), info),
+        createRequiredForTargetTarget2: (parent, args, context, info) =>
+            driver.create(true, context, args.data, info.schema.getType('RequiredForTargetTarget2'), info),
         createRequiredForTargetTest: (parent, args, context, info) =>
             driver.create(true, context, args.data, info.schema.getType('RequiredForTargetTest'), info),
-        createRequiredForTargetsTarget: (parent, args, context, info) =>
-            driver.create(true, context, args.data, info.schema.getType('RequiredForTargetsTarget'), info),
+        createRequiredForTargetsTarget1: (parent, args, context, info) =>
+            driver.create(true, context, args.data, info.schema.getType('RequiredForTargetsTarget1'), info),
+        createRequiredForTargetsTarget2: (parent, args, context, info) =>
+            driver.create(true, context, args.data, info.schema.getType('RequiredForTargetsTarget2'), info),
         createRequiredForTargetsTest: (parent, args, context, info) =>
             driver.create(true, context, args.data, info.schema.getType('RequiredForTargetsTest'), info),
         createRequiredTest: (parent, args, context, info) =>
@@ -319,13 +339,21 @@ const resolvers = {
                 args.data,
                 info.schema.getType('RequiredField2'),
                 info),
-        updateRequiredForTargetTarget: async (parent, args, context, info) =>
+        updateRequiredForTargetTarget1: async (parent, args, context, info) =>
             driver.update(
                 true,
                 context,
                 args.id,
                 args.data,
-                info.schema.getType('RequiredForTargetTarget'),
+                info.schema.getType('RequiredForTargetTarget1'),
+                info),
+        updateRequiredForTargetTarget2: async (parent, args, context, info) =>
+            driver.update(
+                true,
+                context,
+                args.id,
+                args.data,
+                info.schema.getType('RequiredForTargetTarget2'),
                 info),
         updateRequiredForTargetTest: async (parent, args, context, info) =>
             driver.update(
@@ -335,13 +363,21 @@ const resolvers = {
                 args.data,
                 info.schema.getType('RequiredForTargetTest'),
                 info),
-        updateRequiredForTargetsTarget: async (parent, args, context, info) =>
+        updateRequiredForTargetsTarget1: async (parent, args, context, info) =>
             driver.update(
                 true,
                 context,
                 args.id,
                 args.data,
-                info.schema.getType('RequiredForTargetsTarget'),
+                info.schema.getType('RequiredForTargetsTarget1'),
+                info),
+        updateRequiredForTargetsTarget2: async (parent, args, context, info) =>
+            driver.update(
+                true,
+                context,
+                args.id,
+                args.data,
+                info.schema.getType('RequiredForTargetsTarget2'),
                 info),
         updateRequiredForTargetsTest: async (parent, args, context, info) =>
             driver.update(
@@ -389,12 +425,16 @@ const resolvers = {
             driver.deleteObject(true, context, args.id, info.schema.getType('RequiredField1'), info),
         deleteRequiredField2: (parent, args, context, info) =>
             driver.deleteObject(true, context, args.id, info.schema.getType('RequiredField2'), info),
-        deleteRequiredForTargetTarget: (parent, args, context, info) =>
-            driver.deleteObject(true, context, args.id, info.schema.getType('RequiredForTargetTarget'), info),
+        deleteRequiredForTargetTarget1: (parent, args, context, info) =>
+            driver.deleteObject(true, context, args.id, info.schema.getType('RequiredForTargetTarget1'), info),
+        deleteRequiredForTargetTarget2: (parent, args, context, info) =>
+            driver.deleteObject(true, context, args.id, info.schema.getType('RequiredForTargetTarget2'), info),
         deleteRequiredForTargetTest: (parent, args, context, info) =>
             driver.deleteObject(true, context, args.id, info.schema.getType('RequiredForTargetTest'), info),
-        deleteRequiredForTargetsTarget: (parent, args, context, info) =>
-            driver.deleteObject(true, context, args.id, info.schema.getType('RequiredForTargetsTarget'), info),
+        deleteRequiredForTargetsTarget1: (parent, args, context, info) =>
+            driver.deleteObject(true, context, args.id, info.schema.getType('RequiredForTargetsTarget1'), info),
+        deleteRequiredForTargetsTarget2: (parent, args, context, info) =>
+            driver.deleteObject(true, context, args.id, info.schema.getType('RequiredForTargetsTarget2'), info),
         deleteRequiredForTargetsTest: (parent, args, context, info) =>
             driver.deleteObject(true, context, args.id, info.schema.getType('RequiredForTargetsTest'), info),
         deleteRequiredTest: (parent, args, context, info) =>
@@ -656,7 +696,16 @@ const resolvers = {
         _incomingRequiredListEdgeFromRequiredTest: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
     },
-    RequiredForTargetTarget: {
+    RequiredForTargetTarget1: {
+        id: (parent, args, context, info) => parent._id,
+        _targetFromRequiredForTargetTest: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _creationDate: async (parent, args, context, info) => new Date(parent._creationDate),
+        _lastUpdateDate: async (parent, args, context, info) => new Date(parent._lastUpdateDate),
+        _incomingTargetEdgeFromRequiredForTargetTest: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+    },
+    RequiredForTargetTarget2: {
         id: (parent, args, context, info) => parent._id,
         _targetFromRequiredForTargetTest: async (parent, args, context, info) =>
             await driver.getEdgeEndpoint(parent, args, info),
@@ -674,7 +723,16 @@ const resolvers = {
         _outgoingTargetEdgesFromRequiredForTargetTest: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
     },
-    RequiredForTargetsTarget: {
+    RequiredForTargetsTarget1: {
+        id: (parent, args, context, info) => parent._id,
+        _targetsFromRequiredForTargetsTest: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _creationDate: async (parent, args, context, info) => new Date(parent._creationDate),
+        _lastUpdateDate: async (parent, args, context, info) => new Date(parent._lastUpdateDate),
+        _incomingTargetsEdgeFromRequiredForTargetsTest: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+    },
+    RequiredForTargetsTarget2: {
         id: (parent, args, context, info) => parent._id,
         _targetsFromRequiredForTargetsTest: async (parent, args, context, info) =>
             await driver.getEdgeEndpoint(parent, args, info),
@@ -768,7 +826,13 @@ const resolvers = {
         isEndOfWholeList: async (parent, args, context, info) =>
             await driver.isEndOfList(parent, args, info),
     },
-    _ListOfRequiredForTargetTargets: {
+    _ListOfRequiredForTargetTarget1s: {
+        totalCount: async (parent, args, context, info) =>
+            await driver.getTotalCount(parent, args, info),
+        isEndOfWholeList: async (parent, args, context, info) =>
+            await driver.isEndOfList(parent, args, info),
+    },
+    _ListOfRequiredForTargetTarget2s: {
         totalCount: async (parent, args, context, info) =>
             await driver.getTotalCount(parent, args, info),
         isEndOfWholeList: async (parent, args, context, info) =>
@@ -780,7 +844,13 @@ const resolvers = {
         isEndOfWholeList: async (parent, args, context, info) =>
             await driver.isEndOfList(parent, args, info),
     },
-    _ListOfRequiredForTargetsTargets: {
+    _ListOfRequiredForTargetsTarget1s: {
+        totalCount: async (parent, args, context, info) =>
+            await driver.getTotalCount(parent, args, info),
+        isEndOfWholeList: async (parent, args, context, info) =>
+            await driver.isEndOfList(parent, args, info),
+    },
+    _ListOfRequiredForTargetsTarget2s: {
         totalCount: async (parent, args, context, info) =>
             await driver.getTotalCount(parent, args, info),
         isEndOfWholeList: async (parent, args, context, info) =>
@@ -824,6 +894,18 @@ const resolvers = {
             await driver.isEndOfList(parent, args, info),
     },
     _ListOfRequiredFields: {
+        totalCount: async (parent, args, context, info) =>
+            await driver.getTotalCount(parent, args, info),
+        isEndOfWholeList: async (parent, args, context, info) =>
+            await driver.isEndOfList(parent, args, info),
+    },
+    _ListOfRequiredForTargetTargets: {
+        totalCount: async (parent, args, context, info) =>
+            await driver.getTotalCount(parent, args, info),
+        isEndOfWholeList: async (parent, args, context, info) =>
+            await driver.isEndOfList(parent, args, info),
+    },
+    _ListOfRequiredForTargetsTargets: {
         totalCount: async (parent, args, context, info) =>
             await driver.getTotalCount(parent, args, info),
         isEndOfWholeList: async (parent, args, context, info) =>
@@ -937,6 +1019,14 @@ const resolvers = {
             parent.__typename
     },
     RequiredField: {
+        __resolveType: (parent, args, context, info) =>
+            parent.__typename
+    },
+    RequiredForTargetTarget: {
+        __resolveType: (parent, args, context, info) =>
+            parent.__typename
+    },
+    RequiredForTargetsTarget: {
         __resolveType: (parent, args, context, info) =>
             parent.__typename
     },

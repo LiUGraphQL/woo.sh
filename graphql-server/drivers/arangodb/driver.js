@@ -1806,7 +1806,7 @@ function addDirectiveChecks(ctxt, info, opType, source, sourceType, target=null,
             checkRequiredDirective(ctxt, source, sourceType, fieldName);
         }
         if(sourceFieldDirectives.includes('requiredForTarget')) {
-            checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, fieldName);
+            checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, fieldName, info.schema);
         }
     }
 }
@@ -1860,10 +1860,19 @@ function checkRequiredDirective(ctxt, sourceId, sourceType, fieldName){
  * @param {*} sourceType
  * @param {*} fieldName
  */
-function checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, fieldName){
+function checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, fieldName, schema=null){
     const edgeCollectionName = getEdgeCollectionName(sourceType.name, fieldName);
     const edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true));
-    const targetCollectionVar = asAQLVar(getCollectionVar(targetType.name, ctxt, true));
+    let targetCollectionVar = null;
+    if (graphql.isInterfaceType(targetType) || graphql.isUnionType(targetType)) {
+        let aqlCollectionVars = [];
+        for (let possibleType of Object.values(schema.getPossibleTypes(targetType))) {
+            aqlCollectionVars.push(asAQLVar(getCollectionVar(possibleType.name)));
+        }
+        targetCollectionVar = `FLATTEN(FOR i IN [${aqlCollectionVars.join(', ')}] RETURN i)`;
+    } else {
+        targetCollectionVar = asAQLVar(getCollectionVar(targetType.name, ctxt, true));
+    }
     
     // The constraint is not violated if the object exists AND has no incoming edges
     let exists = `FOR d IN ${targetCollectionVar} FILTER d._id == ${target} LIMIT 1 RETURN d`;

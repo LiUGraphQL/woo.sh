@@ -556,7 +556,6 @@ describe('# directives interface tests', () => {
         });
     });
 
-    // Doing
     describe('@noloops interface tests', () => {
         it('noloops field create', async () => {
             let mutation = `mutation {
@@ -839,8 +838,7 @@ describe('# directives interface tests', () => {
 
     });
 
-    // Required for target needs to be updated, since the check need to be made for all imlementations of a required for target target
-    describe('@requiredForTarget tests', () => {
+    describe('@requiredForTarget interface tests', () => {
         it('requiredForTarget create source', async () => {
             let mutation = `mutation { createRequiredForTargetTest(data:{}) { id } }`;
             await request(url, mutation)
@@ -850,7 +848,7 @@ describe('# directives interface tests', () => {
         });
         
         it('requiredForTarget create source and target', async () => {
-            let mutation = `mutation { createRequiredForTargetTest(data:{ target: { create: {} } }) { id } }`;
+            let mutation = `mutation { createRequiredForTargetTest(data:{ target: { createRequiredForTargetTarget1: {} } }) { id } }`;
             await request(url, mutation)
                 .catch((err) => {
                     throw new Error(`@requiredForTarget directive should not yield an error for field`)
@@ -858,7 +856,7 @@ describe('# directives interface tests', () => {
         });
 
         it('requiredForTarget create source and targets', async () => {
-            let mutation = `mutation { createRequiredForTargetsTest(data:{ targets: [{ create: {} }] }) { id } }`;
+            let mutation = `mutation { createRequiredForTargetsTest(data:{ targets: [{ createRequiredForTargetsTarget1: {} }] }) { id } }`;
             await request(url, mutation)
                 .catch((err) => {
                     throw new Error(`@requiredForTarget directive should not yield an error for list field`)
@@ -867,7 +865,7 @@ describe('# directives interface tests', () => {
                 
         it('requiredForTarget create source and connect target', async () => {
             let mutation = `mutation($targetId: ID!) {
-                createRequiredForTargetTarget(data:{}) {id @export(as:"targetId")}
+                createRequiredForTargetTarget1(data:{}) {id @export(as:"targetId")}
                 createRequiredForTargetTest(data:{ target: { connect: $targetId } }) { id }
             }`;
             await request(url, mutation)
@@ -878,7 +876,7 @@ describe('# directives interface tests', () => {
 
         it('requiredForTarget create source and connect targets', async () => {
             let mutation = `mutation($targetId: ID!) {
-                createRequiredForTargetsTarget(data:{}) {id @export(as:"targetId")}
+                createRequiredForTargetsTarget1(data:{}) {id @export(as:"targetId")}
                 createRequiredForTargetsTest(data:{ targets: [{ connect: $targetId }] }) { id }
             }`;
             await request(url, mutation)
@@ -890,7 +888,7 @@ describe('# directives interface tests', () => {
         it('requiredForTarget add edge #1', async () => {
             let mutation = `mutation($sourceId: ID!, $targetId: ID!) {
                 createRequiredForTargetTest(data:{}) { id @export(as:"sourceId") }
-                createRequiredForTargetTarget(data:{}) { id @export(as:"targetId") }
+                createRequiredForTargetTarget1(data:{}) { id @export(as:"targetId") }
                 createTargetEdgeFromRequiredForTargetTest(data: { sourceID: $sourceId, targetID: $targetId }) { id }
             }`;
             await request(url, mutation)
@@ -904,7 +902,7 @@ describe('# directives interface tests', () => {
             let sourceId = await request(url, mutation).then(data => data['createRequiredForTargetTest']['id']);
             
             let m = `mutation($targetId: ID!) {
-                createRequiredForTargetTarget(data:{}) { id @export(as:"targetId") }
+                createRequiredForTargetTarget1(data:{}) { id @export(as:"targetId") }
                 createTargetEdgeFromRequiredForTargetTest(data: { sourceID: "${sourceId}", targetID: $targetId }) { id }
             }`;
             await request(url, m)
@@ -916,7 +914,7 @@ describe('# directives interface tests', () => {
         it('requiredForTarget add list edge #1', async () => {
             let mutation = `mutation($sourceId: ID!, $targetId: ID!) {
                 createRequiredForTargetsTest(data:{}) { id @export(as:"sourceId") }
-                createRequiredForTargetsTarget(data:{}) { id @export(as:"targetId") }
+                createRequiredForTargetsTarget1(data:{}) { id @export(as:"targetId") }
                 createTargetsEdgeFromRequiredForTargetsTest(data: { sourceID: $sourceId, targetID: $targetId }) { id }
             }`;
             await request(url, mutation)
@@ -930,7 +928,7 @@ describe('# directives interface tests', () => {
             let sourceId = await request(url, mutation).then(data => data['createRequiredForTargetsTest']['id']);
             
             let m = `mutation($targetId: ID!) {
-                createRequiredForTargetsTarget(data:{}) { id @export(as:"targetId) }
+                createRequiredForTargetsTarget1(data:{}) { id @export(as:"targetId) }
                 createTargetsEdgeForRequiredFfromTargetsTest(data: { sourceID: "${sourceId}", targetID: $targetId }) { id }
             }`;
             await request(url, mutation)
@@ -940,7 +938,7 @@ describe('# directives interface tests', () => {
         });
 
         it('requiredForTarget create target should fail', async () => {
-            let mutation = `mutation { createRequiredForTargetTarget(data:{}){ id } }`;
+            let mutation = `mutation { createRequiredForTargetTarget1(data:{}){ id } }`;
             let err = await request(url, mutation)
                 .then(data => new Error(`@requiredForTarget directive should yield an error when creating only target`))
                 .catch(err => {
@@ -950,7 +948,7 @@ describe('# directives interface tests', () => {
         });
 
         it('requiredForTarget create targets should fail', async () => {
-            let mutation = `mutation { createRequiredForTargetsTarget(data:{}){ id } }`;
+            let mutation = `mutation { createRequiredForTargetsTarget1(data:{}){ id } }`;
             let err = await request(url, mutation)
                 .then(data =>  new Error(`@requiredForTarget directive should yield an error when creating only targets`))
                 .catch(err => {
@@ -961,7 +959,7 @@ describe('# directives interface tests', () => {
 
         it('requiredForTarget delete edge should fail #1', async () => {
             let mutation = `mutation($targetId:ID!, $sourceId: ID!, $edgeId:ID!) {
-                createRequiredForTargetTarget(data:{}){ id @export(as:"targetId") }
+                createRequiredForTargetTarget1(data:{}){ id @export(as:"targetId") }
                 createRequiredForTargetTest(data:{}){ id @export(as:"sourceId") }
                 createTargetEdgeFromRequiredForTargetTest(data:{ sourceID: $sourceId, targetID: $targetId }){ id @export(as:"edgeId") }
                 deleteTargetEdgeFromRequiredForTargetTest(id:$edgeId){ id }
@@ -977,7 +975,7 @@ describe('# directives interface tests', () => {
 
         it('requiredForTarget delete edge should fail #2', async () => {
             let mutation = `mutation($targetId:ID!, $sourceId: ID!) {
-                createRequiredForTargetTarget(data:{}){ id @export(as:"targetId") }
+                createRequiredForTargetTarget1(data:{}){ id @export(as:"targetId") }
                 createRequiredForTargetTest(data:{}){ id @export(as:"sourceId") }
                 createTargetEdgeFromRequiredForTargetTest(data:{ sourceID: $sourceId, targetID: $targetId }){ id }
             }`;
@@ -993,7 +991,7 @@ describe('# directives interface tests', () => {
 
         it('requiredForTarget delete list edge should fail #1', async () => {
             let mutation = `mutation($targetId:ID!, $sourceId: ID!, $edgeId: ID!) {
-                createRequiredForTargetsTarget(data:{}){ id @export(as:"targetId")}
+                createRequiredForTargetsTarget1(data:{}){ id @export(as:"targetId")}
                 createRequiredForTargetsTest(data:{}){ id @export(as:"sourceId")}
                 createTargetsEdgeFromRequiredForTargetsTest(data:{ sourceID: $sourceId, targetID: $targetId }){ id @export(as:"edgeId") }
                 deleteTargetsEdgeFromRequiredForTargetsTest(id:$edgeId){ id }
@@ -1009,7 +1007,7 @@ describe('# directives interface tests', () => {
 
         it('requiredForTarget delete list edge should fail #2', async () => {
             let mutation = `mutation($targetId:ID!, $sourceId: ID!) {
-                createRequiredForTargetsTarget(data:{}){ id @export(as:"targetId") }
+                createRequiredForTargetsTarget1(data:{}){ id @export(as:"targetId") }
                 createRequiredForTargetsTest(data:{}){ id @export(as:"sourceId") }
                 createTargetsEdgeFromRequiredForTargetsTest(data:{ sourceID: $sourceId, targetID: $targetId }){ id }
             }`;
@@ -1025,7 +1023,7 @@ describe('# directives interface tests', () => {
 
         it('requiredForTarget delete source of field should fail #1', async () => {
             let mutation = `mutation($sourceId:ID!) {
-                createRequiredForTargetTest(data:{ target: { create: {} } }){ id @export(as:"sourceId")}
+                createRequiredForTargetTest(data:{ target: { createRequiredForTargetTarget1: {} } }){ id @export(as:"sourceId")}
                 deleteRequiredForTargetTest(id:$sourceId){ id }
             }`;
             let err = await request(url, mutation)
@@ -1037,7 +1035,7 @@ describe('# directives interface tests', () => {
         });
         
         it('requiredForTarget delete source of field should fail #2', async () => {
-            let mutation = `mutation { createRequiredForTargetTest(data:{ target: { create: {} } }){ id } }`;
+            let mutation = `mutation { createRequiredForTargetTest(data:{ target: { createRequiredForTargetTarget1: {} } }){ id } }`;
             let id = await request(url, mutation).then(data => data['createRequiredForTargetTest']['id']);
             let m = `mutation { deleteRequiredForTargetTest(id:"${id}"){ id } }`;
             let err = await request(url, m)
@@ -1050,7 +1048,7 @@ describe('# directives interface tests', () => {
 
         it('requiredForTarget delete and restore field', async () => {
             let mutation = `mutation($targetId: ID!, $sourceId:ID!) {
-                createRequiredForTargetTarget(data:{}){ id @export(as:"targetId") }
+                createRequiredForTargetTarget1(data:{}){ id @export(as:"targetId") }
                 m1:createRequiredForTargetTest(data:{ target: { connect: $targetId } }){ id @export(as:"sourceId")}
                 deleteRequiredForTargetTest(id:$sourceId){ id }
                 m2:createRequiredForTargetTest(data:{ target: { connect: $targetId } }){ id }
@@ -1063,7 +1061,7 @@ describe('# directives interface tests', () => {
     });
 
     // Unique for target needs to be updated, since the check needs to be made agains all imlementations of the target.
-    describe("@##uniqueForTarget tests", () => {
+    describe("@uniqueForTarget interface tests", () => {
         it('uniqueForTarget create object with no target(s)', async () => {
             let mutation = `mutation { createUniqueForTargetTest(data:{}) { id } }`;
             await request(url, mutation)

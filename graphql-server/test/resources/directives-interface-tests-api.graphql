@@ -65,7 +65,8 @@ type Mutation {
   createNoloopsTest1(data: _InputToCreateNoloopsTest1!): NoloopsTest1
   createNoloopsTest2(data: _InputToCreateNoloopsTest2!): NoloopsTest2
   createRequiredTest(data: _InputToCreateRequiredTest!): RequiredTest
-  createRequiredField(data: _InputToCreateRequiredField!): RequiredField
+  createRequiredField1(data: _InputToCreateRequiredField1!): RequiredField1
+  createRequiredField2(data: _InputToCreateRequiredField2!): RequiredField2
   createRequiredForTargetTest(data: _InputToCreateRequiredForTargetTest!): RequiredForTargetTest
   createRequiredForTargetTarget(data: _InputToCreateRequiredForTargetTarget!): RequiredForTargetTarget
   createRequiredForTargetsTest(data: _InputToCreateRequiredForTargetsTest!): RequiredForTargetsTest
@@ -77,7 +78,8 @@ type Mutation {
   updateNoloopsTest1(id: ID!, data: _InputToUpdateNoloopsTest1!): NoloopsTest1
   updateNoloopsTest2(id: ID!, data: _InputToUpdateNoloopsTest2!): NoloopsTest2
   updateRequiredTest(id: ID!, data: _InputToUpdateRequiredTest!): RequiredTest
-  updateRequiredField(id: ID!, data: _InputToUpdateRequiredField!): RequiredField
+  updateRequiredField1(id: ID!, data: _InputToUpdateRequiredField1!): RequiredField1
+  updateRequiredField2(id: ID!, data: _InputToUpdateRequiredField2!): RequiredField2
   updateRequiredForTargetTest(id: ID!, data: _InputToUpdateRequiredForTargetTest!): RequiredForTargetTest
   updateRequiredForTargetTarget(id: ID!, data: _InputToUpdateRequiredForTargetTarget!): RequiredForTargetTarget
   updateRequiredForTargetsTest(id: ID!, data: _InputToUpdateRequiredForTargetsTest!): RequiredForTargetsTest
@@ -92,6 +94,8 @@ type Mutation {
   deleteNoloopsTest2(id: ID!): NoloopsTest2
   deleteRequiredTest(id: ID!): RequiredTest
   deleteRequiredField(id: ID!): RequiredField
+  deleteRequiredField1(id: ID!): RequiredField1
+  deleteRequiredField2(id: ID!): RequiredField2
   deleteRequiredForTargetTest(id: ID!): RequiredForTargetTest
   deleteRequiredForTargetTarget(id: ID!): RequiredForTargetTarget
   deleteRequiredForTargetsTest(id: ID!): RequiredForTargetsTest
@@ -200,6 +204,8 @@ type Query {
   noloopsTest2(id: ID!): NoloopsTest2
   requiredTest(id: ID!): RequiredTest
   requiredField(id: ID!): RequiredField
+  requiredField1(id: ID!): RequiredField1
+  requiredField2(id: ID!): RequiredField2
   requiredForTargetTest(id: ID!): RequiredForTargetTest
   requiredForTargetTarget(id: ID!): RequiredForTargetTarget
   requiredForTargetsTest(id: ID!): RequiredForTargetsTest
@@ -214,6 +220,8 @@ type Query {
   listOfNoloopsTest2s(first: Int=10, after: ID="", filter: _FilterForNoloopsTest2): _ListOfNoloopsTest2s
   listOfRequiredTests(first: Int=10, after: ID="", filter: _FilterForRequiredTest): _ListOfRequiredTests
   listOfRequiredFields(first: Int=10, after: ID="", filter: _FilterForRequiredField): _ListOfRequiredFields
+  listOfRequiredField1s(first: Int=10, after: ID="", filter: _FilterForRequiredField1): _ListOfRequiredField1s
+  listOfRequiredField2s(first: Int=10, after: ID="", filter: _FilterForRequiredField2): _ListOfRequiredField2s
   listOfRequiredForTargetTests(first: Int=10, after: ID="", filter: _FilterForRequiredForTargetTest): _ListOfRequiredForTargetTests
   listOfRequiredForTargetTargets(first: Int=10, after: ID="", filter: _FilterForRequiredForTargetTarget): _ListOfRequiredForTargetTargets
   listOfRequiredForTargetsTests(first: Int=10, after: ID="", filter: _FilterForRequiredForTargetsTest): _ListOfRequiredForTargetsTests
@@ -237,7 +245,27 @@ type Query {
   _TargetsEdgeFromUniqueForTargetTest(id: ID!): _TargetsEdgeFromUniqueForTargetTest
 }
 
-type RequiredField {
+interface RequiredField {
+  testDummyField: Int
+  id: ID!
+  _requiredFromRequiredTest(filter: _FilterForRequiredTest): [RequiredTest]
+  _requiredListFromRequiredTest(filter: _FilterForRequiredTest): [RequiredTest]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type RequiredField1 implements RequiredField {
+  testDummyField: Int
+  id: ID!
+  _requiredFromRequiredTest(filter: _FilterForRequiredTest): [RequiredTest]
+  _requiredListFromRequiredTest(filter: _FilterForRequiredTest): [RequiredTest]
+  _incomingRequiredEdgeFromRequiredTest(filter: _FilterForRequiredEdgeFromRequiredTest): [_RequiredEdgeFromRequiredTest]
+  _incomingRequiredListEdgeFromRequiredTest(filter: _FilterForRequiredListEdgeFromRequiredTest): [_RequiredListEdgeFromRequiredTest]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type RequiredField2 implements RequiredField {
   testDummyField: Int
   id: ID!
   _requiredFromRequiredTest(filter: _FilterForRequiredTest): [RequiredTest]
@@ -459,6 +487,26 @@ input _FilterForRequiredField {
   _lastUpdateDate: _DateTimeFilter
 }
 
+input _FilterForRequiredField1 {
+  _and: [_FilterForRequiredField1]
+  _or: [_FilterForRequiredField1]
+  _not: _FilterForRequiredField1
+  testDummyField: _IntFilter
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForRequiredField2 {
+  _and: [_FilterForRequiredField2]
+  _or: [_FilterForRequiredField2]
+  _not: _FilterForRequiredField2
+  testDummyField: _IntFilter
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
 input _FilterForRequiredForTargetTarget {
   _and: [_FilterForRequiredForTargetTarget]
   _or: [_FilterForRequiredForTargetTarget]
@@ -649,12 +697,14 @@ input _InputToConnectPossibleLoopsOfNoloopsTest2 {
 
 input _InputToConnectRequiredListOfRequiredTest {
   connect: ID
-  create: _InputToCreateRequiredField
+  createRequiredField1: _InputToCreateRequiredField1
+  createRequiredField2: _InputToCreateRequiredField2
 }
 
 input _InputToConnectRequiredOfRequiredTest {
   connect: ID
-  create: _InputToCreateRequiredField
+  createRequiredField1: _InputToCreateRequiredField1
+  createRequiredField2: _InputToCreateRequiredField2
 }
 
 input _InputToConnectShouldBeDistinctOfDistinctTest1 {
@@ -734,7 +784,11 @@ input _InputToCreateRequiredEdgeFromRequiredTest {
   targetID: ID!
 }
 
-input _InputToCreateRequiredField {
+input _InputToCreateRequiredField1 {
+  testDummyField: Int
+}
+
+input _InputToCreateRequiredField2 {
   testDummyField: Int
 }
 
@@ -823,7 +877,11 @@ input _InputToUpdateNoloopsTest2 {
   testDummyField: Int
 }
 
-input _InputToUpdateRequiredField {
+input _InputToUpdateRequiredField1 {
+  testDummyField: Int
+}
+
+input _InputToUpdateRequiredField2 {
   testDummyField: Int
 }
 
@@ -902,6 +960,18 @@ type _ListOfNoloopsTests {
   totalCount: Int!
   isEndOfWholeList: Boolean!
   content: [NoloopsTest]!
+}
+
+type _ListOfRequiredField1s {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [RequiredField1]!
+}
+
+type _ListOfRequiredField2s {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [RequiredField2]!
 }
 
 type _ListOfRequiredFields {

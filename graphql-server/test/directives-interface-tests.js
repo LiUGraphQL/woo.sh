@@ -251,14 +251,13 @@ describe('# directives interface tests', () => {
         });
     });
 
-    // TODO
     describe('@required interface tests', () => {
         it('required fields create', async () => {
             let mutation = `
             mutation {
                 createRequiredTest(data:{
-                    required: { create: {} }
-                    requiredList: [{ create: {} }]
+                    required: { createRequiredField1: {} }
+                    requiredList: [{ createRequiredField2: {} }]
                 }) { id }
             }`;
 
@@ -272,10 +271,10 @@ describe('# directives interface tests', () => {
         it('required field connect #1', async () => {
             let mutation = `
             mutation($id:ID!) {
-                createRequiredField(data:{}) { id @export(as:"id")}
+                createRequiredField1(data:{}) { id @export(as:"id")}
                 createRequiredTest(data:{
                     required: { connect: $id }
-                    requiredList: [{ create: {} }]
+                    requiredList: [{ createRequiredField2: {} }]
                 }) { id }
             }`;
 
@@ -289,17 +288,17 @@ describe('# directives interface tests', () => {
         it('required field connect #2', async () => {
             let mutation = `
             mutation {
-                createRequiredField(data:{}) { id }
+                createRequiredField1(data:{}) { id }
             }`;
 
             await request(url, mutation)
-                .then(data => { id = data['createRequiredField']['id']})
+                .then(data => { id = data['createRequiredField1']['id']})
 
             let m = `
             mutation {
                 createRequiredTest(data:{
                     required: { connect: "${id}" }
-                    requiredList: [{ create: {} }]
+                    requiredList: [{ createRequiredField2: {} }]
                 }) { id }
             }`;
             await request(url, m)
@@ -312,9 +311,9 @@ describe('# directives interface tests', () => {
         it('required list field connect #1', async () => {
             let mutation = `
             mutation($id:ID!) {
-                createRequiredField(data:{}) { id @export(as:"id")}
+                createRequiredField1(data:{}) { id @export(as:"id")}
                 createRequiredTest(data:{
-                    required: { create: {} }
+                    required: { createRequiredField2: {} }
                     requiredList: [{ connect: $id }]
                 }) { id }
             }`;
@@ -329,16 +328,16 @@ describe('# directives interface tests', () => {
         it('required list field connect #2', async () => {
             let mutation = `
             mutation {
-                createRequiredField(data:{}) { id }
+                createRequiredField1(data:{}) { id }
             }`;
 
             await request(url, mutation)
-                .then(data => { id = data['createRequiredField']['id']})
+                .then(data => { id = data['createRequiredField1']['id']})
 
             let m = `
             mutation {
                 createRequiredTest(data:{
-                    required: { create: {} }
+                    required: { createRequiredField2: {} }
                     requiredList: [{ connect: "${id}" }]
                 }) { id }
             }`;
@@ -352,7 +351,7 @@ describe('# directives interface tests', () => {
         it('required missing should fail', async () => {
             let mutation = `
             mutation($id:ID!) {
-                createRequiredField(data:{}) { id @export(as:"id")}
+                createRequiredField1(data:{}) { id @export(as:"id")}
                 createRequiredTest(data:{ requiredList: [{ connect: $id }] }){ id }
             }`;
             let err = await request(url, mutation)
@@ -368,7 +367,7 @@ describe('# directives interface tests', () => {
         it('required missing list should fail', async () => {
             let mutation = `
             mutation($id:ID!) {
-                createRequiredField(data:{}) { id @export(as:"id")}
+                createRequiredField1(data:{}) { id @export(as:"id")}
                 createRequiredTest(data:{
                     required: { connect: $id }
                 }) { id }
@@ -384,8 +383,8 @@ describe('# directives interface tests', () => {
         it('required add edge', async () => {
             let mutation = `
             mutation($requiredFieldId: ID!, $requiredTestId: ID!) {
-                createRequiredField(data:{}) { id @export(as:"requiredFieldId") }
-                createRequiredTest(data:{ requiredList: [{ create: {} }] }) { id @export(as:"requiredTestId") }
+                createRequiredField1(data:{}) { id @export(as:"requiredFieldId") }
+                createRequiredTest(data:{ requiredList: [{ createRequiredField2: {} }] }) { id @export(as:"requiredTestId") }
                 createRequiredEdgeFromRequiredTest(data: { sourceID: $requiredTestId, targetID: $requiredFieldId }) { id }
             }`;
             let err = await request(url, mutation)
@@ -397,8 +396,8 @@ describe('# directives interface tests', () => {
         it('required add list edge', async () => {
             let mutation = `
             mutation($requiredFieldId: ID!, $requiredTestId: ID!) {
-                createRequiredField(data:{}) { id @export(as:"requiredFieldId") }
-                createRequiredTest(data:{ required: { create: {} } }) { id @export(as:"requiredTestId") }
+                createRequiredField1(data:{}) { id @export(as:"requiredFieldId") }
+                createRequiredTest(data:{ required: { createRequiredField2: {} } }) { id @export(as:"requiredTestId") }
                 createRequiredListEdgeFromRequiredTest(data: { sourceID: $requiredTestId, targetID: $requiredFieldId }) { id }
             }`;
             let err = await request(url, mutation)
@@ -409,12 +408,12 @@ describe('# directives interface tests', () => {
 
         it('required delete field should fail #1', async () => {
             let mutation = `mutation($requiredFieldId: ID!) {
-                createRequiredField(data:{}) { id @export(as:"requiredFieldId") }
+                createRequiredField1(data:{}) { id @export(as:"requiredFieldId") }
                 createRequiredTest(data:{
                     required: { connect: $requiredFieldId }
-                    requiredList: [{ create: {} }]
+                    requiredList: [{ createRequiredField2: {} }]
                 }) { id }
-                deleteRequiredField(id: $requiredFieldId) { id }
+                deleteRequiredField1(id: $requiredFieldId) { id }
             }`;
             let err = await request(url, mutation)
                 .then(() => new Error(`@required directive should yield error when required field is deleted`))
@@ -427,8 +426,8 @@ describe('# directives interface tests', () => {
         it('required delete field should fail #2', async () => {
             let mutation = `mutation {
                 createRequiredTest(data:{
-                    required: { create: {} }
-                    requiredList: [{ create: {} }]
+                    required: { createRequiredField1: {} }
+                    requiredList: [{ createRequiredField2: {} }]
                 }) {
                     required {
                         id
@@ -437,7 +436,7 @@ describe('# directives interface tests', () => {
             }`;
 
             let id = await request(url, mutation).then(data => data['createRequiredTest']['required']['id']);
-            let m = `mutation { deleteRequiredField(id: "${id}") { id } }`;
+            let m = `mutation { deleteRequiredField1(id: "${id}") { id } }`;
             let err = await request(url, m)
                 .then(() => new Error(`@required directive should yield error when required field is deleted`))
                 .catch((err) =>  {
@@ -448,12 +447,12 @@ describe('# directives interface tests', () => {
 
         it('required delete list field should fail #1', async () => {
             let mutation = `mutation($requiredFieldId: ID!) {
-                createRequiredField(data:{}) { id @export(as:"requiredFieldId") }
+                createRequiredField1(data:{}) { id @export(as:"requiredFieldId") }
                 createRequiredTest(data:{
                     requiredList: [{ connect: $requiredFieldId }]
-                    required: { create: {} }
+                    required: { createRequiredField2: {} }
                 }) { id }
-                deleteRequiredField(id: $requiredFieldId) { id }
+                deleteRequiredField1(id: $requiredFieldId) { id }
             }`;
             let err = await request(url, mutation)
                 .then(() => new Error(`@required directive should yield error when required list field is deleted`))
@@ -466,8 +465,8 @@ describe('# directives interface tests', () => {
         it('required delete list field should fail #2', async () => {
             let mutation = `mutation {
                 createRequiredTest(data:{
-                    required: { create: {} }
-                    requiredList: [{ create: {} }]
+                    required: { createRequiredField1: {} }
+                    requiredList: [{ createRequiredField2: {} }]
                 }) {
                     requiredList {
                         id
@@ -476,7 +475,7 @@ describe('# directives interface tests', () => {
             }`;
 
             let id = await request(url, mutation).then(data => data['createRequiredTest']['requiredList'][0]['id']);
-            let m = `mutation { deleteRequiredField(id: "${id}") { id } }`;
+            let m = `mutation { deleteRequiredField2(id: "${id}") { id } }`;
             let err = await request(url, m)
                 .then(() => new Error(`@required directive should yield error when required list field is deleted`))
                 .catch((err) =>  {
@@ -488,8 +487,8 @@ describe('# directives interface tests', () => {
         it('required delete edge should fail #1', async () => {
             let mutation = `
             mutation($requiredFieldId: ID!, $requiredTestId: ID!, $edgeId: ID!) {
-                createRequiredField(data:{}) { id @export(as:"requiredFieldId") }
-                createRequiredTest(data:{ requiredList: [{ create: {} }] }) { id @export(as:"requiredTestId") }
+                createRequiredField1(data:{}) { id @export(as:"requiredFieldId") }
+                createRequiredTest(data:{ requiredList: [{ createRequiredField2: {} }] }) { id @export(as:"requiredTestId") }
                 createRequiredEdgeFromRequiredTest(data: { sourceID: $requiredTestId, targetID: $requiredFieldId }) { id @export(as:"edgeId")}
                 deleteRequiredEdgeFromRequiredTest(id: $edgeId) { id }
             }`;
@@ -505,8 +504,8 @@ describe('# directives interface tests', () => {
         it('required delete edge should fail #2', async () => {
             let mutation = `
             mutation($requiredFieldId: ID!, $requiredTestId: ID!) {
-                createRequiredField(data:{}) { id @export(as:"requiredFieldId") }
-                createRequiredTest(data:{ requiredList: [{ create: {} }] }) { id @export(as:"requiredTestId") }
+                createRequiredField1(data:{}) { id @export(as:"requiredFieldId") }
+                createRequiredTest(data:{ requiredList: [{ createRequiredField2: {} }] }) { id @export(as:"requiredTestId") }
                 createRequiredEdgeFromRequiredTest(data: { sourceID: $requiredTestId, targetID: $requiredFieldId }) { id }
             }`;
 
@@ -524,8 +523,8 @@ describe('# directives interface tests', () => {
         it('required delete list edge should fail #1', async () => {
             let mutation = `
             mutation($requiredFieldId: ID!, $requiredTestId: ID!, $edgeId: ID!) {
-                createRequiredField(data:{}) { id @export(as:"requiredFieldId") }
-                createRequiredTest(data:{ required: { create: {} } }) { id @export(as:"requiredTestId") }
+                createRequiredField1(data:{}) { id @export(as:"requiredFieldId") }
+                createRequiredTest(data:{ required: { createRequiredField2: {} } }) { id @export(as:"requiredTestId") }
                 createRequiredListEdgeFromRequiredTest(data: { sourceID: $requiredTestId, targetID: $requiredFieldId }) { id @export(as:"edgeId")}
                 deleteRequiredListEdgeFromRequiredTest(id: $edgeId) { id }
             }`;
@@ -541,8 +540,8 @@ describe('# directives interface tests', () => {
         it('required delete list edge should fail #2', async () => {
             let mutation = `
             mutation($requiredFieldId: ID!, $requiredTestId: ID!) {
-                createRequiredField(data:{}) { id @export(as:"requiredFieldId") }
-                createRequiredTest(data:{ required: { create: {} } }) { id @export(as:"requiredTestId") }
+                createRequiredField1(data:{}) { id @export(as:"requiredFieldId") }
+                createRequiredTest(data:{ required: { createRequiredField2: {} } }) { id @export(as:"requiredTestId") }
                 createRequiredListEdgeFromRequiredTest(data: { sourceID: $requiredTestId, targetID: $requiredFieldId }) { id }
             }`;
             let edgeId = await request(url, mutation).then(data => data['createRequiredListEdgeFromRequiredTest']['id']);

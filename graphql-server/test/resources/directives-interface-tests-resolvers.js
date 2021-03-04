@@ -17,7 +17,9 @@ const resolvers = {
             await driver.get(args.id, info.returnType, info.schema),
         noloopsTest2: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
-        requiredField: async (parent, args, context, info) =>
+        requiredField1: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
+        requiredField2: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
         requiredForTargetTarget: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
@@ -43,7 +45,9 @@ const resolvers = {
             await driver.getList(args, info),
         listOfNoloopsTest2s: async (parent, args, context, info) =>
             await driver.getList(args, info),
-        listOfRequiredFields: async (parent, args, context, info) =>
+        listOfRequiredField1s: async (parent, args, context, info) =>
+            await driver.getList(args, info),
+        listOfRequiredField2s: async (parent, args, context, info) =>
             await driver.getList(args, info),
         listOfRequiredForTargetTargets: async (parent, args, context, info) =>
             await driver.getList(args, info),
@@ -95,10 +99,14 @@ const resolvers = {
             await driver.get(args.id, info.returnType, info.schema),
         noloopsTest: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
+        requiredField: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
 
         listOfDistinctTests: async (parent, args, context, info) =>
             await driver.getList(args, info),
         listOfNoloopsTests: async (parent, args, context, info) =>
+            await driver.getList(args, info),
+        listOfRequiredFields: async (parent, args, context, info) =>
             await driver.getList(args, info),
     },
 
@@ -111,8 +119,10 @@ const resolvers = {
             driver.create(true, context, args.data, info.schema.getType('NoloopsTest1'), info),
         createNoloopsTest2: (parent, args, context, info) =>
             driver.create(true, context, args.data, info.schema.getType('NoloopsTest2'), info),
-        createRequiredField: (parent, args, context, info) =>
-            driver.create(true, context, args.data, info.schema.getType('RequiredField'), info),
+        createRequiredField1: (parent, args, context, info) =>
+            driver.create(true, context, args.data, info.schema.getType('RequiredField1'), info),
+        createRequiredField2: (parent, args, context, info) =>
+            driver.create(true, context, args.data, info.schema.getType('RequiredField2'), info),
         createRequiredForTargetTarget: (parent, args, context, info) =>
             driver.create(true, context, args.data, info.schema.getType('RequiredForTargetTarget'), info),
         createRequiredForTargetTest: (parent, args, context, info) =>
@@ -293,13 +303,21 @@ const resolvers = {
                 args.data,
                 info.schema.getType('NoloopsTest2'),
                 info),
-        updateRequiredField: async (parent, args, context, info) =>
+        updateRequiredField1: async (parent, args, context, info) =>
             driver.update(
                 true,
                 context,
                 args.id,
                 args.data,
-                info.schema.getType('RequiredField'),
+                info.schema.getType('RequiredField1'),
+                info),
+        updateRequiredField2: async (parent, args, context, info) =>
+            driver.update(
+                true,
+                context,
+                args.id,
+                args.data,
+                info.schema.getType('RequiredField2'),
                 info),
         updateRequiredForTargetTarget: async (parent, args, context, info) =>
             driver.update(
@@ -367,8 +385,10 @@ const resolvers = {
             driver.deleteObject(true, context, args.id, info.schema.getType('NoloopsTest1'), info),
         deleteNoloopsTest2: (parent, args, context, info) =>
             driver.deleteObject(true, context, args.id, info.schema.getType('NoloopsTest2'), info),
-        deleteRequiredField: (parent, args, context, info) =>
-            driver.deleteObject(true, context, args.id, info.schema.getType('RequiredField'), info),
+        deleteRequiredField1: (parent, args, context, info) =>
+            driver.deleteObject(true, context, args.id, info.schema.getType('RequiredField1'), info),
+        deleteRequiredField2: (parent, args, context, info) =>
+            driver.deleteObject(true, context, args.id, info.schema.getType('RequiredField2'), info),
         deleteRequiredForTargetTarget: (parent, args, context, info) =>
             driver.deleteObject(true, context, args.id, info.schema.getType('RequiredForTargetTarget'), info),
         deleteRequiredForTargetTest: (parent, args, context, info) =>
@@ -610,7 +630,20 @@ const resolvers = {
         _incomingPossibleLoopsEdgeFromNoloopsTest2: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
     },
-    RequiredField: {
+    RequiredField1: {
+        id: (parent, args, context, info) => parent._id,
+        _requiredFromRequiredTest: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _requiredListFromRequiredTest: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _creationDate: async (parent, args, context, info) => new Date(parent._creationDate),
+        _lastUpdateDate: async (parent, args, context, info) => new Date(parent._lastUpdateDate),
+        _incomingRequiredEdgeFromRequiredTest: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+        _incomingRequiredListEdgeFromRequiredTest: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+    },
+    RequiredField2: {
         id: (parent, args, context, info) => parent._id,
         _requiredFromRequiredTest: async (parent, args, context, info) =>
             await driver.getEdgeEndpoint(parent, args, info),
@@ -723,7 +756,13 @@ const resolvers = {
         isEndOfWholeList: async (parent, args, context, info) =>
             await driver.isEndOfList(parent, args, info),
     },
-    _ListOfRequiredFields: {
+    _ListOfRequiredField1s: {
+        totalCount: async (parent, args, context, info) =>
+            await driver.getTotalCount(parent, args, info),
+        isEndOfWholeList: async (parent, args, context, info) =>
+            await driver.isEndOfList(parent, args, info),
+    },
+    _ListOfRequiredField2s: {
         totalCount: async (parent, args, context, info) =>
             await driver.getTotalCount(parent, args, info),
         isEndOfWholeList: async (parent, args, context, info) =>
@@ -779,6 +818,12 @@ const resolvers = {
             await driver.isEndOfList(parent, args, info),
     },
     _ListOfNoloopsTests: {
+        totalCount: async (parent, args, context, info) =>
+            await driver.getTotalCount(parent, args, info),
+        isEndOfWholeList: async (parent, args, context, info) =>
+            await driver.isEndOfList(parent, args, info),
+    },
+    _ListOfRequiredFields: {
         totalCount: async (parent, args, context, info) =>
             await driver.getTotalCount(parent, args, info),
         isEndOfWholeList: async (parent, args, context, info) =>
@@ -888,6 +933,10 @@ const resolvers = {
             parent.__typename
     },
     NoloopsTest: {
+        __resolveType: (parent, args, context, info) =>
+            parent.__typename
+    },
+    RequiredField: {
         __resolveType: (parent, args, context, info) =>
             parent.__typename
     },

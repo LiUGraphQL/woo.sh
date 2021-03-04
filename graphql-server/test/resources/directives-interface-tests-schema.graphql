@@ -1,0 +1,73 @@
+directive @distinct on FIELD_DEFINITION
+directive @noloops on FIELD_DEFINITION
+directive @required on FIELD_DEFINITION
+directive @requiredForTarget on FIELD_DEFINITION
+directive @uniqueForTarget on FIELD_DEFINITION
+directive @key(fields: [String!]!) on OBJECT
+
+interface DistinctTest {
+    shouldBeDistinct: [DistinctTest] @distinct
+}
+
+type DistinctTest1 implements DistinctTest {
+    shouldBeDistinct: [DistinctTest] @distinct
+}
+
+type DistinctTest2 implements DistinctTest {
+    shouldBeDistinct: [DistinctTest] @distinct
+}
+
+
+interface NoloopsTest {
+    possibleLoop: NoloopsTest @noloops
+    possibleLoops: [NoloopsTest] @noloops
+    testDummyField: Int
+}
+
+type NoloopsTest1 implements NoloopsTest {
+    possibleLoop: NoloopsTest @noloops
+    possibleLoops: [NoloopsTest] @noloops
+    testDummyField: Int
+}
+
+type NoloopsTest2 implements NoloopsTest {
+    possibleLoop: NoloopsTest @noloops
+    possibleLoops: [NoloopsTest] @noloops
+    testDummyField: Int
+}
+
+
+
+type RequiredTest {
+    required: RequiredField @required
+    requiredList: [RequiredField] @required
+}
+
+type RequiredField {
+    testDummyField: Int
+}
+
+type RequiredForTargetTest {
+    target: RequiredForTargetTarget @requiredForTarget
+}
+
+type RequiredForTargetTarget {
+    testDummyField: Int
+}
+
+type RequiredForTargetsTest {
+    targets: [RequiredForTargetsTarget] @requiredForTarget
+}
+
+type RequiredForTargetsTarget {
+    testDummyField: Int
+}
+
+type UniqueForTargetTarget {
+    testDummyField: Int
+}
+
+type UniqueForTargetTest {
+    target: UniqueForTargetTarget @uniqueForTarget
+    targets: [UniqueForTargetTarget] @uniqueForTarget
+}

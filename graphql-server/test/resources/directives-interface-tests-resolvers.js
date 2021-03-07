@@ -35,9 +35,13 @@ const resolvers = {
             await driver.get(args.id, info.returnType, info.schema),
         requiredTest: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
-        uniqueForTargetTarget: async (parent, args, context, info) =>
+        uniqueForTargetTarget1: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
-        uniqueForTargetTest: async (parent, args, context, info) =>
+        uniqueForTargetTarget2: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
+        uniqueForTargetTest1: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
+        uniqueForTargetTest2: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
 
 
@@ -67,9 +71,13 @@ const resolvers = {
             await driver.getList(args, info),
         listOfRequiredTests: async (parent, args, context, info) =>
             await driver.getList(args, info),
-        listOfUniqueForTargetTargets: async (parent, args, context, info) =>
+        listOfUniqueForTargetTarget1s: async (parent, args, context, info) =>
             await driver.getList(args, info),
-        listOfUniqueForTargetTests: async (parent, args, context, info) =>
+        listOfUniqueForTargetTarget2s: async (parent, args, context, info) =>
+            await driver.getList(args, info),
+        listOfUniqueForTargetTest1s: async (parent, args, context, info) =>
+            await driver.getList(args, info),
+        listOfUniqueForTargetTest2s: async (parent, args, context, info) =>
             await driver.getList(args, info),
 
         _PossibleLoopEdgeFromNoloopsTest: async (parent, args, context, info) =>
@@ -98,9 +106,17 @@ const resolvers = {
             await driver.get(args.id, info.returnType, info.schema),
         _TargetEdgeFromUniqueForTargetTest: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
+        _TargetEdgeFromUniqueForTargetTest1: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
+        _TargetEdgeFromUniqueForTargetTest2: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
         _TargetsEdgeFromRequiredForTargetsTest: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
         _TargetsEdgeFromUniqueForTargetTest: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
+        _TargetsEdgeFromUniqueForTargetTest1: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
+        _TargetsEdgeFromUniqueForTargetTest2: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
 
         distinctTest: async (parent, args, context, info) =>
@@ -113,6 +129,10 @@ const resolvers = {
             await driver.get(args.id, info.returnType, info.schema),
         requiredForTargetsTarget: async (parent, args, context, info) =>
             await driver.get(args.id, info.returnType, info.schema),
+        uniqueForTargetTarget: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
+        uniqueForTargetTest: async (parent, args, context, info) =>
+            await driver.get(args.id, info.returnType, info.schema),
 
         listOfDistinctTests: async (parent, args, context, info) =>
             await driver.getList(args, info),
@@ -123,6 +143,10 @@ const resolvers = {
         listOfRequiredForTargetTargets: async (parent, args, context, info) =>
             await driver.getList(args, info),
         listOfRequiredForTargetsTargets: async (parent, args, context, info) =>
+            await driver.getList(args, info),
+        listOfUniqueForTargetTargets: async (parent, args, context, info) =>
+            await driver.getList(args, info),
+        listOfUniqueForTargetTests: async (parent, args, context, info) =>
             await driver.getList(args, info),
     },
 
@@ -153,10 +177,14 @@ const resolvers = {
             driver.create(true, context, args.data, info.schema.getType('RequiredForTargetsTest'), info),
         createRequiredTest: (parent, args, context, info) =>
             driver.create(true, context, args.data, info.schema.getType('RequiredTest'), info),
-        createUniqueForTargetTarget: (parent, args, context, info) =>
-            driver.create(true, context, args.data, info.schema.getType('UniqueForTargetTarget'), info),
-        createUniqueForTargetTest: (parent, args, context, info) =>
-            driver.create(true, context, args.data, info.schema.getType('UniqueForTargetTest'), info),
+        createUniqueForTargetTarget1: (parent, args, context, info) =>
+            driver.create(true, context, args.data, info.schema.getType('UniqueForTargetTarget1'), info),
+        createUniqueForTargetTarget2: (parent, args, context, info) =>
+            driver.create(true, context, args.data, info.schema.getType('UniqueForTargetTarget2'), info),
+        createUniqueForTargetTest1: (parent, args, context, info) =>
+            driver.create(true, context, args.data, info.schema.getType('UniqueForTargetTest1'), info),
+        createUniqueForTargetTest2: (parent, args, context, info) =>
+            driver.create(true, context, args.data, info.schema.getType('UniqueForTargetTest2'), info),
 
         createShouldBeDistinctEdgeFromDistinctTest1: async (parent, args, context, info) =>
             await driver.createEdge(
@@ -268,23 +296,45 @@ const resolvers = {
                 info.schema.getType('RequiredField'),
                 args.data.annotations,
                 info),
-        createTargetEdgeFromUniqueForTargetTest: async (parent, args, context, info) =>
+        createTargetEdgeFromUniqueForTargetTest1: async (parent, args, context, info) =>
             await driver.createEdge(
                 true,
                 context,
                 args.data.sourceID,
-                info.schema.getType('UniqueForTargetTest'),
+                info.schema.getType('UniqueForTargetTest1'),
                 'target',
                 args.data.targetID,
                 info.schema.getType('UniqueForTargetTarget'),
                 args.data.annotations,
                 info),
-        createTargetsEdgeFromUniqueForTargetTest: async (parent, args, context, info) =>
+        createTargetsEdgeFromUniqueForTargetTest1: async (parent, args, context, info) =>
             await driver.createEdge(
                 true,
                 context,
                 args.data.sourceID,
-                info.schema.getType('UniqueForTargetTest'),
+                info.schema.getType('UniqueForTargetTest1'),
+                'targets',
+                args.data.targetID,
+                info.schema.getType('UniqueForTargetTarget'),
+                args.data.annotations,
+                info),
+        createTargetEdgeFromUniqueForTargetTest2: async (parent, args, context, info) =>
+            await driver.createEdge(
+                true,
+                context,
+                args.data.sourceID,
+                info.schema.getType('UniqueForTargetTest2'),
+                'target',
+                args.data.targetID,
+                info.schema.getType('UniqueForTargetTarget'),
+                args.data.annotations,
+                info),
+        createTargetsEdgeFromUniqueForTargetTest2: async (parent, args, context, info) =>
+            await driver.createEdge(
+                true,
+                context,
+                args.data.sourceID,
+                info.schema.getType('UniqueForTargetTest2'),
                 'targets',
                 args.data.targetID,
                 info.schema.getType('UniqueForTargetTarget'),
@@ -395,21 +445,37 @@ const resolvers = {
                 args.data,
                 info.schema.getType('RequiredTest'),
                 info),
-        updateUniqueForTargetTarget: async (parent, args, context, info) =>
+        updateUniqueForTargetTarget1: async (parent, args, context, info) =>
             driver.update(
                 true,
                 context,
                 args.id,
                 args.data,
-                info.schema.getType('UniqueForTargetTarget'),
+                info.schema.getType('UniqueForTargetTarget1'),
                 info),
-        updateUniqueForTargetTest: async (parent, args, context, info) =>
+        updateUniqueForTargetTarget2: async (parent, args, context, info) =>
             driver.update(
                 true,
                 context,
                 args.id,
                 args.data,
-                info.schema.getType('UniqueForTargetTest'),
+                info.schema.getType('UniqueForTargetTarget2'),
+                info),
+        updateUniqueForTargetTest1: async (parent, args, context, info) =>
+            driver.update(
+                true,
+                context,
+                args.id,
+                args.data,
+                info.schema.getType('UniqueForTargetTest1'),
+                info),
+        updateUniqueForTargetTest2: async (parent, args, context, info) =>
+            driver.update(
+                true,
+                context,
+                args.id,
+                args.data,
+                info.schema.getType('UniqueForTargetTest2'),
                 info),
 
     
@@ -439,10 +505,14 @@ const resolvers = {
             driver.deleteObject(true, context, args.id, info.schema.getType('RequiredForTargetsTest'), info),
         deleteRequiredTest: (parent, args, context, info) =>
             driver.deleteObject(true, context, args.id, info.schema.getType('RequiredTest'), info),
-        deleteUniqueForTargetTarget: (parent, args, context, info) =>
-            driver.deleteObject(true, context, args.id, info.schema.getType('UniqueForTargetTarget'), info),
-        deleteUniqueForTargetTest: (parent, args, context, info) =>
-            driver.deleteObject(true, context, args.id, info.schema.getType('UniqueForTargetTest'), info),
+        deleteUniqueForTargetTarget1: (parent, args, context, info) =>
+            driver.deleteObject(true, context, args.id, info.schema.getType('UniqueForTargetTarget1'), info),
+        deleteUniqueForTargetTarget2: (parent, args, context, info) =>
+            driver.deleteObject(true, context, args.id, info.schema.getType('UniqueForTargetTarget2'), info),
+        deleteUniqueForTargetTest1: (parent, args, context, info) =>
+            driver.deleteObject(true, context, args.id, info.schema.getType('UniqueForTargetTest1'), info),
+        deleteUniqueForTargetTest2: (parent, args, context, info) =>
+            driver.deleteObject(true, context, args.id, info.schema.getType('UniqueForTargetTest2'), info),
     
         deletePossibleLoopEdgeFromNoloopsTest1: async (parent, args, context, info) =>
             await driver.deleteEdge(
@@ -516,13 +586,21 @@ const resolvers = {
                 'TargetEdgeFromRequiredForTargetTest',
                 info.schema.getType('RequiredForTargetTest'),
                 info),
-        deleteTargetEdgeFromUniqueForTargetTest: async (parent, args, context, info) =>
+        deleteTargetEdgeFromUniqueForTargetTest1: async (parent, args, context, info) =>
             await driver.deleteEdge(
                 true,
                 context,
                 args.id,
-                'TargetEdgeFromUniqueForTargetTest',
-                info.schema.getType('UniqueForTargetTest'),
+                'TargetEdgeFromUniqueForTargetTest1',
+                info.schema.getType('UniqueForTargetTest1'),
+                info),
+        deleteTargetEdgeFromUniqueForTargetTest2: async (parent, args, context, info) =>
+            await driver.deleteEdge(
+                true,
+                context,
+                args.id,
+                'TargetEdgeFromUniqueForTargetTest2',
+                info.schema.getType('UniqueForTargetTest2'),
                 info),
         deleteTargetsEdgeFromRequiredForTargetsTest: async (parent, args, context, info) =>
             await driver.deleteEdge(
@@ -532,13 +610,21 @@ const resolvers = {
                 'TargetsEdgeFromRequiredForTargetsTest',
                 info.schema.getType('RequiredForTargetsTest'),
                 info),
-        deleteTargetsEdgeFromUniqueForTargetTest: async (parent, args, context, info) =>
+        deleteTargetsEdgeFromUniqueForTargetTest1: async (parent, args, context, info) =>
             await driver.deleteEdge(
                 true,
                 context,
                 args.id,
-                'TargetsEdgeFromUniqueForTargetTest',
-                info.schema.getType('UniqueForTargetTest'),
+                'TargetsEdgeFromUniqueForTargetTest1',
+                info.schema.getType('UniqueForTargetTest1'),
+                info),
+        deleteTargetsEdgeFromUniqueForTargetTest2: async (parent, args, context, info) =>
+            await driver.deleteEdge(
+                true,
+                context,
+                args.id,
+                'TargetsEdgeFromUniqueForTargetTest2',
+                info.schema.getType('UniqueForTargetTest2'),
                 info),
     },
 
@@ -763,11 +849,19 @@ const resolvers = {
         _outgoingRequiredListEdgesFromRequiredTest: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
     },
-    UniqueForTargetTarget: {
+    UniqueForTargetTarget1: {
         id: (parent, args, context, info) => parent._id,
         _targetFromUniqueForTargetTest: async (parent, args, context, info) =>
             await driver.getEdgeEndpoint(parent, args, info),
         _targetsFromUniqueForTargetTest: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _targetFromUniqueForTargetTest1: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _targetsFromUniqueForTargetTest1: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _targetFromUniqueForTargetTest2: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _targetsFromUniqueForTargetTest2: async (parent, args, context, info) =>
             await driver.getEdgeEndpoint(parent, args, info),
         _creationDate: async (parent, args, context, info) => new Date(parent._creationDate),
         _lastUpdateDate: async (parent, args, context, info) => new Date(parent._lastUpdateDate),
@@ -775,8 +869,45 @@ const resolvers = {
             await driver.getEdge(parent, args, info),
         _incomingTargetsEdgeFromUniqueForTargetTest: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
+        _incomingTargetEdgeFromUniqueForTargetTest1: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+        _incomingTargetsEdgeFromUniqueForTargetTest1: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+        _incomingTargetEdgeFromUniqueForTargetTest2: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+        _incomingTargetsEdgeFromUniqueForTargetTest2: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
     },
-    UniqueForTargetTest: {
+    UniqueForTargetTarget2: {
+        id: (parent, args, context, info) => parent._id,
+        _targetFromUniqueForTargetTest: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _targetsFromUniqueForTargetTest: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _targetFromUniqueForTargetTest1: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _targetsFromUniqueForTargetTest1: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _targetFromUniqueForTargetTest2: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _targetsFromUniqueForTargetTest2: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _creationDate: async (parent, args, context, info) => new Date(parent._creationDate),
+        _lastUpdateDate: async (parent, args, context, info) => new Date(parent._lastUpdateDate),
+        _incomingTargetEdgeFromUniqueForTargetTest: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+        _incomingTargetsEdgeFromUniqueForTargetTest: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+        _incomingTargetEdgeFromUniqueForTargetTest1: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+        _incomingTargetsEdgeFromUniqueForTargetTest1: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+        _incomingTargetEdgeFromUniqueForTargetTest2: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+        _incomingTargetsEdgeFromUniqueForTargetTest2: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+    },
+    UniqueForTargetTest1: {
         id: (parent, args, context, info) => parent._id,
         target: async (parent, args, context, info) =>
             await driver.getEdgeEndpoint(parent, args, info),
@@ -787,6 +918,27 @@ const resolvers = {
         _outgoingTargetEdgesFromUniqueForTargetTest: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
         _outgoingTargetsEdgesFromUniqueForTargetTest: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+        _outgoingTargetEdgesFromUniqueForTargetTest1: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+        _outgoingTargetsEdgesFromUniqueForTargetTest1: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+    },
+    UniqueForTargetTest2: {
+        id: (parent, args, context, info) => parent._id,
+        target: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        targets: async (parent, args, context, info) =>
+            await driver.getEdgeEndpoint(parent, args, info),
+        _creationDate: async (parent, args, context, info) => new Date(parent._creationDate),
+        _lastUpdateDate: async (parent, args, context, info) => new Date(parent._lastUpdateDate),
+        _outgoingTargetEdgesFromUniqueForTargetTest: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+        _outgoingTargetsEdgesFromUniqueForTargetTest: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+        _outgoingTargetEdgesFromUniqueForTargetTest2: async (parent, args, context, info) =>
+            await driver.getEdge(parent, args, info),
+        _outgoingTargetsEdgesFromUniqueForTargetTest2: async (parent, args, context, info) =>
             await driver.getEdge(parent, args, info),
     },
 
@@ -868,13 +1020,25 @@ const resolvers = {
         isEndOfWholeList: async (parent, args, context, info) =>
             await driver.isEndOfList(parent, args, info),
     },
-    _ListOfUniqueForTargetTargets: {
+    _ListOfUniqueForTargetTarget1s: {
         totalCount: async (parent, args, context, info) =>
             await driver.getTotalCount(parent, args, info),
         isEndOfWholeList: async (parent, args, context, info) =>
             await driver.isEndOfList(parent, args, info),
     },
-    _ListOfUniqueForTargetTests: {
+    _ListOfUniqueForTargetTarget2s: {
+        totalCount: async (parent, args, context, info) =>
+            await driver.getTotalCount(parent, args, info),
+        isEndOfWholeList: async (parent, args, context, info) =>
+            await driver.isEndOfList(parent, args, info),
+    },
+    _ListOfUniqueForTargetTest1s: {
+        totalCount: async (parent, args, context, info) =>
+            await driver.getTotalCount(parent, args, info),
+        isEndOfWholeList: async (parent, args, context, info) =>
+            await driver.isEndOfList(parent, args, info),
+    },
+    _ListOfUniqueForTargetTest2s: {
         totalCount: async (parent, args, context, info) =>
             await driver.getTotalCount(parent, args, info),
         isEndOfWholeList: async (parent, args, context, info) =>
@@ -906,6 +1070,18 @@ const resolvers = {
             await driver.isEndOfList(parent, args, info),
     },
     _ListOfRequiredForTargetsTargets: {
+        totalCount: async (parent, args, context, info) =>
+            await driver.getTotalCount(parent, args, info),
+        isEndOfWholeList: async (parent, args, context, info) =>
+            await driver.isEndOfList(parent, args, info),
+    },
+    _ListOfUniqueForTargetTargets: {
+        totalCount: async (parent, args, context, info) =>
+            await driver.getTotalCount(parent, args, info),
+        isEndOfWholeList: async (parent, args, context, info) =>
+            await driver.isEndOfList(parent, args, info),
+    },
+    _ListOfUniqueForTargetTests: {
         totalCount: async (parent, args, context, info) =>
             await driver.getTotalCount(parent, args, info),
         isEndOfWholeList: async (parent, args, context, info) =>
@@ -982,17 +1158,31 @@ const resolvers = {
         target: async (parent, args, context, info) =>
             await driver.get(parent._to, info.schema.getType('RequiredField'), info.schema),
     },
-    _TargetEdgeFromUniqueForTargetTest: {
+    _TargetEdgeFromUniqueForTargetTest1: {
         id: (parent, args, context, info) => parent._id,
         source: async (parent, args, context, info) =>
-            await driver.get(parent._from, info.schema.getType('UniqueForTargetTest'), info.schema),
+            await driver.get(parent._from, info.schema.getType('UniqueForTargetTest1'), info.schema),
         target: async (parent, args, context, info) =>
             await driver.get(parent._to, info.schema.getType('UniqueForTargetTarget'), info.schema),
     },
-    _TargetsEdgeFromUniqueForTargetTest: {
+    _TargetsEdgeFromUniqueForTargetTest1: {
         id: (parent, args, context, info) => parent._id,
         source: async (parent, args, context, info) =>
-            await driver.get(parent._from, info.schema.getType('UniqueForTargetTest'), info.schema),
+            await driver.get(parent._from, info.schema.getType('UniqueForTargetTest1'), info.schema),
+        target: async (parent, args, context, info) =>
+            await driver.get(parent._to, info.schema.getType('UniqueForTargetTarget'), info.schema),
+    },
+    _TargetEdgeFromUniqueForTargetTest2: {
+        id: (parent, args, context, info) => parent._id,
+        source: async (parent, args, context, info) =>
+            await driver.get(parent._from, info.schema.getType('UniqueForTargetTest2'), info.schema),
+        target: async (parent, args, context, info) =>
+            await driver.get(parent._to, info.schema.getType('UniqueForTargetTarget'), info.schema),
+    },
+    _TargetsEdgeFromUniqueForTargetTest2: {
+        id: (parent, args, context, info) => parent._id,
+        source: async (parent, args, context, info) =>
+            await driver.get(parent._from, info.schema.getType('UniqueForTargetTest2'), info.schema),
         target: async (parent, args, context, info) =>
             await driver.get(parent._to, info.schema.getType('UniqueForTargetTarget'), info.schema),
     },
@@ -1006,6 +1196,14 @@ const resolvers = {
             parent.__typename
     },
     _ShouldBeDistinctEdgeFromDistinctTest: {
+        __resolveType: (parent, args, context, info) =>
+            parent.__typename
+    },
+    _TargetEdgeFromUniqueForTargetTest: {
+        __resolveType: (parent, args, context, info) =>
+            parent.__typename
+    },
+    _TargetsEdgeFromUniqueForTargetTest: {
         __resolveType: (parent, args, context, info) =>
             parent.__typename
     },
@@ -1030,6 +1228,14 @@ const resolvers = {
         __resolveType: (parent, args, context, info) =>
             parent.__typename
     },
+    UniqueForTargetTarget: {
+        __resolveType: (parent, args, context, info) =>
+            parent.__typename
+    },
+    UniqueForTargetTest: {
+        __resolveType: (parent, args, context, info) =>
+            parent.__typename
+    },
     _PossibleLoopEdgeFromNoloopsTest: {
         __resolveType: (parent, args, context, info) =>
             '_' + parent.__typename
@@ -1039,6 +1245,14 @@ const resolvers = {
             '_' + parent.__typename
     },
     _ShouldBeDistinctEdgeFromDistinctTest: {
+        __resolveType: (parent, args, context, info) =>
+            '_' + parent.__typename
+    },
+    _TargetEdgeFromUniqueForTargetTest: {
+        __resolveType: (parent, args, context, info) =>
+            '_' + parent.__typename
+    },
+    _TargetsEdgeFromUniqueForTargetTest: {
         __resolveType: (parent, args, context, info) =>
             '_' + parent.__typename
     },

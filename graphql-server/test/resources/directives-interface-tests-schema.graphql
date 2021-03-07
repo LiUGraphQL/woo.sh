@@ -88,11 +88,30 @@ type RequiredForTargetsTarget2 implements RequiredForTargetsTarget {
 }
 
 
-type UniqueForTargetTarget {
+interface UniqueForTargetTarget {
     testDummyField: Int
 }
 
-type UniqueForTargetTest {
+
+type UniqueForTargetTarget1 implements UniqueForTargetTarget {
+    testDummyField: Int
+}
+
+type UniqueForTargetTarget2 implements UniqueForTargetTarget {
+    testDummyField: Int
+}
+
+interface UniqueForTargetTest {
+    target: UniqueForTargetTarget @uniqueForTarget
+    targets: [UniqueForTargetTarget] @uniqueForTarget
+}
+
+type UniqueForTargetTest1 implements UniqueForTargetTest {
+    target: UniqueForTargetTarget @uniqueForTarget
+    targets: [UniqueForTargetTarget] @uniqueForTarget
+}
+
+type UniqueForTargetTest2 implements UniqueForTargetTest {
     target: UniqueForTargetTarget @uniqueForTarget
     targets: [UniqueForTargetTarget] @uniqueForTarget
 }

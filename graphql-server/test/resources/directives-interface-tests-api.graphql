@@ -73,8 +73,10 @@ type Mutation {
   createRequiredForTargetsTest(data: _InputToCreateRequiredForTargetsTest!): RequiredForTargetsTest
   createRequiredForTargetsTarget1(data: _InputToCreateRequiredForTargetsTarget1!): RequiredForTargetsTarget1
   createRequiredForTargetsTarget2(data: _InputToCreateRequiredForTargetsTarget2!): RequiredForTargetsTarget2
-  createUniqueForTargetTarget(data: _InputToCreateUniqueForTargetTarget!): UniqueForTargetTarget
-  createUniqueForTargetTest(data: _InputToCreateUniqueForTargetTest!): UniqueForTargetTest
+  createUniqueForTargetTarget1(data: _InputToCreateUniqueForTargetTarget1!): UniqueForTargetTarget1
+  createUniqueForTargetTarget2(data: _InputToCreateUniqueForTargetTarget2!): UniqueForTargetTarget2
+  createUniqueForTargetTest1(data: _InputToCreateUniqueForTargetTest1!): UniqueForTargetTest1
+  createUniqueForTargetTest2(data: _InputToCreateUniqueForTargetTest2!): UniqueForTargetTest2
   updateDistinctTest1(id: ID!, data: _InputToUpdateDistinctTest1!): DistinctTest1
   updateDistinctTest2(id: ID!, data: _InputToUpdateDistinctTest2!): DistinctTest2
   updateNoloopsTest1(id: ID!, data: _InputToUpdateNoloopsTest1!): NoloopsTest1
@@ -88,8 +90,10 @@ type Mutation {
   updateRequiredForTargetsTest(id: ID!, data: _InputToUpdateRequiredForTargetsTest!): RequiredForTargetsTest
   updateRequiredForTargetsTarget1(id: ID!, data: _InputToUpdateRequiredForTargetsTarget1!): RequiredForTargetsTarget1
   updateRequiredForTargetsTarget2(id: ID!, data: _InputToUpdateRequiredForTargetsTarget2!): RequiredForTargetsTarget2
-  updateUniqueForTargetTarget(id: ID!, data: _InputToUpdateUniqueForTargetTarget!): UniqueForTargetTarget
-  updateUniqueForTargetTest(id: ID!, data: _InputToUpdateUniqueForTargetTest!): UniqueForTargetTest
+  updateUniqueForTargetTarget1(id: ID!, data: _InputToUpdateUniqueForTargetTarget1!): UniqueForTargetTarget1
+  updateUniqueForTargetTarget2(id: ID!, data: _InputToUpdateUniqueForTargetTarget2!): UniqueForTargetTarget2
+  updateUniqueForTargetTest1(id: ID!, data: _InputToUpdateUniqueForTargetTest1!): UniqueForTargetTest1
+  updateUniqueForTargetTest2(id: ID!, data: _InputToUpdateUniqueForTargetTest2!): UniqueForTargetTest2
   deleteDistinctTest(id: ID!): DistinctTest
   deleteDistinctTest1(id: ID!): DistinctTest1
   deleteDistinctTest2(id: ID!): DistinctTest2
@@ -109,7 +113,11 @@ type Mutation {
   deleteRequiredForTargetsTarget1(id: ID!): RequiredForTargetsTarget1
   deleteRequiredForTargetsTarget2(id: ID!): RequiredForTargetsTarget2
   deleteUniqueForTargetTarget(id: ID!): UniqueForTargetTarget
+  deleteUniqueForTargetTarget1(id: ID!): UniqueForTargetTarget1
+  deleteUniqueForTargetTarget2(id: ID!): UniqueForTargetTarget2
   deleteUniqueForTargetTest(id: ID!): UniqueForTargetTest
+  deleteUniqueForTargetTest1(id: ID!): UniqueForTargetTest1
+  deleteUniqueForTargetTest2(id: ID!): UniqueForTargetTest2
   createShouldBeDistinctEdgeFromDistinctTest1(data: _InputToCreateShouldBeDistinctEdgeFromDistinctTest1): _ShouldBeDistinctEdgeFromDistinctTest1
   createShouldBeDistinctEdgeFromDistinctTest2(data: _InputToCreateShouldBeDistinctEdgeFromDistinctTest2): _ShouldBeDistinctEdgeFromDistinctTest2
   createPossibleLoopEdgeFromNoloopsTest1(data: _InputToCreatePossibleLoopEdgeFromNoloopsTest1): _PossibleLoopEdgeFromNoloopsTest1
@@ -120,8 +128,10 @@ type Mutation {
   createRequiredListEdgeFromRequiredTest(data: _InputToCreateRequiredListEdgeFromRequiredTest): _RequiredListEdgeFromRequiredTest
   createTargetEdgeFromRequiredForTargetTest(data: _InputToCreateTargetEdgeFromRequiredForTargetTest): _TargetEdgeFromRequiredForTargetTest
   createTargetsEdgeFromRequiredForTargetsTest(data: _InputToCreateTargetsEdgeFromRequiredForTargetsTest): _TargetsEdgeFromRequiredForTargetsTest
-  createTargetEdgeFromUniqueForTargetTest(data: _InputToCreateTargetEdgeFromUniqueForTargetTest): _TargetEdgeFromUniqueForTargetTest
-  createTargetsEdgeFromUniqueForTargetTest(data: _InputToCreateTargetsEdgeFromUniqueForTargetTest): _TargetsEdgeFromUniqueForTargetTest
+  createTargetEdgeFromUniqueForTargetTest1(data: _InputToCreateTargetEdgeFromUniqueForTargetTest1): _TargetEdgeFromUniqueForTargetTest1
+  createTargetsEdgeFromUniqueForTargetTest1(data: _InputToCreateTargetsEdgeFromUniqueForTargetTest1): _TargetsEdgeFromUniqueForTargetTest1
+  createTargetEdgeFromUniqueForTargetTest2(data: _InputToCreateTargetEdgeFromUniqueForTargetTest2): _TargetEdgeFromUniqueForTargetTest2
+  createTargetsEdgeFromUniqueForTargetTest2(data: _InputToCreateTargetsEdgeFromUniqueForTargetTest2): _TargetsEdgeFromUniqueForTargetTest2
   deleteShouldBeDistinctEdgeFromDistinctTest1(id: ID!): _ShouldBeDistinctEdgeFromDistinctTest1
   deleteShouldBeDistinctEdgeFromDistinctTest2(id: ID!): _ShouldBeDistinctEdgeFromDistinctTest2
   deletePossibleLoopEdgeFromNoloopsTest1(id: ID!): _PossibleLoopEdgeFromNoloopsTest1
@@ -132,8 +142,10 @@ type Mutation {
   deleteRequiredListEdgeFromRequiredTest(id: ID!): _RequiredListEdgeFromRequiredTest
   deleteTargetEdgeFromRequiredForTargetTest(id: ID!): _TargetEdgeFromRequiredForTargetTest
   deleteTargetsEdgeFromRequiredForTargetsTest(id: ID!): _TargetsEdgeFromRequiredForTargetsTest
-  deleteTargetEdgeFromUniqueForTargetTest(id: ID!): _TargetEdgeFromUniqueForTargetTest
-  deleteTargetsEdgeFromUniqueForTargetTest(id: ID!): _TargetsEdgeFromUniqueForTargetTest
+  deleteTargetEdgeFromUniqueForTargetTest1(id: ID!): _TargetEdgeFromUniqueForTargetTest1
+  deleteTargetsEdgeFromUniqueForTargetTest1(id: ID!): _TargetsEdgeFromUniqueForTargetTest1
+  deleteTargetEdgeFromUniqueForTargetTest2(id: ID!): _TargetEdgeFromUniqueForTargetTest2
+  deleteTargetsEdgeFromUniqueForTargetTest2(id: ID!): _TargetsEdgeFromUniqueForTargetTest2
 }
 
 interface NoloopsTest {
@@ -223,7 +235,11 @@ type Query {
   requiredForTargetsTarget1(id: ID!): RequiredForTargetsTarget1
   requiredForTargetsTarget2(id: ID!): RequiredForTargetsTarget2
   uniqueForTargetTarget(id: ID!): UniqueForTargetTarget
+  uniqueForTargetTarget1(id: ID!): UniqueForTargetTarget1
+  uniqueForTargetTarget2(id: ID!): UniqueForTargetTarget2
   uniqueForTargetTest(id: ID!): UniqueForTargetTest
+  uniqueForTargetTest1(id: ID!): UniqueForTargetTest1
+  uniqueForTargetTest2(id: ID!): UniqueForTargetTest2
   listOfDistinctTests(first: Int=10, after: ID="", filter: _FilterForDistinctTest): _ListOfDistinctTests
   listOfDistinctTest1s(first: Int=10, after: ID="", filter: _FilterForDistinctTest1): _ListOfDistinctTest1s
   listOfDistinctTest2s(first: Int=10, after: ID="", filter: _FilterForDistinctTest2): _ListOfDistinctTest2s
@@ -243,7 +259,11 @@ type Query {
   listOfRequiredForTargetsTarget1s(first: Int=10, after: ID="", filter: _FilterForRequiredForTargetsTarget1): _ListOfRequiredForTargetsTarget1s
   listOfRequiredForTargetsTarget2s(first: Int=10, after: ID="", filter: _FilterForRequiredForTargetsTarget2): _ListOfRequiredForTargetsTarget2s
   listOfUniqueForTargetTargets(first: Int=10, after: ID="", filter: _FilterForUniqueForTargetTarget): _ListOfUniqueForTargetTargets
+  listOfUniqueForTargetTarget1s(first: Int=10, after: ID="", filter: _FilterForUniqueForTargetTarget1): _ListOfUniqueForTargetTarget1s
+  listOfUniqueForTargetTarget2s(first: Int=10, after: ID="", filter: _FilterForUniqueForTargetTarget2): _ListOfUniqueForTargetTarget2s
   listOfUniqueForTargetTests(first: Int=10, after: ID="", filter: _FilterForUniqueForTargetTest): _ListOfUniqueForTargetTests
+  listOfUniqueForTargetTest1s(first: Int=10, after: ID="", filter: _FilterForUniqueForTargetTest1): _ListOfUniqueForTargetTest1s
+  listOfUniqueForTargetTest2s(first: Int=10, after: ID="", filter: _FilterForUniqueForTargetTest2): _ListOfUniqueForTargetTest2s
   _ShouldBeDistinctEdgeFromDistinctTest(id: ID!): _ShouldBeDistinctEdgeFromDistinctTest
   _ShouldBeDistinctEdgeFromDistinctTest1(id: ID!): _ShouldBeDistinctEdgeFromDistinctTest1
   _ShouldBeDistinctEdgeFromDistinctTest2(id: ID!): _ShouldBeDistinctEdgeFromDistinctTest2
@@ -259,6 +279,10 @@ type Query {
   _TargetsEdgeFromRequiredForTargetsTest(id: ID!): _TargetsEdgeFromRequiredForTargetsTest
   _TargetEdgeFromUniqueForTargetTest(id: ID!): _TargetEdgeFromUniqueForTargetTest
   _TargetsEdgeFromUniqueForTargetTest(id: ID!): _TargetsEdgeFromUniqueForTargetTest
+  _TargetEdgeFromUniqueForTargetTest1(id: ID!): _TargetEdgeFromUniqueForTargetTest1
+  _TargetsEdgeFromUniqueForTargetTest1(id: ID!): _TargetsEdgeFromUniqueForTargetTest1
+  _TargetEdgeFromUniqueForTargetTest2(id: ID!): _TargetEdgeFromUniqueForTargetTest2
+  _TargetsEdgeFromUniqueForTargetTest2(id: ID!): _TargetsEdgeFromUniqueForTargetTest2
 }
 
 interface RequiredField {
@@ -370,23 +394,87 @@ type RequiredTest {
   _lastUpdateDate: DateTime
 }
 
-type UniqueForTargetTarget {
+interface UniqueForTargetTarget {
   testDummyField: Int
   id: ID!
   _targetFromUniqueForTargetTest: UniqueForTargetTest
   _targetsFromUniqueForTargetTest: UniqueForTargetTest
-  _incomingTargetEdgeFromUniqueForTargetTest: _TargetEdgeFromUniqueForTargetTest
-  _incomingTargetsEdgeFromUniqueForTargetTest: _TargetsEdgeFromUniqueForTargetTest
+  _targetFromUniqueForTargetTest1: UniqueForTargetTest1
+  _targetsFromUniqueForTargetTest1: UniqueForTargetTest1
+  _targetFromUniqueForTargetTest2: UniqueForTargetTest2
+  _targetsFromUniqueForTargetTest2: UniqueForTargetTest2
   _creationDate: DateTime!
   _lastUpdateDate: DateTime
 }
 
-type UniqueForTargetTest {
+type UniqueForTargetTarget1 implements UniqueForTargetTarget {
+  testDummyField: Int
+  id: ID!
+  _targetFromUniqueForTargetTest: UniqueForTargetTest
+  _targetsFromUniqueForTargetTest: UniqueForTargetTest
+  _targetFromUniqueForTargetTest1: UniqueForTargetTest1
+  _targetsFromUniqueForTargetTest1: UniqueForTargetTest1
+  _targetFromUniqueForTargetTest2: UniqueForTargetTest2
+  _targetsFromUniqueForTargetTest2: UniqueForTargetTest2
+  _incomingTargetEdgeFromUniqueForTargetTest: _TargetEdgeFromUniqueForTargetTest
+  _incomingTargetsEdgeFromUniqueForTargetTest: _TargetsEdgeFromUniqueForTargetTest
+  _incomingTargetEdgeFromUniqueForTargetTest1: _TargetEdgeFromUniqueForTargetTest1
+  _incomingTargetsEdgeFromUniqueForTargetTest1: _TargetsEdgeFromUniqueForTargetTest1
+  _incomingTargetEdgeFromUniqueForTargetTest2: _TargetEdgeFromUniqueForTargetTest2
+  _incomingTargetsEdgeFromUniqueForTargetTest2: _TargetsEdgeFromUniqueForTargetTest2
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type UniqueForTargetTarget2 implements UniqueForTargetTarget {
+  testDummyField: Int
+  id: ID!
+  _targetFromUniqueForTargetTest: UniqueForTargetTest
+  _targetsFromUniqueForTargetTest: UniqueForTargetTest
+  _targetFromUniqueForTargetTest1: UniqueForTargetTest1
+  _targetsFromUniqueForTargetTest1: UniqueForTargetTest1
+  _targetFromUniqueForTargetTest2: UniqueForTargetTest2
+  _targetsFromUniqueForTargetTest2: UniqueForTargetTest2
+  _incomingTargetEdgeFromUniqueForTargetTest: _TargetEdgeFromUniqueForTargetTest
+  _incomingTargetsEdgeFromUniqueForTargetTest: _TargetsEdgeFromUniqueForTargetTest
+  _incomingTargetEdgeFromUniqueForTargetTest1: _TargetEdgeFromUniqueForTargetTest1
+  _incomingTargetsEdgeFromUniqueForTargetTest1: _TargetsEdgeFromUniqueForTargetTest1
+  _incomingTargetEdgeFromUniqueForTargetTest2: _TargetEdgeFromUniqueForTargetTest2
+  _incomingTargetsEdgeFromUniqueForTargetTest2: _TargetsEdgeFromUniqueForTargetTest2
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+interface UniqueForTargetTest {
   target: UniqueForTargetTarget @uniqueForTarget
   targets(filter: _FilterForUniqueForTargetTarget): [UniqueForTargetTarget] @uniqueForTarget
   id: ID!
   _outgoingTargetEdgesFromUniqueForTargetTest: _TargetEdgeFromUniqueForTargetTest
   _outgoingTargetsEdgesFromUniqueForTargetTest(filter: _FilterForTargetsEdgeFromUniqueForTargetTest): [_TargetsEdgeFromUniqueForTargetTest]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type UniqueForTargetTest1 implements UniqueForTargetTest {
+  target: UniqueForTargetTarget @uniqueForTarget @_uniqueForTarget_AccordingToInterface(interface: "UniqueForTargetTest")
+  targets(filter: _FilterForUniqueForTargetTarget): [UniqueForTargetTarget] @uniqueForTarget @_uniqueForTarget_AccordingToInterface(interface: "UniqueForTargetTest")
+  id: ID!
+  _outgoingTargetEdgesFromUniqueForTargetTest: _TargetEdgeFromUniqueForTargetTest
+  _outgoingTargetsEdgesFromUniqueForTargetTest(filter: _FilterForTargetsEdgeFromUniqueForTargetTest): [_TargetsEdgeFromUniqueForTargetTest]
+  _outgoingTargetEdgesFromUniqueForTargetTest1: _TargetEdgeFromUniqueForTargetTest1
+  _outgoingTargetsEdgesFromUniqueForTargetTest1(filter: _FilterForTargetsEdgeFromUniqueForTargetTest1): [_TargetsEdgeFromUniqueForTargetTest1]
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type UniqueForTargetTest2 implements UniqueForTargetTest {
+  target: UniqueForTargetTarget @uniqueForTarget @_uniqueForTarget_AccordingToInterface(interface: "UniqueForTargetTest")
+  targets(filter: _FilterForUniqueForTargetTarget): [UniqueForTargetTarget] @uniqueForTarget @_uniqueForTarget_AccordingToInterface(interface: "UniqueForTargetTest")
+  id: ID!
+  _outgoingTargetEdgesFromUniqueForTargetTest: _TargetEdgeFromUniqueForTargetTest
+  _outgoingTargetsEdgesFromUniqueForTargetTest(filter: _FilterForTargetsEdgeFromUniqueForTargetTest): [_TargetsEdgeFromUniqueForTargetTest]
+  _outgoingTargetEdgesFromUniqueForTargetTest2: _TargetEdgeFromUniqueForTargetTest2
+  _outgoingTargetsEdgesFromUniqueForTargetTest2(filter: _FilterForTargetsEdgeFromUniqueForTargetTest2): [_TargetsEdgeFromUniqueForTargetTest2]
   _creationDate: DateTime!
   _lastUpdateDate: DateTime
 }
@@ -698,6 +786,24 @@ input _FilterForTargetEdgeFromUniqueForTargetTest {
   _lastUpdateDate: _DateTimeFilter
 }
 
+input _FilterForTargetEdgeFromUniqueForTargetTest1 {
+  _and: [_FilterForTargetEdgeFromUniqueForTargetTest1]
+  _or: [_FilterForTargetEdgeFromUniqueForTargetTest1]
+  _not: _FilterForTargetEdgeFromUniqueForTargetTest1
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForTargetEdgeFromUniqueForTargetTest2 {
+  _and: [_FilterForTargetEdgeFromUniqueForTargetTest2]
+  _or: [_FilterForTargetEdgeFromUniqueForTargetTest2]
+  _not: _FilterForTargetEdgeFromUniqueForTargetTest2
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
 input _FilterForTargetsEdgeFromRequiredForTargetsTest {
   _and: [_FilterForTargetsEdgeFromRequiredForTargetsTest]
   _or: [_FilterForTargetsEdgeFromRequiredForTargetsTest]
@@ -716,6 +822,24 @@ input _FilterForTargetsEdgeFromUniqueForTargetTest {
   _lastUpdateDate: _DateTimeFilter
 }
 
+input _FilterForTargetsEdgeFromUniqueForTargetTest1 {
+  _and: [_FilterForTargetsEdgeFromUniqueForTargetTest1]
+  _or: [_FilterForTargetsEdgeFromUniqueForTargetTest1]
+  _not: _FilterForTargetsEdgeFromUniqueForTargetTest1
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForTargetsEdgeFromUniqueForTargetTest2 {
+  _and: [_FilterForTargetsEdgeFromUniqueForTargetTest2]
+  _or: [_FilterForTargetsEdgeFromUniqueForTargetTest2]
+  _not: _FilterForTargetsEdgeFromUniqueForTargetTest2
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
 input _FilterForUniqueForTargetTarget {
   _and: [_FilterForUniqueForTargetTarget]
   _or: [_FilterForUniqueForTargetTarget]
@@ -726,10 +850,48 @@ input _FilterForUniqueForTargetTarget {
   _lastUpdateDate: _DateTimeFilter
 }
 
+input _FilterForUniqueForTargetTarget1 {
+  _and: [_FilterForUniqueForTargetTarget1]
+  _or: [_FilterForUniqueForTargetTarget1]
+  _not: _FilterForUniqueForTargetTarget1
+  testDummyField: _IntFilter
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForUniqueForTargetTarget2 {
+  _and: [_FilterForUniqueForTargetTarget2]
+  _or: [_FilterForUniqueForTargetTarget2]
+  _not: _FilterForUniqueForTargetTarget2
+  testDummyField: _IntFilter
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
 input _FilterForUniqueForTargetTest {
   _and: [_FilterForUniqueForTargetTest]
   _or: [_FilterForUniqueForTargetTest]
   _not: _FilterForUniqueForTargetTest
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForUniqueForTargetTest1 {
+  _and: [_FilterForUniqueForTargetTest1]
+  _or: [_FilterForUniqueForTargetTest1]
+  _not: _FilterForUniqueForTargetTest1
+  id: _IDFilter
+  _creationDate: _DateTimeFilter
+  _lastUpdateDate: _DateTimeFilter
+}
+
+input _FilterForUniqueForTargetTest2 {
+  _and: [_FilterForUniqueForTargetTest2]
+  _or: [_FilterForUniqueForTargetTest2]
+  _not: _FilterForUniqueForTargetTest2
   id: _IDFilter
   _creationDate: _DateTimeFilter
   _lastUpdateDate: _DateTimeFilter
@@ -815,9 +977,16 @@ input _InputToConnectTargetOfRequiredForTargetTest {
   createRequiredForTargetTarget2: _InputToCreateRequiredForTargetTarget2
 }
 
-input _InputToConnectTargetOfUniqueForTargetTest {
+input _InputToConnectTargetOfUniqueForTargetTest1 {
   connect: ID
-  create: _InputToCreateUniqueForTargetTarget
+  createUniqueForTargetTarget1: _InputToCreateUniqueForTargetTarget1
+  createUniqueForTargetTarget2: _InputToCreateUniqueForTargetTarget2
+}
+
+input _InputToConnectTargetOfUniqueForTargetTest2 {
+  connect: ID
+  createUniqueForTargetTarget1: _InputToCreateUniqueForTargetTarget1
+  createUniqueForTargetTarget2: _InputToCreateUniqueForTargetTarget2
 }
 
 input _InputToConnectTargetsOfRequiredForTargetsTest {
@@ -826,9 +995,16 @@ input _InputToConnectTargetsOfRequiredForTargetsTest {
   createRequiredForTargetsTarget2: _InputToCreateRequiredForTargetsTarget2
 }
 
-input _InputToConnectTargetsOfUniqueForTargetTest {
+input _InputToConnectTargetsOfUniqueForTargetTest1 {
   connect: ID
-  create: _InputToCreateUniqueForTargetTarget
+  createUniqueForTargetTarget1: _InputToCreateUniqueForTargetTarget1
+  createUniqueForTargetTarget2: _InputToCreateUniqueForTargetTarget2
+}
+
+input _InputToConnectTargetsOfUniqueForTargetTest2 {
+  connect: ID
+  createUniqueForTargetTarget1: _InputToCreateUniqueForTargetTarget1
+  createUniqueForTargetTarget2: _InputToCreateUniqueForTargetTarget2
 }
 
 input _InputToCreateDistinctTest1 {
@@ -933,7 +1109,12 @@ input _InputToCreateTargetEdgeFromRequiredForTargetTest {
   targetID: ID!
 }
 
-input _InputToCreateTargetEdgeFromUniqueForTargetTest {
+input _InputToCreateTargetEdgeFromUniqueForTargetTest1 {
+  sourceID: ID!
+  targetID: ID!
+}
+
+input _InputToCreateTargetEdgeFromUniqueForTargetTest2 {
   sourceID: ID!
   targetID: ID!
 }
@@ -943,18 +1124,32 @@ input _InputToCreateTargetsEdgeFromRequiredForTargetsTest {
   targetID: ID!
 }
 
-input _InputToCreateTargetsEdgeFromUniqueForTargetTest {
+input _InputToCreateTargetsEdgeFromUniqueForTargetTest1 {
   sourceID: ID!
   targetID: ID!
 }
 
-input _InputToCreateUniqueForTargetTarget {
+input _InputToCreateTargetsEdgeFromUniqueForTargetTest2 {
+  sourceID: ID!
+  targetID: ID!
+}
+
+input _InputToCreateUniqueForTargetTarget1 {
   testDummyField: Int
 }
 
-input _InputToCreateUniqueForTargetTest {
-  target: _InputToConnectTargetOfUniqueForTargetTest @uniqueForTarget
-  targets: [_InputToConnectTargetsOfUniqueForTargetTest] @uniqueForTarget
+input _InputToCreateUniqueForTargetTarget2 {
+  testDummyField: Int
+}
+
+input _InputToCreateUniqueForTargetTest1 {
+  target: _InputToConnectTargetOfUniqueForTargetTest1 @uniqueForTarget @_uniqueForTarget_AccordingToInterface(interface: "UniqueForTargetTest")
+  targets: [_InputToConnectTargetsOfUniqueForTargetTest1] @uniqueForTarget @_uniqueForTarget_AccordingToInterface(interface: "UniqueForTargetTest")
+}
+
+input _InputToCreateUniqueForTargetTest2 {
+  target: _InputToConnectTargetOfUniqueForTargetTest2 @uniqueForTarget @_uniqueForTarget_AccordingToInterface(interface: "UniqueForTargetTest")
+  targets: [_InputToConnectTargetsOfUniqueForTargetTest2] @uniqueForTarget @_uniqueForTarget_AccordingToInterface(interface: "UniqueForTargetTest")
 }
 
 input _InputToUpdateDistinctTest1 {
@@ -1014,13 +1209,22 @@ input _InputToUpdateRequiredTest {
   requiredList: [_InputToConnectRequiredListOfRequiredTest]
 }
 
-input _InputToUpdateUniqueForTargetTarget {
+input _InputToUpdateUniqueForTargetTarget1 {
   testDummyField: Int
 }
 
-input _InputToUpdateUniqueForTargetTest {
-  target: _InputToConnectTargetOfUniqueForTargetTest @uniqueForTarget
-  targets: [_InputToConnectTargetsOfUniqueForTargetTest] @uniqueForTarget
+input _InputToUpdateUniqueForTargetTarget2 {
+  testDummyField: Int
+}
+
+input _InputToUpdateUniqueForTargetTest1 {
+  target: _InputToConnectTargetOfUniqueForTargetTest1 @uniqueForTarget @_uniqueForTarget_AccordingToInterface(interface: "UniqueForTargetTest")
+  targets: [_InputToConnectTargetsOfUniqueForTargetTest1] @uniqueForTarget @_uniqueForTarget_AccordingToInterface(interface: "UniqueForTargetTest")
+}
+
+input _InputToUpdateUniqueForTargetTest2 {
+  target: _InputToConnectTargetOfUniqueForTargetTest2 @uniqueForTarget @_uniqueForTarget_AccordingToInterface(interface: "UniqueForTargetTest")
+  targets: [_InputToConnectTargetsOfUniqueForTargetTest2] @uniqueForTarget @_uniqueForTarget_AccordingToInterface(interface: "UniqueForTargetTest")
 }
 
 input _IntFilter {
@@ -1142,10 +1346,34 @@ type _ListOfRequiredTests {
   content: [RequiredTest]!
 }
 
+type _ListOfUniqueForTargetTarget1s {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [UniqueForTargetTarget1]!
+}
+
+type _ListOfUniqueForTargetTarget2s {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [UniqueForTargetTarget2]!
+}
+
 type _ListOfUniqueForTargetTargets {
   totalCount: Int!
   isEndOfWholeList: Boolean!
   content: [UniqueForTargetTarget]!
+}
+
+type _ListOfUniqueForTargetTest1s {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [UniqueForTargetTest1]!
+}
+
+type _ListOfUniqueForTargetTest2s {
+  totalCount: Int!
+  isEndOfWholeList: Boolean!
+  content: [UniqueForTargetTest2]!
 }
 
 type _ListOfUniqueForTargetTests {
@@ -1265,9 +1493,25 @@ type _TargetEdgeFromRequiredForTargetTest {
   _lastUpdateDate: DateTime
 }
 
-type _TargetEdgeFromUniqueForTargetTest {
+interface _TargetEdgeFromUniqueForTargetTest {
   id: ID!
   source: UniqueForTargetTest!
+  target: UniqueForTargetTarget!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type _TargetEdgeFromUniqueForTargetTest1 implements _TargetEdgeFromUniqueForTargetTest {
+  id: ID!
+  source: UniqueForTargetTest1!
+  target: UniqueForTargetTarget!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type _TargetEdgeFromUniqueForTargetTest2 implements _TargetEdgeFromUniqueForTargetTest {
+  id: ID!
+  source: UniqueForTargetTest2!
   target: UniqueForTargetTarget!
   _creationDate: DateTime!
   _lastUpdateDate: DateTime
@@ -1281,9 +1525,25 @@ type _TargetsEdgeFromRequiredForTargetsTest {
   _lastUpdateDate: DateTime
 }
 
-type _TargetsEdgeFromUniqueForTargetTest {
+interface _TargetsEdgeFromUniqueForTargetTest {
   id: ID!
   source: UniqueForTargetTest!
+  target: UniqueForTargetTarget!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type _TargetsEdgeFromUniqueForTargetTest1 implements _TargetsEdgeFromUniqueForTargetTest {
+  id: ID!
+  source: UniqueForTargetTest1!
+  target: UniqueForTargetTarget!
+  _creationDate: DateTime!
+  _lastUpdateDate: DateTime
+}
+
+type _TargetsEdgeFromUniqueForTargetTest2 implements _TargetsEdgeFromUniqueForTargetTest {
+  id: ID!
+  source: UniqueForTargetTest2!
   target: UniqueForTargetTarget!
   _creationDate: DateTime!
   _lastUpdateDate: DateTime

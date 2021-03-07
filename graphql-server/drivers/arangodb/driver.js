@@ -1794,7 +1794,7 @@ function addDirectiveChecks(ctxt, info, opType, source, sourceType, target=null,
             checkDistinctDirective(ctxt, source, sourceType, fieldName);
         }
         if(sourceFieldDirectives.includes('uniqueForTarget')) {
-            checkUniqueForTargetDirective(ctxt, source, sourceType, fieldName);
+            checkUniqueForTargetDirective(ctxt, source, sourceType, fieldName, info.schema);
         }
         if(sourceFieldDirectives.includes('noloops')) {
             checkNoloopsDirective(ctxt, source, sourceType, fieldName);
@@ -1864,7 +1864,7 @@ function checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, f
     const edgeCollectionName = getEdgeCollectionName(sourceType.name, fieldName);
     const edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName, ctxt, true));
     let targetCollectionVar = null;
-    if (graphql.isInterfaceType(targetType) || graphql.isUnionType(targetType)) {
+    if (graphql.isInterfaceType(targetType)) {
         let aqlCollectionVars = [];
         for (let possibleType of Object.values(schema.getPossibleTypes(targetType))) {
             aqlCollectionVars.push(asAQLVar(getCollectionVar(possibleType.name)));
@@ -1891,13 +1891,43 @@ function checkRequiredForTargetDirective(ctxt, target, targetType, sourceType, f
  * @param {*} source 
  * @param {*} sourceType 
  * @param {*} fieldName 
+ * @param {*} schema 
  */
-function checkUniqueForTargetDirective(ctxt, source, sourceType, fieldName){
-    const collectionName = getEdgeCollectionName(sourceType.name, fieldName);
-    const collectionVar = asAQLVar(getCollectionVar(collectionName, ctxt, true));
+function checkUniqueForTargetDirective(ctxt, source, sourceType, fieldName, schema=null){
+    const outgoingEdgeCollectionName = getEdgeCollectionName(sourceType.name, fieldName);
+    const outgoingEdgeCollectionVar = asAQLVar(getCollectionVar(outgoingEdgeCollectionName));
+    let incomingEdgeCollectionVars = [];
+    
+    // If the field is defined in an interface with @uniqueForTarget, check for the interface
+    for(let interface of sourceType.getInterfaces()){
+        const interface_field = interface.getFields()[fieldName];
+        if(!interface_field) {
+            continue;
+        }
+        for(let interface_directive of interface_field.astNode['directives']){
+            if(interface_directive['name']['value'] == 'uniqueForTarget'){
+                for (let possibleType of Object.values(schema.getPossibleTypes(interface))) {
+                    const edgeCollectionName = getEdgeCollectionName(possibleType.name, fieldName);
+                    const edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName));
+                    incomingEdgeCollectionVars.push(edgeCollectionVar);
+                }
+            }
+        }
+    }
 
-    // The constraint is violated if an edge exists and the number of returning edges is greater than 1.
-    const query = `RETURN MAX(FOR v1 IN 1..1 OUTBOUND ${source} ${collectionVar} FOR v2 IN 1..1 INBOUND v1._id ${collectionVar} COLLECT ids = v1._id WITH COUNT INTO length RETURN length)`;
+    // If field is not defined by the an interface with @uniqueForTarget
+    if(incomingEdgeCollectionVars.length === 0){
+        const edgeCollectionName = getEdgeCollectionName(sourceType.name, fieldName);
+        const edgeCollectionVar = asAQLVar(getCollectionVar(edgeCollectionName));
+        incomingEdgeCollectionVars.push(edgeCollectionVar);
+    }
+
+    // The constraint is violated if an outging edge is not the only one pointing at the target
+    const query = `
+    FOR v1 IN 1..1 OUTBOUND ${source} ${outgoingEdgeCollectionVar}
+        FOR v2 IN 1..1 INBOUND v1._id ${incomingEdgeCollectionVars.join(',')}
+            COLLECT ids = v1._id WITH COUNT INTO length
+            RETURN length`;
     const error = `Field ${fieldName} in ${sourceType.name} is breaking a @uniqueForTarget directive!`;
     let check = `if(db._query(aql\`${query}\`).next() > 1){\n\tthrow "${error}";\n}`;
     ctxt.trans.finalConstraintChecks.push(check);

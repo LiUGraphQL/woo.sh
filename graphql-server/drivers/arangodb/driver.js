@@ -68,6 +68,7 @@ async function init(args) {
     let drop = args.drop || false;
     disableDirectivesChecking = args['disableDirectivesChecking'] || false;
     disableEdgeValidation = args['disableEdgeValidation'] || false;
+    cachingEnabled = args['cache'] === false ? false : true;
     db = new arangojs.Database({ url: url });
 
     // wait for ArangoDB
@@ -809,8 +810,17 @@ function deleteObject(isRoot, ctxt, varOrID, typeToDelete, info, resVar = null) 
 
     // directives handling
     addFinalDirectiveChecksForType(ctxt, typeToDelete, aql`${asAQLVar(resVar)}._id`, info.schema);
+
+    // invalidate cache
+    ctxt.trans.code.push(`
+        // remove from cache
+        cacheKey = ${idVar};
+        delete cache[cacheKey];
+    `);
+
     // return promises for roots and null for nested result
     ctxt.trans.code.push(`}`);
+
     return isRoot ? getResult(ctxt, info, resVar) : null;
 }
 
@@ -1246,7 +1256,7 @@ function validateEdge(ctxt, source, sourceType, sourceField, target, targetType,
  * @param typeOrInterface
  * @param schema
  */
-function exists(ctxt, id, typeOrInterface, schema) {
+function exists(ctxt, varOrID, typeOrInterface, schema) {
     let aqlCollectionVars = [];
     if (graphql.isInterfaceType(typeOrInterface) || graphql.isUnionType(typeOrInterface)) {
         for (let possibleType of Object.values(schema.getPossibleTypes(typeOrInterface))) {
@@ -1255,7 +1265,22 @@ function exists(ctxt, id, typeOrInterface, schema) {
     } else {
         aqlCollectionVars.push(asAQLVar(getCollectionVar(typeOrInterface.name)));
     }
-    ctxt.trans.code.push(`if(!db._query(aql\`FOR doc IN FLATTEN(FOR i IN [${aqlCollectionVars.join(', ')}] RETURN i) FILTER doc._id == ${id}  RETURN doc\`).next()){ throw \`Object '${id}' does not exist as instance of ${typeOrInterface}\`; }`);
+
+    let queries = [];
+    for(let collection of aqlCollectionVars){
+        queries.push(`LENGTH(FOR d IN ${collection} FILTER d._id == ${varOrID} LIMIT 1 RETURN true) > 0`);
+    }
+
+    // check cache
+    ctxt.trans.code.push(`cacheKey = ${varOrID.substring(2,varOrID.length-1)};
+        cache[cacheKey] = cache[cacheKey] === undefined ? [] : cache[cacheKey];
+        if(${cachingEnabled} && cache[cacheKey].includes('${typeOrInterface}')){
+            // skip cached
+        } else if(!db._query(aql\`RETURN ${queries.join(' || ')}\`).next()){
+            throw \`Object '${varOrID}' does not exist as instance of ${typeOrInterface}\`;
+        }
+        cache[cacheKey] = '${typeOrInterface}';
+    `);
 }
 
 /**
@@ -1283,7 +1308,9 @@ function initTransaction(ctxt) {
             code: [
                 'const db = require("@arangodb").db;',
                 'const {aql} = require("@arangodb");',
-                'let result = Object.create(null);'
+                'let result = Object.create(null);',
+                'let cache = Object.create(null);',
+                'let cacheKey = null;'
             ],
             finalConstraintChecks: [],
             exportedVariables: {}
@@ -1312,6 +1339,7 @@ async function executeTransaction(ctxt) {
 
     try {
         let action = `function(params){\n\t${ctxt.trans.code.join('\n\t')}\n\treturn result;\n}`;
+        
         console.debug(action);
         console.debug(ctxt.trans.params);
         ctxt.trans.results = await db.transaction(

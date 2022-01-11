@@ -77,7 +77,7 @@ describe('# authentication tests', () => {
             'disableEdgeValidation': false,
             'debug': false,
             'username': 'nouser',
-            'passsword': 'woosh1234'
+            'password': 'woosh1234'
         };
 
         console.info = () => {};

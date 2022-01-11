@@ -1,12 +1,12 @@
 # graphql-server
 This tool is the basis for automatically setting up a GraphQL server with a configurable
 database backend. The GraphQL server is based on [Apollo GraphQL](https://www.apollographql.com/) while the
-backend depends on a specific `driver`. The functionality of drivers and backends may differ when it
-comes to, e.g., transaction and concurrency support. For details, refer to the documentation provided for each
+backend depends on a specific `driver`. The functionality of drivers and backends may differ with respect to,
+e.g., transaction and concurrency support. For details, refer to the documentation provided for each
 driver.
 
 ## Run configuration
-The standard `woosh` app uses the `dotenv` module to load environment variables from the `.env` in the current directory. Note that the `.env` file should be not be pushed to git since it may contain sensitive information.
+The generated server uses the `dotenv` module to load environment variables from the a file in the run directory. The file should be named `.env` and is not to be pushed to git since it may contain sensitive information.
 
 The server can be configured at runtime by setting the following variables in the `.env` file:
 
@@ -45,7 +45,7 @@ $ ./woo.sh --input example/db-schema/starwars-db.graphql \
           --custom-resolvers example/custom-resolvers.js
 ```
 
-To run the example server, simply navigate to `example-server/`, install the necessary dependencies using `npm install` and fianlly run:
+To run the example server, simply navigate to `example-server/`, install the necessary dependencies using `npm install` and finally run:
 ```bash
 $ npm start
 ```

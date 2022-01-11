@@ -1,0 +1,4 @@
+extend type Query {
+    """Return the version number of this server"""
+    version: String!
+}

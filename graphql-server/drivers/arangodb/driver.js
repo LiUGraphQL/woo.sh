@@ -69,7 +69,11 @@ async function init(args) {
     disableDirectivesChecking = args['disableDirectivesChecking'] || false;
     disableEdgeValidation = args['disableEdgeValidation'] || false;
     cachingEnabled = args['cache'] === false ? false : true;
-    db = new arangojs.Database({ url: url });
+    db = new arangojs.Database({ url });
+    // authenticaton?
+    if(args.username && args.password){
+        db.useBasicAuth(args.username, args.password);
+    }
 
     // wait for ArangoDB
     console.info(`Waiting for ArangoDB to become available at ${url}`);

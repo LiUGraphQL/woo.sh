@@ -37,7 +37,7 @@
       "url": ""
     }
   ],
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "apollo-link-http": "1.5.17",
     "apollo-server": "2.14.3",

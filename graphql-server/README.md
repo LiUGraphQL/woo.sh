@@ -53,7 +53,7 @@ The server will wait for `arangodb` to become available at `http://localhost:852
 
 
 # Running tests
-In order to successfully run all `graphql-server` tests in a single run two instances of ArangoDB are needed. The first instance should not use any authentication and be exposed on the default port `8529`. The second instance should use authentication with the password `wooosh1234` for the `root` user and be exposed on port `8530`. This is most easily acomplished using docker:
+In order to successfully run all `graphql-server` tests in a single run two instances of ArangoDB are needed. The first instance should not use any authentication and be exposed on the default port `8529`. The second instance should use authentication with the password `woosh1234` for the `root` user and be exposed on port `8530`. This is most easily acomplished using docker:
 
 ```bash
 # Terminal 1

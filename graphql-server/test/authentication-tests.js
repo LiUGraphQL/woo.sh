@@ -130,7 +130,6 @@ describe('# authentication tests', () => {
             .catch(e => {
                 done(e);
             });
-            done();
     });
 });
 

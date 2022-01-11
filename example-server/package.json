@@ -1,7 +1,7 @@
 {
   "name": "graphql-server",
   "version": "1.0.0",
-  "description": "Woo.sh GraphQL Server",
+  "description": "woo.sh GraphQL Server",
   "main": "app.js",
   "repository": {
     "type": "git",

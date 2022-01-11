@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # This file:
 #
 #  - The woo.sh framework generates a complete GraphQL server from a GraphQL DB schema.

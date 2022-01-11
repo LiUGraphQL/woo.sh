@@ -49,7 +49,7 @@ To run the example server, simply navigate to `example-server/`, install the nec
 ```bash
 $ npm start
 ```
-The server will wait for `arangodb` to become available at `http://localhost:8529`. If your backend is password protected please provide the necessary authentication information in the `.env` file (see above). Visit `http://localhost:4000` to try out the server.
+The server will wait for `arangodb` to become available at `http://localhost:8529`. If your backend is password protected, you need to provide the necessary authentication information in the `.env` file (see above). Visit `http://localhost:4000` to try out the server.
 
 
 # Running tests

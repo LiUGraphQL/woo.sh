@@ -1,2 +1,2 @@
 graphql-core-next==1.0.5
-Mako==1.0.13
+Mako==1.2.2
